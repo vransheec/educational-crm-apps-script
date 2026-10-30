@@ -18,6 +18,17 @@ CRM educativo para la gestión de certificaciones profesionales en tecnología, 
 
 Ver [`ARCHITECTURE.md`](./ARCHITECTURE.md) para el detalle del modelo de datos, reglas de negocio e integraciones.
 
+```mermaid
+flowchart LR
+    UI[Frontend HTML<br/>en Apps Script] --> API[Backend .gs<br/>routing + lógica]
+    API --> DB[(Google Sheets<br/>Alumnos, Ventas, Pagos...)]
+    API --> DR[(Drive<br/>carpetas por sección)]
+    API --> CAL[Calendar<br/>eventos + Meet]
+    API --> CR[Classroom]
+    API --> MAIL[Email<br/>plantillas]
+    TR{{Triggers programados}} -.recordatorios / remarketing / cierres.-> API
+```
+
 ### Backend (`.gs`)
 | Módulo | Responsabilidad |
 |---|---|
