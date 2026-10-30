@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="frame-ancestors 'self' https://*.googleusercontent.com https://*.google.com">
+  <?!= includeWithBaseUrl('config'); ?>
+  <?!= include('styles'); ?>
+  <style>
+    .estructura-container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    .preview-card {
+      background: white;
+      border-radius: 8px;
+      padding: 30px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    
+    .folder-structure {
+      font-family: 'Courier New', monospace;
+      background: #f8f9fa;
+      padding: 20px;
+      border-radius: 8px;
+      border-left: 4px solid var(--primary);
+      margin: 20px 0;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    
+    .generate-btn {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 20px;
+    }
+    
+    .generate-btn:hover {
+      background: #1e3a8a;
+    }
+    
+    .generate-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    
+    .result-container {
+      margin-top: 20px;
+      padding: 20px;
+      border-radius: 8px;
+      display: none;
+    }
+    
+    .result-success {
+      background: #d1fae5;
+      border: 1px solid #10b981;
+      color: #065f46;
+    }
+    
+    .result-error {
+      background: #fee2e2;
+      border: 1px solid #ef4444;
+      color: #991b1b;
+    }
+    
+    .sheet-link {
+      display: inline-block;
+      background: var(--primary);
+      color: white;
+      padding: 10px 20px;
+      border-radius: 6px;
+      text-decoration: none;
+      margin-top: 10px;
+      font-weight: 600;
+    }
+    
+    .sheet-link:hover {
+      background: #1e3a8a;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <?!= includeWithCurrentPage('nav', 'estructura-carpetas'); ?>
+
+    <main class="main estructura-page">
+      <div class="estructura-container">
+        <div class="preview-card">
+          <h1 class="form-title">📁 Generador de Estructura de Carpetas</h1>
+          
+          <p style="color: #666; margin-bottom: 20px;">
+            Esta herramienta crea un Google Sheet con la estructura organizacional de carpetas para el Shared Drive A, 
+            incluyendo formato visual atractivo y fácil navegación.
+          </p>
+          
+          <div class="folder-structure">
+📁 SHARED DRIVE A - ESTRUCTURA PROPUESTA
+├── 📚 01. ACADÉMICO
+│   ├── 📖 Cursos Activos
+│   │   ├── 🔧 AWS Cloud Practitioner
+│   │   ├── ☁️ AWS Solutions Architect  
+│   │   ├── 🐍 Python para Data Science
+│   │   └── 📊 Power BI Avanzado
+│   ├── 📋 Plantillas y Recursos
+│   ├── 🎓 Certificaciones
+│   └── 📈 Evaluaciones
+├── 👥 02. RECURSOS HUMANOS
+│   ├── 👨‍🏫 Docentes
+│   ├── 📋 Políticas y Procedimientos
+│   └── 🎯 Capacitación Interna
+├── 📈 03. MARKETING Y VENTAS
+│   ├── 🎨 Diseño Gráfico
+│   ├── 📧 Email Marketing
+│   ├── 📱 Redes Sociales
+│   └── 💰 Propuestas Comerciales
+├── 💼 04. ADMINISTRACIÓN
+│   ├── 💳 Finanzas
+│   ├── 📊 Reportes y Analytics
+│   ├── 📋 Contratos y Legal
+│   └── 🔧 Operaciones
+├── 💻 05. TECNOLOGÍA
+│   ├── 🌐 Plataforma LMS
+│   ├── 🔒 Seguridad y Backups
+│   ├── 📱 Apps y Herramientas
+│   └── 📚 Documentación Técnica
+└── 🎯 06. PROYECTOS ESPECIALES
+    ├── 🚀 Nuevos Cursos 2026
+    ├── 🤝 Alianzas Estratégicas
+    └── 🌍 Expansión Internacional
+          </div>
+          
+          <div style="background: #e0f2fe; padding: 15px; border-radius: 8px; border-left: 4px solid var(--primary);">
+            <h4 style="margin: 0 0 10px 0; color: var(--primary);">✨ Características del Sheet:</h4>
+            <ul style="margin: 0; padding-left: 20px;">
+              <li>Estructura jerárquica visual con emojis</li>
+              <li>Colores diferenciados por nivel</li>
+              <li>Responsables asignados por área</li>
+              <li>Estados de carpetas (Activo, En Desarrollo, Planificado)</li>
+              <li>Filtros y búsqueda integrada</li>
+              <li>Formato profesional y fácil de leer</li>
+            </ul>
+          </div>
+          
+          <button class="generate-btn" onclick="generarEstructura()" id="generateBtn">
+            🚀 Generar Google Sheet con Estructura
+          </button>
+          
+          <div class="result-container" id="resultContainer">
+            <div id="resultContent"></div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <?!= include('footer'); ?>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    function generarEstructura() {
+      var btn = document.getElementById('generateBtn');
+      var resultContainer = document.getElementById('resultContainer');
+      
+      btn.disabled = true;
+      btn.textContent = '⏳ Generando estructura...';
+      resultContainer.style.display = 'none';
+      
+      google.script.run
+        .withSuccessHandler(function(resultado) {
+          console.log('✅ Resultado:', resultado);
+          if (resultado) {
+            mostrarResultado(resultado, resultado.success);
+          } else {
+            mostrarResultado({ message: 'No se recibió respuesta del servidor' }, false);
+          }
+        })
+        .withFailureHandler(function(error) {
+          console.error('❌ Error:', error);
+          mostrarResultado({ message: 'Error generando estructura: ' + error }, false);
+        })
+        .generarEstructuraCarpetasDirecto();
+    }
+    
+    function mostrarResultado(resultado, success) {
+      const btn = document.getElementById('generateBtn');
+      const resultContainer = document.getElementById('resultContainer');
+      const resultContent = document.getElementById('resultContent');
+      
+      // Rehabilitar botón
+      btn.disabled = false;
+      btn.textContent = '🚀 Generar Google Sheet con Estructura';
+      
+      // Mostrar resultado
+      resultContainer.style.display = 'block';
+      resultContainer.className = 'result-container ' + (success ? 'result-success' : 'result-error');
+      
+      if (success && resultado.success) {
+        resultContent.innerHTML = `
+          <h4>✅ Estructura creada exitosamente</h4>
+          <p>${resultado.message}</p>
+          <a href="${resultado.url}" target="_blank" class="sheet-link">
+            📊 Abrir Google Sheet
+          </a>
+        `;
+        showToast('Estructura de carpetas creada exitosamente', 'success');
+      } else {
+        resultContent.innerHTML = `
+          <h4>❌ Error al generar estructura</h4>
+          <p>${resultado.message}</p>
+        `;
+        showToast('Error al generar estructura', 'error');
+      }
+    }
+    
+    function showToast(message, type) {
+      var toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = 'toast show ' + type;
+      setTimeout(function() {
+        toast.classList.remove('show');
+      }, 3000);
+    }
+  </script>
+</body>
+</html>

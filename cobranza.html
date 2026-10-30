@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <?!= includeWithBaseUrl('config'); ?>
+  <?!= include('styles'); ?>
+</head>
+<body>
+  <div class="container">
+    <?!= includeWithCurrentPage('nav', currentPage); ?>
+    <main class="main cobranza-page" data-page="cobranza">
+      <div class="form-card">
+        <h1 class="form-title">💸 Gestión de Cobranza</h1>
+        
+        <!-- Cobranza por Sección -->
+        <div class="section" style="background:#f0f7ff;border:1px solid #bae6fd;border-radius:8px;padding:15px;margin-bottom:20px;">
+          <h2 class="section-title" style="margin-top:0;">📚 Cobranza por Sección</h2>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Seleccionar Sección</label>
+              <select id="cobranzaSeccion" onchange="cargarCobranzaSeccion()">
+                <option value="">-- Seleccionar sección --</option>
+              </select>
+            </div>
+            <div class="form-group" style="display:flex;align-items:flex-end;gap:8px;">
+              <button class="btn-submit" onclick="enviarRecordatorioSeccion()" id="btnEnviarSeccion" disabled style="padding:10px 16px;font-size:13px;">📧 Enviar a toda la sección</button>
+            </div>
+          </div>
+          <div id="cobranzaSeccionResultado" style="display:none;margin-top:15px;">
+            <table class="data-table" style="font-size:13px;">
+              <thead>
+                <tr>
+                  <th>Alumno</th>
+                  <th>Email</th>
+                  <th>Teléfono</th>
+                  <th>Saldo</th>
+                  <th>Cuota Pendiente</th>
+                  <th>Vencimiento</th>
+                  <th>Acción</th>
+                </tr>
+              </thead>
+              <tbody id="cobranzaSeccionBody"></tbody>
+            </table>
+          </div>
+        </div>
+        
+        <!-- Filtros -->
+        <div class="section">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Estado de Pago</label>
+              <select id="filtroEstado" onchange="aplicarFiltros()">
+                <option value="" selected>Todos</option>
+                <option value="Pago Pendiente">Pago Pendiente</option>
+                <option value="Pago Completo">Pago Completo</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Ordenar por</label>
+              <select id="filtroOrden" onchange="aplicarFiltros()">
+                <option value="saldo_desc">Mayor Saldo</option>
+                <option value="saldo_asc">Menor Saldo</option>
+                <option value="fecha_asc">Más Antiguo</option>
+                <option value="fecha_desc">Más Reciente</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Buscar Alumno</label>
+              <input type="text" id="filtroBusqueda" placeholder="Nombre, email o teléfono..." oninput="aplicarFiltros()">
+            </div>
+            <div class="form-group" style="display: flex; align-items: flex-end;">
+              <button class="btn-small" onclick="exportarCobranza()" style="width: 100%;">📥 Exportar</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Resumen -->
+        <div class="dashboard-grid" style="margin-bottom: 25px;">
+          <div class="stat-card">
+            <div class="icon">👥</div>
+            <div class="value" id="totalAlumnos">0</div>
+            <div class="label">Alumnos con Deuda</div>
+          </div>
+          <div class="stat-card" style="border-left: 4px solid #ef4444;">
+            <div class="icon">💰</div>
+            <div class="value negative" id="totalDeuda">$0</div>
+            <div class="label">Deuda Total</div>
+          </div>
+          <div class="stat-card">
+            <div class="icon">📊</div>
+            <div class="value" id="promedioDeuda">$0</div>
+            <div class="label">Promedio por Alumno</div>
+          </div>
+          <div class="stat-card">
+            <div class="icon">⏰</div>
+            <div class="value" id="antiguedad">0</div>
+            <div class="label">Días Promedio</div>
+          </div>
+        </div>
+
+        <!-- Tabla de Cobranza -->
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Alumno</th>
+                <th>Email</th>
+                <th>Teléfono</th>
+                <th>Sección</th>
+                <th>Modalidad</th>
+                <th>Precio Total</th>
+                <th>Pagado</th>
+                <th>Saldo</th>
+                <th>Días</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="cobranzaBody">
+              <tr><td colspan="11" style="text-align: center; padding: 40px;">
+                <div class="loading" style="margin: 0 auto;"></div>
+                <div style="margin-top: 10px;">Cargando datos...</div>
+              </td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+    <?!= include('footer'); ?>
+  </div>
+
+  <!-- Modal de Detalle -->
+  <div id="modalDetalle" class="modal" style="display: none;" onclick="if(event.target === this) cerrarModal()">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>📋 Detalle de Cobranza</h2>
+        <button class="btn-close" onclick="cerrarModal()">×</button>
+      </div>
+      <div class="modal-body" id="modalDetalleBody">
+        <!-- Contenido dinámico -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Recordatorio -->
+  <div id="modalRecordatorio" class="modal" style="display: none;" onclick="if(event.target === this) cerrarModalRecordatorio()">
+    <div class="modal-content modal-small">
+      <div class="modal-header">
+        <h2>📧 Vista Previa Correo de Cobranza</h2>
+        <button class="btn-close" onclick="cerrarModalRecordatorio()">×</button>
+      </div>
+      <div class="modal-body">
+        <div id="previewContent" style="max-height: 500px; overflow-y: auto; border: 1px solid #ddd; padding: 15px; background: white;">
+          <!-- Aquí se mostrará la vista previa del correo -->
+        </div>
+        <div class="form-actions" style="margin-top: 15px;">
+          <button type="button" class="btn-submit" onclick="enviarCorreoCobranza()">📧 Enviar Correo</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    var datosCobranza = [];
+    var datosFiltrados = [];
+
+    document.addEventListener('DOMContentLoaded', function() {
+      cargarCobranza();
+    });
+
+    function cargarCobranza() {
+      console.log('🔍 [cobranza] Cargando datos...');
+      google.script.run
+        .withSuccessHandler(function(data) {
+          console.log('✅ [cobranza] Datos recibidos:', data ? 'array' : 'null', 'length:', data ? data.length : 'N/A');
+          if (!data || !Array.isArray(data)) {
+            console.error('❌ [cobranza] Datos inválidos:', data);
+            datosCobranza = [];
+            document.getElementById('cobranzaBody').innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 40px;">Error: datos de cobranza inválidos (null)</td></tr>';
+            return;
+          }
+          datosCobranza = data;
+          aplicarFiltros();
+        })
+        .withFailureHandler(function(error) {
+          console.error('❌ [cobranza] Error:', error);
+          showToast('Error al cargar datos: ' + error.message, 'error');
+        })
+        .getCobranzaData();
+    }
+
+    function aplicarFiltros() {
+      if (!datosCobranza || datosCobranza.length === 0) {
+        return;
+      }
+      
+      var estado = document.getElementById('filtroEstado').value;
+      var orden = document.getElementById('filtroOrden').value;
+      var busqueda = document.getElementById('filtroBusqueda').value.toLowerCase();
+      var busquedaDigits = busqueda.replace(/[^\d]/g, '');
+
+      datosFiltrados = datosCobranza.filter(function(item) {
+        var matchEstado = !estado || item.Estado === estado;
+        var matchBusqueda = false;
+        if (!busqueda) {
+          matchBusqueda = true;
+        } else {
+          if (item.Alumno.toLowerCase().includes(busqueda) ||
+              item.Email.toLowerCase().includes(busqueda)) {
+            matchBusqueda = true;
+          }
+          // Búsqueda por teléfono: comparar solo dígitos
+          if (!matchBusqueda && busquedaDigits.length >= 4) {
+            var telDigits = String(item.Telefono || '').replace(/[^\d]/g, '');
+            if (telDigits.includes(busquedaDigits) || busquedaDigits.includes(telDigits)) {
+              matchBusqueda = true;
+            }
+          }
+          if (!matchBusqueda) {
+            if (String(item.Telefono || '').toLowerCase().includes(busqueda)) {
+              matchBusqueda = true;
+            }
+          }
+        }
+        return matchEstado && matchBusqueda;
+      });
+
+      // Ordenar
+      datosFiltrados.sort(function(a, b) {
+        switch(orden) {
+          case 'saldo_desc': return b.Saldo - a.Saldo;
+          case 'saldo_asc': return a.Saldo - b.Saldo;
+          case 'fecha_asc': return new Date(a.FechaMatricula) - new Date(b.FechaMatricula);
+          case 'fecha_desc': return new Date(b.FechaMatricula) - new Date(a.FechaMatricula);
+          default: return 0;
+        }
+      });
+
+      renderCobranza();
+      actualizarResumen();
+    }
+
+    function renderCobranza() {
+      var tbody = document.getElementById('cobranzaBody');
+      
+      if (datosFiltrados.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 40px;">🎉 No hay registros que coincidan con los filtros</td></tr>';
+        return;
+      }
+
+      var html = '';
+      datosFiltrados.forEach(function(item) {
+        var badgeClass = item.Estado === 'Pago Completo' ? 'badge-pagado' : 
+                        item.Estado === 'Pago Pendiente' ? 'badge-parcial' : 'badge-pendiente';
+        
+        var diasClass = item.Dias > 30 ? 'negative' : item.Dias > 15 ? 'warning' : '';
+        
+        html += '<tr>';
+        html += '<td><strong>' + item.Alumno + '</strong></td>';
+        html += '<td>' + item.Email + '</td>';
+        html += '<td>' + item.Telefono + '</td>';
+        html += '<td>' + item.Seccion + '</td>';
+        html += '<td>' + (item.Modalidad || 'Pro') + '</td>';
+        html += '<td>$' + item.PrecioTotal.toFixed(2) + '</td>';
+        html += '<td class="positive">$' + item.TotalPagado.toFixed(2) + '</td>';
+        html += '<td class="negative"><strong>$' + item.Saldo.toFixed(2) + '</strong></td>';
+        html += '<td class="' + diasClass + '">' + item.Dias + '</td>';
+        html += '<td><span class="badge ' + badgeClass + '">' + item.Estado + '</span></td>';
+        html += '<td>';
+        html += '<button class="btn-small" onclick="verDetalle(\'' + item.MatriculaId + '\')" title="Ver detalle completo">👁️</button> ';
+        html += '<button class="btn-small" onclick="verPreviewRecordatorio(\'' + item.MatriculaId + '\', \'' + item.Alumno + '\')" title="Vista previa correo cobranza">📧</button>';
+        html += '</td>';
+        html += '</tr>';
+      });
+      
+      tbody.innerHTML = html;
+    }
+
+    function actualizarResumen() {
+      var totalAlumnos = new Set(datosFiltrados.map(function(i) { return i.AlumnoId; })).size;
+      var totalDeuda = datosFiltrados.reduce(function(sum, i) { return sum + i.Saldo; }, 0);
+      var promedioDeuda = totalAlumnos > 0 ? totalDeuda / totalAlumnos : 0;
+      var promedioDias = datosFiltrados.length > 0 ? 
+        datosFiltrados.reduce(function(sum, i) { return sum + i.Dias; }, 0) / datosFiltrados.length : 0;
+
+      document.getElementById('totalAlumnos').textContent = totalAlumnos;
+      document.getElementById('totalDeuda').textContent = '$' + totalDeuda.toFixed(2);
+      document.getElementById('promedioDeuda').textContent = '$' + promedioDeuda.toFixed(2);
+      document.getElementById('antiguedad').textContent = Math.round(promedioDias);
+    }
+
+    function verDetalle(matriculaId) {
+      var item = datosFiltrados.find(function(i) { return i.MatriculaId === matriculaId; });
+      if (!item) return;
+
+      var html = '<div class="section">';
+      html += '<h3 class="section-title">👤 Información del Alumno</h3>';
+      html += '<p><strong>Nombre:</strong> ' + item.Alumno + '</p>';
+      html += '<p><strong>Email:</strong> ' + item.Email + '</p>';
+      html += '<p><strong>Teléfono:</strong> ' + item.Telefono + '</p>';
+      html += '<p><strong>País:</strong> ' + item.Pais + '</p>';
+      html += '</div>';
+
+      html += '<div class="section">';
+      html += '<h3 class="section-title">📚 Información de la Matrícula</h3>';
+      html += '<p><strong>Sección:</strong> ' + item.Seccion + '</p>';
+      html += '<p><strong>Precio Total:</strong> $' + item.PrecioTotal.toFixed(2) + '</p>';
+      html += '<p><strong>Total Pagado:</strong> <span class="positive">$' + item.TotalPagado.toFixed(2) + '</span></p>';
+      html += '<p><strong>Saldo Pendiente:</strong> <span class="negative">$' + item.Saldo.toFixed(2) + '</span></p>';
+      html += '<p><strong>Fecha Matrícula:</strong> ' + item.FechaMatricula + '</p>';
+      html += '<p><strong>Días desde matrícula:</strong> ' + item.Dias + '</p>';
+      html += '</div>';
+
+      if (item.Pagos && item.Pagos.length > 0) {
+        html += '<div class="section">';
+        html += '<h3 class="section-title">💳 Historial de Pagos</h3>';
+        html += '<table class="data-table">';
+        html += '<thead><tr><th>Cuota</th><th>Monto</th><th>Medio</th><th>Fecha</th></tr></thead>';
+        html += '<tbody>';
+        item.Pagos.forEach(function(p) {
+          html += '<tr>';
+          html += '<td>' + p.NumeroCuota + '</td>';
+          html += '<td class="positive">$' + p.Monto.toFixed(2) + '</td>';
+          html += '<td>' + p.MedioPago + '</td>';
+          html += '<td>' + p.FechaPago + '</td>';
+          html += '</tr>';
+        });
+        html += '</tbody></table>';
+        html += '</div>';
+      }
+
+      if (item.Recordatorios && item.Recordatorios.length > 0) {
+        html += '<div class="section">';
+        html += '<h3 class="section-title">📝 Historial de Recordatorios</h3>';
+        html += '<table class="data-table">';
+        html += '<thead><tr><th>Fecha</th><th>Tipo</th><th>Notas</th></tr></thead>';
+        html += '<tbody>';
+        item.Recordatorios.forEach(function(r) {
+          html += '<tr>';
+          html += '<td>' + r.Fecha + '</td>';
+          html += '<td>' + r.Tipo + '</td>';
+          html += '<td>' + (r.Notas || '-') + '</td>';
+          html += '</tr>';
+        });
+        html += '</tbody></table>';
+        html += '</div>';
+      }
+
+      html += '<div class="form-actions">';
+      html += '<button class="btn-submit" onclick="irAPagos(\'' + item.AlumnoId + '\')">💳 Registrar Pago</button>';
+      html += '</div>';
+
+      document.getElementById('modalDetalleBody').innerHTML = html;
+      document.getElementById('modalDetalle').style.display = 'flex';
+    }
+
+    function cerrarModal() {
+      document.getElementById('modalDetalle').style.display = 'none';
+    }
+
+    function verPreviewRecordatorio(matriculaId, alumno) {
+      // Buscar datos del alumno y matrícula
+      var matricula = datosCobranza.find(item => item.MatriculaId === matriculaId);
+      if (!matricula) {
+        alert('No se encontró información de la matrícula');
+        return;
+      }
+      
+      // Preparar parámetros para la plantilla
+      parametrosCorreoActual = {
+        alumno_id: matricula.AlumnoId,
+        buscar_alumno: matricula.Alumno,
+        email_alumno: matricula.Email,
+        cuotas_pendientes: matriculaId + '_cuota_1' // Formato esperado por la plantilla
+      };
+      
+      mostrarLoading('Generando vista previa...');
+      
+      google.script.run
+        .withSuccessHandler(function(html) {
+          ocultarLoading();
+          if (html && html.trim() !== '') {
+            // Mostrar el HTML en el modal
+            document.getElementById('previewContent').innerHTML = html;
+            document.getElementById('modalRecordatorio').style.display = 'flex';
+          } else {
+            alert('Error: No se pudo generar la vista previa');
+          }
+        })
+        .withFailureHandler(function(error) {
+          ocultarLoading();
+          alert('Error generando vista previa: ' + error.toString());
+        })
+        .generarPreviewPlantilla('recordatorio-pago', parametrosCorreoActual);
+    }
+
+    function cerrarModalRecordatorio() {
+      document.getElementById('modalRecordatorio').style.display = 'none';
+      document.getElementById('previewContent').innerHTML = '';
+    }
+
+    var parametrosCorreoActual = null;
+
+    function enviarCorreoCobranza() {
+      if (!parametrosCorreoActual) {
+        alert('Error: No hay parámetros de correo disponibles');
+        return;
+      }
+      
+      if (!confirm('¿Está seguro de enviar este correo de recordatorio de pago?')) {
+        return;
+      }
+      
+      mostrarLoading('Enviando correo...');
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          ocultarLoading();
+          if (result.success) {
+            mostrarToast('✅ Correo enviado exitosamente', 'success');
+            cerrarModalRecordatorio();
+          } else {
+            alert('Error enviando correo: ' + result.message);
+          }
+        })
+        .withFailureHandler(function(error) {
+          ocultarLoading();
+          alert('Error enviando correo: ' + error.toString());
+        })
+        .enviarPlantilla('recordatorio-pago', parametrosCorreoActual);
+    }
+
+    function guardarRecordatorio(event) {
+      event.preventDefault();
+      
+      var data = {
+        matriculaId: document.getElementById('recordatorioMatriculaId').value,
+        tipo: document.getElementById('recordatorioTipo').value,
+        notas: document.getElementById('recordatorioNotas').value
+      };
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            showToast(result.message, 'success');
+            cerrarModalRecordatorio();
+            cargarCobranza();
+          } else {
+            showToast('Error: ' + result.message, 'error');
+          }
+        })
+        .withFailureHandler(function(error) {
+          showToast('Error: ' + error.message, 'error');
+        })
+        .saveRecordatorio(data);
+    }
+
+    function irAPagos(alumnoId) {
+      window.top.location.href = window.APP_BASE_URL + '?page=pagos&alumno=' + alumnoId;
+    }
+
+    function exportarCobranza() {
+      var csv = 'Alumno,Email,Teléfono,Sección,Precio Total,Pagado,Saldo,Días,Estado\n';
+      datosFiltrados.forEach(function(item) {
+        csv += '"' + item.Alumno + '","' + item.Email + '","' + item.Telefono + '","' + item.Seccion + '",';
+        csv += item.PrecioTotal + ',' + item.TotalPagado + ',' + item.Saldo + ',' + item.Dias + ',"' + item.Estado + '"\n';
+      });
+
+      var blob = new Blob([csv], { type: 'text/csv' });
+      var url = window.URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'cobranza_' + new Date().toISOString().split('T')[0] + '.csv';
+      a.click();
+      showToast('Archivo exportado exitosamente', 'success');
+    }
+
+    function showToast(message, type) {
+      var toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = 'toast ' + type + ' show';
+      setTimeout(function() { toast.classList.remove('show'); }, 4000);
+    }
+
+    // === COBRANZA POR SECCIÓN ===
+    var seccionesDisponibles = [];
+    var alumnosSeccionPendientes = [];
+
+    // Cargar secciones al inicio
+    (function() {
+      google.script.run
+        .withSuccessHandler(function(secciones) {
+          seccionesDisponibles = secciones || [];
+          var select = document.getElementById('cobranzaSeccion');
+          // Filtrar solo secciones activas/programadas/en curso con código
+          var activas = secciones.filter(function(s) {
+            return s.Codigo && s.Codigo.trim() !== '' && 
+                   (s.Estado === 'Programada' || s.Estado === 'En Curso' || s.Estado === 'Activa');
+          });
+          activas.forEach(function(s) {
+            var opt = document.createElement('option');
+            opt.value = s.Codigo;
+            opt.textContent = s.Codigo + ' - ' + s.NombreCurso + ' (' + s.Estado + ')';
+            select.appendChild(opt);
+          });
+        })
+        .getSecciones();
+    })();
+
+    function cargarCobranzaSeccion() {
+      var seccion = document.getElementById('cobranzaSeccion').value;
+      var resultado = document.getElementById('cobranzaSeccionResultado');
+      var btnEnviar = document.getElementById('btnEnviarSeccion');
+      
+      if (!seccion) {
+        resultado.style.display = 'none';
+        btnEnviar.disabled = true;
+        return;
+      }
+      
+      // Filtrar alumnos con saldo pendiente en esta sección
+      alumnosSeccionPendientes = datosCobranza.filter(function(item) {
+        return item.Seccion === seccion && item.Saldo > 0;
+      });
+      
+      var tbody = document.getElementById('cobranzaSeccionBody');
+      
+      if (alumnosSeccionPendientes.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;">✅ No hay pagos pendientes en esta sección</td></tr>';
+        resultado.style.display = 'block';
+        btnEnviar.disabled = true;
+        return;
+      }
+      
+      var html = '';
+      alumnosSeccionPendientes.forEach(function(item) {
+        var cuotaInfo = '';
+        var vencimiento = '-';
+        // Mostrar cuota pendiente correctamente
+        if (item.Saldo <= 0) {
+          cuotaInfo = '-';
+        } else if (item.CuotasPendientes && item.CuotasPendientes.length > 0) {
+          // Encontrar la siguiente cuota no pagada (número > pagos realizados)
+          var proxCuota = item.CuotasPendientes[0];
+          cuotaInfo = 'Cuota ' + proxCuota.numero + ': $' + proxCuota.monto.toFixed(2);
+          vencimiento = proxCuota.fechaVencimiento || '-';
+        } else {
+          cuotaInfo = 'Saldo: $' + item.Saldo.toFixed(2);
+        }
+        
+        html += '<tr>';
+        html += '<td><strong>' + item.Alumno + '</strong></td>';
+        html += '<td>' + item.Email + '</td>';
+        html += '<td>' + (item.Telefono || '-') + '</td>';
+        html += '<td class="negative">$' + item.Saldo.toFixed(2) + '</td>';
+        html += '<td>' + cuotaInfo + '</td>';
+        html += '<td>' + vencimiento + '</td>';
+        html += '<td><button class="btn-small" onclick="enviarRecordatorioIndividual(\'' + item.MatriculaId + '\', \'' + item.Alumno.replace(/'/g, '') + '\')" style="background:#2563eb;">📧 Enviar</button></td>';
+        html += '</tr>';
+      });
+      
+      tbody.innerHTML = html;
+      resultado.style.display = 'block';
+      btnEnviar.disabled = false;
+    }
+
+    function enviarRecordatorioIndividual(matriculaId, nombreAlumno) {
+      if (!confirm('¿Enviar recordatorio de pago a ' + nombreAlumno + '?')) return;
+      
+      var item = datosCobranza.find(function(i) { return i.MatriculaId === matriculaId; });
+      if (!item) { showToast('Matrícula no encontrada', 'error'); return; }
+      
+      showToast('Enviando recordatorio...', 'info');
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result && result.success) {
+            showToast('✅ Recordatorio enviado a ' + nombreAlumno, 'success');
+          } else {
+            showToast('Error: ' + (result ? result.message : 'Sin respuesta'), 'error');
+          }
+        })
+        .withFailureHandler(function(error) {
+          showToast('Error: ' + error.message, 'error');
+        })
+        .enviarRecordatorioManual(matriculaId);
+    }
+
+    function enviarRecordatorioSeccion() {
+      if (alumnosSeccionPendientes.length === 0) {
+        showToast('No hay alumnos con pagos pendientes', 'warning');
+        return;
+      }
+      
+      if (alumnosSeccionPendientes.length > 20) {
+        showToast('⚠️ Hay más de 20 alumnos. Se enviarán los primeros 20 para evitar límites de spam.', 'warning');
+      }
+      
+      var cantidad = Math.min(alumnosSeccionPendientes.length, 20);
+      if (!confirm('¿Enviar recordatorio de pago a ' + cantidad + ' alumno(s) de esta sección?')) return;
+      
+      var matriculaIds = alumnosSeccionPendientes.slice(0, 20).map(function(i) { return i.MatriculaId; });
+      
+      showToast('Enviando ' + cantidad + ' recordatorios...', 'info');
+      document.getElementById('btnEnviarSeccion').disabled = true;
+      document.getElementById('btnEnviarSeccion').textContent = '⏳ Enviando...';
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          document.getElementById('btnEnviarSeccion').disabled = false;
+          document.getElementById('btnEnviarSeccion').textContent = '📧 Enviar a toda la sección';
+          if (result && result.success) {
+            showToast('✅ ' + result.enviados + ' recordatorios enviados', 'success');
+          } else {
+            showToast('Error: ' + (result ? result.message : 'Sin respuesta'), 'error');
+          }
+        })
+        .withFailureHandler(function(error) {
+          document.getElementById('btnEnviarSeccion').disabled = false;
+          document.getElementById('btnEnviarSeccion').textContent = '📧 Enviar a toda la sección';
+          showToast('Error: ' + error.message, 'error');
+        })
+        .enviarRecordatoriosMasivo(matriculaIds);
+    }
+  </script>
+</body>
+</html>

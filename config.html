@@ -1,0 +1,9 @@
+<!-- Dynamic URL Configuration - Server-side injected -->
+<script>
+  window.APP_BASE_URL = '<?= baseUrl ?>';
+  window.APP_CONFIG = {
+    getPageUrl: function(page) {
+      return window.APP_BASE_URL + '?page=' + page;
+    }
+  };
+</script>

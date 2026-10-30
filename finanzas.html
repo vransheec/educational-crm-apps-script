@@ -1,0 +1,1157 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <?!= includeWithBaseUrl('config'); ?>
+  <?!= include('styles'); ?>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    .finanzas-tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+    .finanzas-tab { padding: 10px 20px; border: 2px solid #e5e7eb; border-radius: 8px; background: white; cursor: pointer; font-weight: 600; font-size: 13px; transition: all 0.2s; }
+    .finanzas-tab.active { background: #2563eb; color: white; border-color: #2563eb; }
+    .finanzas-tab:hover:not(.active) { border-color: #2563eb; color: #2563eb; }
+    .finanzas-section { display: none; }
+    .finanzas-section.active { display: block; }
+    .chart-container { position: relative; height: 350px; margin: 20px 0; }
+    .resumen-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 25px; }
+    .resumen-card { padding: 15px; border-radius: 8px; text-align: center; }
+    .resumen-card .valor { font-size: 22px; font-weight: 700; }
+    .resumen-card .etiqueta { font-size: 12px; color: #6b7280; margin-top: 4px; }
+    .card-bruto { background: #dbeafe; border: 1px solid #93c5fd; }
+    .card-bruto .valor { color: #1d4ed8; }
+    .card-comisiones { background: #fef3c7; border: 1px solid #fcd34d; }
+    .card-comisiones .valor { color: #92400e; }
+    .card-gastos-f { background: #fee2e2; border: 1px solid #fca5a5; }
+    .card-gastos-f .valor { color: #dc2626; }
+    .card-gastos-v { background: #fce7f3; border: 1px solid #f9a8d4; }
+    .card-gastos-v .valor { color: #be185d; }
+    .card-neto { background: #d1fae5; border: 1px solid #6ee7b7; }
+    .card-neto .valor { color: #065f46; }
+    .crud-form { background: #f9fafb; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e5e7eb; }
+    .crud-form .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 12px; }
+    .crud-form label { font-size: 12px; font-weight: 600; color: #374151; display: block; margin-bottom: 4px; }
+    .crud-form input, .crud-form select, .crud-form textarea { width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; box-sizing: border-box; }
+    .crud-actions { display: flex; gap: 10px; margin-top: 12px; }
+    .btn-primary { background: #2563eb; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px; }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-danger { background: #dc2626; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+    .btn-edit { background: #f59e0b; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+    .btn-secondary { background: #6b7280; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px; }
+    .comisiones-table input { width: 80px; padding: 6px; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <?!= includeWithCurrentPage('nav', currentPage); ?>
+
+    <main class="main finanzas-page" data-page="finanzas">
+      <h1 class="form-title">💰 Finanzas</h1>
+
+      <div class="finanzas-tabs">
+        <button class="finanzas-tab active" onclick="showFinanzasTab('dashboard')">📊 Dashboard Financiero</button>
+        <button class="finanzas-tab" onclick="showFinanzasTab('gastos-fijos')">🏢 Gastos Fijos</button>
+        <button class="finanzas-tab" onclick="showFinanzasTab('gastos-variables')">📝 Gastos Variables</button>
+        <button class="finanzas-tab" onclick="showFinanzasTab('comisiones')">💳 Comisiones</button>
+      </div>
+
+      <!-- TAB: Dashboard Financiero -->
+      <div id="section-dashboard" class="finanzas-section active">
+        <div class="form-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+            <h2 class="section-title" style="margin:0;">📊 Ingresos Netos Mensuales</h2>
+            <div style="display:flex;gap:10px;align-items:center;">
+              <div>
+                <label style="font-weight:600;font-size:13px;margin-right:4px;">Desde:</label>
+                <select id="filtroDesde" onchange="cargarDashboardFinanciero()" style="padding:8px 12px;border:2px solid #e5e7eb;border-radius:6px;font-size:13px;">
+                  <option value="0">Enero</option>
+                  <option value="1">Febrero</option>
+                  <option value="2">Marzo</option>
+                  <option value="3">Abril</option>
+                  <option value="4" selected>Mayo</option>
+                  <option value="5">Junio</option>
+                  <option value="6">Julio</option>
+                  <option value="7">Agosto</option>
+                  <option value="8">Septiembre</option>
+                  <option value="9">Octubre</option>
+                  <option value="10">Noviembre</option>
+                  <option value="11">Diciembre</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-weight:600;font-size:13px;margin-right:4px;">Año:</label>
+                <select id="filtroAnio" onchange="cargarDashboardFinanciero()" style="padding:8px 12px;border:2px solid #e5e7eb;border-radius:6px;font-size:13px;">
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div id="resumenFinanciero" class="resumen-grid">
+            <p>Cargando...</p>
+          </div>
+
+          <div class="chart-container">
+            <canvas id="chartFinanciero"></canvas>
+          </div>
+
+          <h3 style="margin-top:30px;">📋 Detalle Mensual</h3>
+          <div id="diagnosticoInfo" style="display:none;background:#fff3cd;border:1px solid #ffc107;padding:12px;border-radius:6px;margin-bottom:15px;font-size:12px;"></div>
+          <button onclick="ejecutarDiagnostico()" style="margin-bottom:10px;padding:6px 12px;font-size:11px;background:#f59e0b;color:white;border:none;border-radius:4px;cursor:pointer;">🔍 Diagnosticar datos de Pagos</button>
+
+          <!-- Proyección próximo mes -->
+          <div id="proyeccionContainer" style="margin-bottom:20px;padding:15px;background:#f0f7ff;border:2px solid #93c5fd;border-radius:8px;display:none;">
+            <h4 style="margin:0 0 10px 0;color:#1d4ed8;">🔮 Proyección Gastos Fijos — <span id="proyeccionMes"></span></h4>
+            <div id="proyeccionBody"></div>
+            <div style="margin-top:10px;font-weight:700;font-size:15px;color:#1d4ed8;">Total proyectado: $<span id="proyeccionTotal">0</span></div>
+          </div>
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Mes</th>
+                  <th>Ingresos Brutos</th>
+                  <th>Comisiones</th>
+                  <th>Gastos Fijos</th>
+                  <th>Gastos Variables</th>
+                  <th>Ingreso Neto</th>
+                </tr>
+              </thead>
+              <tbody id="tablaFinanciera">
+                <tr><td colspan="6">Cargando...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: Gastos Fijos -->
+      <div id="section-gastos-fijos" class="finanzas-section">
+        <div class="form-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+            <h2 class="section-title" style="margin:0;">🏢 Gastos Fijos</h2>
+            <button class="btn-primary" onclick="mostrarFormGastoFijo()">+ Nuevo Gasto Fijo</button>
+          </div>
+
+          <div id="formGastoFijo" class="crud-form" style="display:none;">
+            <h3 id="tituloFormGF" style="margin-top:0;">Nuevo Gasto Fijo</h3>
+            <input type="hidden" id="gf_id">
+            <div class="form-row">
+              <div>
+                <label>Tipo *</label>
+                <select id="gf_tipo" onchange="onGFTipoChange()">
+                  <option value="">Seleccionar...</option>
+                  <option value="Licencia">Licencia</option>
+                  <option value="Salarios">Salarios</option>
+                </select>
+              </div>
+              <div id="gf_trabajador_container" style="display:none;">
+                <label>Trabajador *</label>
+                <select id="gf_trabajador">
+                  <option value="">Seleccionar...</option>
+                  <option value="Advisor 1">Advisor 1</option>
+                  <option value="Advisor 2">Advisor 2</option>
+                  <option value="Dr Zapata">Dr Zapata</option>
+                </select>
+              </div>
+              <div>
+                <label>Concepto *</label>
+                <input type="text" id="gf_concepto" placeholder="Ej: Google Workspace">
+              </div>
+              <div>
+                <label>Monto (USD) *</label>
+                <input type="number" id="gf_monto" step="0.01" min="0">
+              </div>
+            </div>
+            <div class="form-row">
+              <div>
+                <label>Frecuencia</label>
+                <select id="gf_frecuencia">
+                  <option value="mensual">Mensual</option>
+                  <option value="bimestral">Bimestral</option>
+                  <option value="trimestral">Trimestral</option>
+                  <option value="semestral">Semestral</option>
+                  <option value="anual">Anual</option>
+                </select>
+              </div>
+              <div>
+                <label>Fecha Inicio</label>
+                <input type="date" id="gf_fechaInicio">
+              </div>
+              <div>
+                <label>Fecha Fin (vacío = indefinido)</label>
+                <input type="date" id="gf_fechaFin">
+              </div>
+              <div>
+                <label>Activo</label>
+                <select id="gf_activo">
+                  <option value="Sí">Sí</option>
+                  <option value="No">No</option>
+                </select>
+              </div>
+              <div>
+                <label>Comprobante (PDF/Imagen)</label>
+                <input type="file" id="gf_factura" accept=".pdf,.jpg,.jpeg,.png">
+              </div>
+            </div>
+            <div id="gf_factura_link" style="display:none;margin-bottom:10px;font-size:12px;">
+              📎 <a id="gf_factura_url" href="#" target="_blank" style="color:#2563eb;">Ver comprobante actual</a>
+            </div>
+            <div class="crud-actions">
+              <button class="btn-primary" onclick="guardarGastoFijo()">💾 Guardar</button>
+              <button class="btn-secondary" onclick="cancelarFormGF()">Cancelar</button>
+            </div>
+          </div>
+
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Tipo</th>
+                  <th>Concepto</th>
+                  <th>Monto</th>
+                  <th>Frecuencia</th>
+                  <th>Inicio</th>
+                  <th>Fin</th>
+                  <th>Activo</th>
+                  <th>Archivo</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="tablaGastosFijos">
+                <tr><td colspan="9">Cargando...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: Gastos Variables -->
+      <div id="section-gastos-variables" class="finanzas-section">
+        <div class="form-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+            <h2 class="section-title" style="margin:0;">📝 Gastos Variables</h2>
+            <div style="display:flex;gap:8px;">
+              <button class="btn-secondary" onclick="calcularGastosDocentes()" style="background:#7c3aed;">🎓 Calcular Pagos Docentes</button>
+              <button class="btn-primary" onclick="mostrarFormGastoVariable()">+ Nuevo Gasto Variable</button>
+            </div>
+          </div>
+
+          <div id="formGastoVariable" class="crud-form" style="display:none;">
+            <h3 id="tituloFormGV" style="margin-top:0;">Nuevo Gasto Variable</h3>
+            <input type="hidden" id="gv_id">
+            <div class="form-row">
+              <div>
+                <label>Tipo *</label>
+                <select id="gv_tipo">
+                  <option value="">Seleccionar...</option>
+                  <option value="Pauta">Pauta</option>
+                  <option value="Gastos RRHH">Gastos por Actividades RRHH</option>
+                  <option value="Docente">Docente</option>
+                  <option value="Servicio">Servicio</option>
+                  <option value="Material">Material</option>
+                  <option value="Evento">Evento</option>
+                  <option value="Otro">Otro</option>
+                </select>
+              </div>
+              <div>
+                <label>Concepto *</label>
+                <input type="text" id="gv_concepto" placeholder="Ej: Meta Ads mayo, Diseño certificados">
+              </div>
+              <div>
+                <label>Monto (USD) *</label>
+                <input type="number" id="gv_monto" step="0.01" min="0">
+              </div>
+            </div>
+            <div class="form-row">
+              <div>
+                <label>Fecha *</label>
+                <input type="date" id="gv_fecha">
+              </div>
+              <div>
+                <label>Categoría</label>
+                <select id="gv_categoria">
+                  <option value="">Sin categoría</option>
+                  <option value="Marketing">Marketing</option>
+                  <option value="Operaciones">Operaciones</option>
+                  <option value="Tecnología">Tecnología</option>
+                  <option value="Eventos">Eventos</option>
+                  <option value="Otro">Otro</option>
+                </select>
+              </div>
+              <div>
+                <label>Factura (PDF/Imagen)</label>
+                <input type="file" id="gv_factura" accept=".pdf,.jpg,.jpeg,.png">
+              </div>
+            </div>
+            <div class="form-row">
+              <div style="grid-column: 1 / -1;">
+                <label>Notas</label>
+                <textarea id="gv_notas" rows="2" placeholder="Notas adicionales..."></textarea>
+              </div>
+            </div>
+            <div class="crud-actions">
+              <button class="btn-primary" onclick="guardarGastoVariable()">💾 Guardar</button>
+              <button class="btn-secondary" onclick="cancelarFormGV()">Cancelar</button>
+            </div>
+          </div>
+
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Tipo</th>
+                  <th>Concepto</th>
+                  <th>Monto</th>
+                  <th>Categoría</th>
+                  <th>Factura</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="tablaGastosVariables">
+                <tr><td colspan="7">Cargando...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: Comisiones -->
+      <div id="section-comisiones" class="finanzas-section">
+        <div class="form-card">
+          <h2 class="section-title">💳 Tabla de Comisiones por Medio de Pago</h2>
+          <p style="font-size:13px;color:#6b7280;margin-bottom:15px;">
+            Las comisiones se aplican automáticamente al calcular el ingreso neto. 
+            El IGV se aplica SOBRE el porcentaje de comisión. Nacional = Perú.
+          </p>
+
+          <div class="table-container">
+            <table class="data-table comisiones-table">
+              <thead>
+                <tr>
+                  <th>Medio de Pago</th>
+                  <th>% Nacional</th>
+                  <th>% Internacional</th>
+                  <th>Monto Fijo ($)</th>
+                  <th>IGV (%)</th>
+                </tr>
+              </thead>
+              <tbody id="tablaComisiones">
+                <tr><td colspan="5">Cargando...</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div style="margin-top:15px;display:flex;gap:10px;">
+            <button class="btn-primary" onclick="guardarComisiones()">💾 Guardar Cambios</button>
+            <button class="btn-secondary" onclick="agregarFilaComision()">+ Agregar Medio de Pago</button>
+          </div>
+        </div>
+      </div>
+
+    </main>
+    <?!= include('footer'); ?>
+  </div>
+
+  <!-- Modal Excepciones -->
+  <div id="modalExcepciones" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:1000;justify-content:center;align-items:center;" onclick="if(event.target===this)this.style.display='none'">
+    <div style="background:white;border-radius:8px;padding:20px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto;">
+      <h3 style="margin-top:0;color:#2563eb;" id="excModalTitulo">📅 Excepciones</h3>
+      <p style="font-size:12px;color:#666;">Ajusta el monto para meses específicos (ej: descuento por falta, bono)</p>
+      <div id="excListaExistentes" style="margin-bottom:15px;"></div>
+      <div style="background:#f9fafb;padding:12px;border-radius:6px;border:1px solid #e5e7eb;">
+        <strong style="font-size:13px;">Agregar excepción:</strong>
+        <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:end;">
+          <div>
+            <label style="font-size:11px;font-weight:600;">Mes/Año</label>
+            <input type="month" id="excMesAnio" style="padding:6px;border:1px solid #d1d5db;border-radius:4px;font-size:13px;">
+          </div>
+          <div>
+            <label style="font-size:11px;font-weight:600;">Monto</label>
+            <input type="number" id="excMonto" step="0.01" min="0" style="padding:6px;border:1px solid #d1d5db;border-radius:4px;width:80px;font-size:13px;">
+          </div>
+          <div>
+            <label style="font-size:11px;font-weight:600;">Motivo</label>
+            <input type="text" id="excMotivo" placeholder="Ej: Descuento falta" style="padding:6px;border:1px solid #d1d5db;border-radius:4px;font-size:13px;width:150px;">
+          </div>
+          <button class="btn-primary" onclick="guardarExcepcion()" style="padding:6px 12px;">+ Agregar</button>
+        </div>
+      </div>
+      <button style="margin-top:15px;padding:8px 16px;background:#e5e7eb;border:none;border-radius:4px;cursor:pointer;" onclick="document.getElementById('modalExcepciones').style.display='none'">Cerrar</button>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    var chartFinanciero = null;
+    var gastosFijosData = [];
+    var gastosVariablesData = [];
+
+    document.addEventListener('DOMContentLoaded', function() {
+      // Llenar selector de años
+      var select = document.getElementById('filtroAnio');
+      var currentYear = new Date().getFullYear();
+      for (var y = currentYear; y >= currentYear - 3; y--) {
+        var opt = document.createElement('option');
+        opt.value = y;
+        opt.textContent = y;
+        select.appendChild(opt);
+      }
+      cargarDashboardFinanciero();
+      cargarGastosFijos();
+      cargarGastosVariables();
+      cargarComisiones();
+      cargarProyeccion();
+    });
+
+    // ============================================
+    // TABS
+    // ============================================
+    function showFinanzasTab(tabName) {
+      document.querySelectorAll('.finanzas-tab').forEach(function(t) { t.classList.remove('active'); });
+      document.querySelectorAll('.finanzas-section').forEach(function(s) { s.classList.remove('active'); });
+      document.getElementById('section-' + tabName).classList.add('active');
+      event.target.classList.add('active');
+    }
+
+    // ============================================
+    // DASHBOARD FINANCIERO
+    // ============================================
+    function cargarDashboardFinanciero() {
+      var anio = document.getElementById('filtroAnio').value;
+      google.script.run
+        .withSuccessHandler(renderDashboardFinanciero)
+        .withFailureHandler(function(e) { showToast('Error: ' + e, 'error'); })
+        .getDashboardFinanciero(anio);
+    }
+
+    function renderDashboardFinanciero(data) {
+      if (!data || !data.totales) {
+        document.getElementById('resumenFinanciero').innerHTML = '<p>Sin datos</p>';
+        return;
+      }
+
+      // Resumen cards (solo meses visibles)
+      var mesActualCards = new Date().getMonth();
+      var anioActualCards = new Date().getFullYear();
+      var mesDesdeCards = parseInt(document.getElementById('filtroDesde').value) || 0;
+      var mostrarHastaCards = (data.anio >= anioActualCards) ? mesActualCards : 11;
+      var tCards = { bruto: 0, com: 0, gf: 0, gv: 0, neto: 0 };
+      data.meses.forEach(function(m, idx) {
+        if (data.anio >= anioActualCards && idx > mostrarHastaCards) return;
+        if (idx < mesDesdeCards) return;
+        tCards.bruto += m.ingresosBrutos;
+        tCards.com += m.comisiones;
+        tCards.gf += m.gastosFijos;
+        tCards.gv += m.gastosVariables;
+        tCards.neto += m.ingresoNeto;
+      });
+      document.getElementById('resumenFinanciero').innerHTML =
+        '<div class="resumen-card card-bruto"><div class="valor">$' + tCards.bruto.toFixed(2) + '</div><div class="etiqueta">Ingresos Brutos</div></div>' +
+        '<div class="resumen-card card-comisiones"><div class="valor">$' + tCards.com.toFixed(2) + '</div><div class="etiqueta">Comisiones</div></div>' +
+        '<div class="resumen-card card-gastos-f"><div class="valor">$' + tCards.gf.toFixed(2) + '</div><div class="etiqueta">Gastos Fijos</div></div>' +
+        '<div class="resumen-card card-gastos-v"><div class="valor">$' + tCards.gv.toFixed(2) + '</div><div class="etiqueta">Gastos Variables</div></div>' +
+        '<div class="resumen-card card-neto"><div class="valor">$' + tCards.neto.toFixed(2) + '</div><div class="etiqueta">Ingreso Neto</div></div>';
+
+      // Tabla mensual
+      var html = '';
+      var mesActual = new Date().getMonth(); // 0-11
+      var anioActual = new Date().getFullYear();
+      var mostrarHasta = (data.anio < anioActual) ? 11 : mesActual;
+      var mesDesde = parseInt(document.getElementById('filtroDesde').value) || 0;
+      
+      data.meses.forEach(function(m, idx) {
+        if (data.anio >= anioActual && idx > mostrarHasta) return; // Ocultar meses futuros
+        if (idx < mesDesde) return; // Ocultar meses antes del filtro "Desde"
+        var netoClass = m.ingresoNeto >= 0 ? 'color:#065f46' : 'color:#dc2626';
+        html += '<tr>';
+        html += '<td><strong>' + m.nombreMes + '</strong></td>';
+        html += '<td>$' + m.ingresosBrutos.toFixed(2) + '</td>';
+        html += '<td>$' + m.comisiones.toFixed(2) + '</td>';
+        html += '<td>$' + m.gastosFijos.toFixed(2) + '</td>';
+        html += '<td>$' + m.gastosVariables.toFixed(2) + '</td>';
+        html += '<td style="font-weight:700;' + netoClass + '">$' + m.ingresoNeto.toFixed(2) + '</td>';
+        html += '</tr>';
+      });
+      // Fila de totales (solo meses visibles)
+      var tParcial = { bruto: 0, com: 0, gf: 0, gv: 0, neto: 0 };
+      data.meses.forEach(function(m, idx) {
+        if (data.anio >= anioActual && idx > mostrarHasta) return;
+        if (idx < mesDesde) return;
+        tParcial.bruto += m.ingresosBrutos;
+        tParcial.com += m.comisiones;
+        tParcial.gf += m.gastosFijos;
+        tParcial.gv += m.gastosVariables;
+        tParcial.neto += m.ingresoNeto;
+      });
+      html += '<tr style="background:#f3f4f6;font-weight:700;">';
+      html += '<td>TOTAL</td>';
+      html += '<td>$' + tParcial.bruto.toFixed(2) + '</td>';
+      html += '<td>$' + tParcial.com.toFixed(2) + '</td>';
+      html += '<td>$' + tParcial.gf.toFixed(2) + '</td>';
+      html += '<td>$' + tParcial.gv.toFixed(2) + '</td>';
+      var totalNetoClass = tParcial.neto >= 0 ? 'color:#065f46' : 'color:#dc2626';
+      html += '<td style="' + totalNetoClass + '">$' + tParcial.neto.toFixed(2) + '</td>';
+      html += '</tr>';
+      document.getElementById('tablaFinanciera').innerHTML = html;
+
+      // Gráfico
+      renderChart(data.meses);
+    }
+
+    function renderChart(meses) {
+      var ctx = document.getElementById('chartFinanciero').getContext('2d');
+      if (chartFinanciero) chartFinanciero.destroy();
+
+      var anioSel = parseInt(document.getElementById('filtroAnio').value) || new Date().getFullYear();
+      var anioActualChart = new Date().getFullYear();
+      var mesActualChart = new Date().getMonth();
+      var mesDesdeChart = parseInt(document.getElementById('filtroDesde').value) || 0;
+      var mostrarHastaChart = (anioSel >= anioActualChart) ? mesActualChart : 11;
+      
+      var mesesVisibles = meses.filter(function(m, idx) {
+        return idx >= mesDesdeChart && idx <= mostrarHastaChart;
+      });
+
+      var labels = mesesVisibles.map(function(m) { return m.nombreMes.substring(0, 3); });
+      var brutos = mesesVisibles.map(function(m) { return m.ingresosBrutos; });
+      var gastos = mesesVisibles.map(function(m) { return m.comisiones + m.gastosFijos + m.gastosVariables; });
+      var netos = mesesVisibles.map(function(m) { return m.ingresoNeto; });
+
+      chartFinanciero = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [
+            { label: 'Ingresos Brutos', data: brutos, backgroundColor: 'rgba(37, 99, 235, 0.7)', borderColor: '#2563eb', borderWidth: 1 },
+            { label: 'Gastos Totales', data: gastos, backgroundColor: 'rgba(220, 38, 38, 0.7)', borderColor: '#dc2626', borderWidth: 1 },
+            { label: 'Ingreso Neto', data: netos, backgroundColor: 'rgba(16, 185, 129, 0.7)', borderColor: '#10b981', borderWidth: 1 }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'top' } },
+          scales: {
+            y: { beginAtZero: true, ticks: { callback: function(v) { return '$' + v; } } }
+          }
+        }
+      });
+    }
+
+    // ============================================
+    // GASTOS FIJOS
+    // ============================================
+    function cargarGastosFijos() {
+      google.script.run
+        .withSuccessHandler(function(data) {
+          gastosFijosData = data || [];
+          renderGastosFijos();
+        })
+        .withFailureHandler(function(e) { showToast('Error cargando gastos fijos: ' + e, 'error'); })
+        .getGastosFijos();
+    }
+
+    function renderGastosFijos() {
+      var tbody = document.getElementById('tablaGastosFijos');
+      if (gastosFijosData.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9">No hay gastos fijos registrados</td></tr>';
+        return;
+      }
+      var html = '';
+      gastosFijosData.forEach(function(g) {
+        var activoColor = g.activo === 'Sí' ? '#10b981' : '#6b7280';
+        var excCount = g.excepciones ? Object.keys(g.excepciones).length : 0;
+        html += '<tr>';
+        html += '<td>' + g.tipo + '</td>';
+        html += '<td><strong>' + g.concepto + '</strong></td>';
+        html += '<td>$' + g.monto.toFixed(2) + '</td>';
+        html += '<td>' + g.frecuencia + '</td>';
+        html += '<td>' + (g.fechaInicio || '-') + '</td>';
+        html += '<td>' + (g.fechaFin || 'Indefinido') + '</td>';
+        html += '<td style="color:' + activoColor + ';font-weight:600;">' + g.activo + '</td>';
+        html += '<td>';
+        if (g.facturaDriveId) {
+          html += '<a href="https://drive.google.com/file/d/' + g.facturaDriveId + '/view" target="_blank" style="color:#2563eb;">📎 Ver</a>';
+        } else {
+          html += '-';
+        }
+        html += '</td>';
+        html += '<td style="white-space:nowrap;">';
+        html += '<button class="btn-edit" onclick="editarGastoFijo(\'' + g.id + '\')">✏️</button> ';
+        html += '<button style="background:#7c3aed;color:white;border:none;padding:6px 8px;border-radius:4px;cursor:pointer;font-size:12px;" onclick="abrirExcepciones(\'' + g.id + '\')">📅' + (excCount > 0 ? ' ' + excCount : '') + '</button> ';
+        html += '<button class="btn-danger" onclick="eliminarGastoFijo(\'' + g.id + '\')">🗑️</button>';
+        html += '</td>';
+        html += '</tr>';
+      });
+      tbody.innerHTML = html;
+    }
+
+    function mostrarFormGastoFijo() {
+      document.getElementById('formGastoFijo').style.display = 'block';
+      document.getElementById('tituloFormGF').textContent = 'Nuevo Gasto Fijo';
+      document.getElementById('gf_id').value = '';
+      document.getElementById('gf_tipo').value = '';
+      document.getElementById('gf_concepto').value = '';
+      document.getElementById('gf_monto').value = '';
+      document.getElementById('gf_frecuencia').value = 'mensual';
+      document.getElementById('gf_fechaInicio').value = '';
+      document.getElementById('gf_fechaFin').value = '';
+      document.getElementById('gf_activo').value = 'Sí';
+      document.getElementById('gf_trabajador').value = '';
+      document.getElementById('gf_trabajador_container').style.display = 'none';
+      document.getElementById('gf_factura').value = '';
+      document.getElementById('gf_factura_link').style.display = 'none';
+    }
+
+    function onGFTipoChange() {
+      var tipo = document.getElementById('gf_tipo').value;
+      var container = document.getElementById('gf_trabajador_container');
+      container.style.display = (tipo === 'Salarios') ? 'block' : 'none';
+    }
+
+    function cancelarFormGF() {
+      document.getElementById('formGastoFijo').style.display = 'none';
+    }
+
+    function editarGastoFijo(id) {
+      var gasto = gastosFijosData.find(function(g) { return g.id === id; });
+      if (!gasto) return;
+      document.getElementById('formGastoFijo').style.display = 'block';
+      document.getElementById('tituloFormGF').textContent = 'Editar Gasto Fijo';
+      document.getElementById('gf_id').value = gasto.id;
+      document.getElementById('gf_tipo').value = gasto.tipo;
+      document.getElementById('gf_concepto').value = gasto.concepto;
+      document.getElementById('gf_monto').value = gasto.monto;
+      document.getElementById('gf_frecuencia').value = gasto.frecuencia;
+      document.getElementById('gf_fechaInicio').value = gasto.fechaInicio;
+      document.getElementById('gf_fechaFin').value = gasto.fechaFin;
+      document.getElementById('gf_activo').value = gasto.activo;
+      document.getElementById('gf_factura').value = '';
+      // Manejar trabajador para Salarios
+      if (gasto.tipo === 'Salarios') {
+        document.getElementById('gf_trabajador_container').style.display = 'block';
+        document.getElementById('gf_trabajador').value = gasto.trabajador || '';
+      } else {
+        document.getElementById('gf_trabajador_container').style.display = 'none';
+        document.getElementById('gf_trabajador').value = '';
+      }
+      // Mostrar link de comprobante si existe
+      if (gasto.facturaDriveId) {
+        document.getElementById('gf_factura_link').style.display = 'block';
+        document.getElementById('gf_factura_url').href = 'https://drive.google.com/file/d/' + gasto.facturaDriveId + '/view';
+      } else {
+        document.getElementById('gf_factura_link').style.display = 'none';
+      }
+    }
+
+    function guardarGastoFijo() {
+      var tipo = document.getElementById('gf_tipo').value;
+      var trabajador = document.getElementById('gf_trabajador').value;
+      var concepto = document.getElementById('gf_concepto').value;
+      
+      // Para Salarios, el concepto incluye el nombre del trabajador si no se escribió otro
+      if (tipo === 'Salarios' && trabajador) {
+        if (!concepto) concepto = trabajador;
+      }
+      
+      var data = {
+        id: document.getElementById('gf_id').value || null,
+        tipo: tipo,
+        concepto: concepto,
+        monto: parseFloat(document.getElementById('gf_monto').value) || 0,
+        frecuencia: document.getElementById('gf_frecuencia').value,
+        fechaInicio: document.getElementById('gf_fechaInicio').value,
+        fechaFin: document.getElementById('gf_fechaFin').value,
+        activo: document.getElementById('gf_activo').value,
+        trabajador: trabajador,
+        facturaDriveId: ''
+      };
+      if (!data.tipo || !data.concepto || !data.monto) {
+        showToast('Completa los campos obligatorios', 'error');
+        return;
+      }
+      if (data.tipo === 'Salarios' && !trabajador) {
+        showToast('Selecciona un trabajador', 'error');
+        return;
+      }
+
+      // Verificar si hay archivo para subir
+      var fileInput = document.getElementById('gf_factura');
+      if (fileInput.files && fileInput.files.length > 0) {
+        var file = fileInput.files[0];
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          var base64 = e.target.result.split(',')[1];
+          google.script.run
+            .withSuccessHandler(function(uploadResult) {
+              if (uploadResult.success) {
+                data.facturaDriveId = uploadResult.fileId;
+              }
+              saveGastoFijoCall(data);
+            })
+            .withFailureHandler(function() { saveGastoFijoCall(data); })
+            .subirFactura(base64, file.name, file.type);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        // Mantener archivo existente si estamos editando
+        if (data.id) {
+          var existing = gastosFijosData.find(function(g) { return g.id === data.id; });
+          if (existing) data.facturaDriveId = existing.facturaDriveId || '';
+        }
+        saveGastoFijoCall(data);
+      }
+    }
+
+    function saveGastoFijoCall(data) {
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            showToast(result.message, 'success');
+            cancelarFormGF();
+            cargarGastosFijos();
+            cargarDashboardFinanciero();
+          } else {
+            showToast(result.message, 'error');
+          }
+        })
+        .withFailureHandler(function(e) { showToast('Error: ' + e, 'error'); })
+        .saveGastoFijo(data);
+    }
+
+    function eliminarGastoFijo(id) {
+      if (!confirm('¿Eliminar este gasto fijo?')) return;
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            showToast('Gasto fijo eliminado', 'success');
+            cargarGastosFijos();
+            cargarDashboardFinanciero();
+          } else {
+            showToast(result.message, 'error');
+          }
+        })
+        .withFailureHandler(function(e) { showToast('Error: ' + e, 'error'); })
+        .deleteGastoFijo(id);
+    }
+
+    // ============================================
+    // GASTOS VARIABLES
+    // ============================================
+    function cargarGastosVariables() {
+      google.script.run
+        .withSuccessHandler(function(data) {
+          gastosVariablesData = data || [];
+          renderGastosVariables();
+        })
+        .withFailureHandler(function(e) { showToast('Error cargando gastos variables: ' + e, 'error'); })
+        .getGastosVariables();
+    }
+
+    function renderGastosVariables() {
+      var tbody = document.getElementById('tablaGastosVariables');
+      if (gastosVariablesData.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7">No hay gastos variables registrados</td></tr>';
+        return;
+      }
+      var html = '';
+      gastosVariablesData.forEach(function(g) {
+        html += '<tr>';
+        html += '<td>' + g.fecha + '</td>';
+        html += '<td>' + g.tipo + '</td>';
+        html += '<td><strong>' + g.concepto + '</strong></td>';
+        html += '<td>$' + g.monto.toFixed(2) + '</td>';
+        html += '<td>' + (g.categoria || '-') + '</td>';
+        html += '<td>';
+        if (g.facturaDriveId) {
+          html += '<a href="https://drive.google.com/file/d/' + g.facturaDriveId + '/view" target="_blank" style="color:#2563eb;">📎 Ver</a>';
+        } else {
+          html += '-';
+        }
+        html += '</td>';
+        html += '<td>';
+        html += '<button class="btn-edit" onclick="editarGastoVariable(\'' + g.id + '\')">✏️</button> ';
+        html += '<button class="btn-danger" onclick="eliminarGastoVariable(\'' + g.id + '\')">🗑️</button>';
+        html += '</td>';
+        html += '</tr>';
+      });
+      tbody.innerHTML = html;
+    }
+
+    function mostrarFormGastoVariable() {
+      document.getElementById('formGastoVariable').style.display = 'block';
+      document.getElementById('tituloFormGV').textContent = 'Nuevo Gasto Variable';
+      document.getElementById('gv_id').value = '';
+      document.getElementById('gv_tipo').value = '';
+      document.getElementById('gv_concepto').value = '';
+      document.getElementById('gv_monto').value = '';
+      document.getElementById('gv_fecha').value = new Date().toISOString().split('T')[0];
+      document.getElementById('gv_categoria').value = '';
+      document.getElementById('gv_notas').value = '';
+      document.getElementById('gv_factura').value = '';
+    }
+
+    function cancelarFormGV() {
+      document.getElementById('formGastoVariable').style.display = 'none';
+    }
+
+    function editarGastoVariable(id) {
+      var gasto = gastosVariablesData.find(function(g) { return g.id === id; });
+      if (!gasto) return;
+      document.getElementById('formGastoVariable').style.display = 'block';
+      document.getElementById('tituloFormGV').textContent = 'Editar Gasto Variable';
+      document.getElementById('gv_id').value = gasto.id;
+      document.getElementById('gv_tipo').value = gasto.tipo;
+      document.getElementById('gv_concepto').value = gasto.concepto;
+      document.getElementById('gv_monto').value = gasto.monto;
+      document.getElementById('gv_fecha').value = gasto.fecha;
+      document.getElementById('gv_categoria').value = gasto.categoria;
+      document.getElementById('gv_notas').value = gasto.notas;
+    }
+
+    function guardarGastoVariable() {
+      var data = {
+        id: document.getElementById('gv_id').value || null,
+        tipo: document.getElementById('gv_tipo').value,
+        concepto: document.getElementById('gv_concepto').value,
+        monto: parseFloat(document.getElementById('gv_monto').value) || 0,
+        fecha: document.getElementById('gv_fecha').value,
+        categoria: document.getElementById('gv_categoria').value,
+        notas: document.getElementById('gv_notas').value,
+        facturaDriveId: ''
+      };
+      if (!data.tipo || !data.concepto || !data.monto || !data.fecha) {
+        showToast('Completa los campos obligatorios', 'error');
+        return;
+      }
+
+      // Verificar si hay factura para subir
+      var fileInput = document.getElementById('gv_factura');
+      if (fileInput.files && fileInput.files.length > 0) {
+        var file = fileInput.files[0];
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          var base64 = e.target.result.split(',')[1];
+          google.script.run
+            .withSuccessHandler(function(uploadResult) {
+              if (uploadResult.success) {
+                data.facturaDriveId = uploadResult.fileId;
+              }
+              saveGastoVariableCall(data);
+            })
+            .withFailureHandler(function() { saveGastoVariableCall(data); })
+            .subirFactura(base64, file.name, file.type);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        // Mantener factura existente si estamos editando
+        if (data.id) {
+          var existing = gastosVariablesData.find(function(g) { return g.id === data.id; });
+          if (existing) data.facturaDriveId = existing.facturaDriveId;
+        }
+        saveGastoVariableCall(data);
+      }
+    }
+
+    function saveGastoVariableCall(data) {
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            showToast(result.message, 'success');
+            cancelarFormGV();
+            cargarGastosVariables();
+            cargarDashboardFinanciero();
+          } else {
+            showToast(result.message, 'error');
+          }
+        })
+        .withFailureHandler(function(e) { showToast('Error: ' + e, 'error'); })
+        .saveGastoVariable(data);
+    }
+
+    function eliminarGastoVariable(id) {
+      if (!confirm('¿Eliminar este gasto variable?')) return;
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            showToast('Gasto variable eliminado', 'success');
+            cargarGastosVariables();
+            cargarDashboardFinanciero();
+          } else {
+            showToast(result.message, 'error');
+          }
+        })
+        .withFailureHandler(function(e) { showToast('Error: ' + e, 'error'); })
+        .deleteGastoVariable(id);
+    }
+
+    function calcularGastosDocentes() {
+      if (!confirm('¿Calcular y registrar automáticamente los pagos a docentes cuyas clases ya terminaron?')) return;
+      showToast('⏳ Calculando pagos a docentes...', 'info');
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            showToast(result.message, 'success');
+            cargarGastosVariables();
+            cargarDashboardFinanciero();
+          } else {
+            showToast('Error: ' + result.message, 'error');
+          }
+        })
+        .withFailureHandler(function(e) { showToast('Error: ' + e, 'error'); })
+        .calcularGastosDocentes();
+    }
+
+    // ============================================
+    // COMISIONES
+    // ============================================
+    function cargarComisiones() {
+      google.script.run
+        .withSuccessHandler(renderComisiones)
+        .withFailureHandler(function(e) { showToast('Error cargando comisiones: ' + e, 'error'); })
+        .getComisiones();
+    }
+
+    function renderComisiones(data) {
+      var tbody = document.getElementById('tablaComisiones');
+      if (!data || data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5">No hay comisiones configuradas</td></tr>';
+        return;
+      }
+      var html = '';
+      data.forEach(function(c, i) {
+        html += '<tr>';
+        html += '<td><input type="text" value="' + c.medioPago + '" id="com_medio_' + i + '" style="width:120px;"></td>';
+        html += '<td><input type="number" value="' + c.porcentajeNacional + '" id="com_nac_' + i + '" step="0.01" min="0"></td>';
+        html += '<td><input type="number" value="' + c.porcentajeInternacional + '" id="com_int_' + i + '" step="0.01" min="0"></td>';
+        html += '<td><input type="number" value="' + c.montoFijo + '" id="com_fijo_' + i + '" step="0.01" min="0"></td>';
+        html += '<td><input type="number" value="' + c.igv + '" id="com_igv_' + i + '" step="0.01" min="0"></td>';
+        html += '</tr>';
+      });
+      tbody.innerHTML = html;
+      tbody.dataset.count = data.length;
+    }
+
+    function agregarFilaComision() {
+      var tbody = document.getElementById('tablaComisiones');
+      var count = parseInt(tbody.dataset.count) || 0;
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td><input type="text" value="" id="com_medio_' + count + '" style="width:120px;" placeholder="Medio..."></td>' +
+        '<td><input type="number" value="0" id="com_nac_' + count + '" step="0.01" min="0"></td>' +
+        '<td><input type="number" value="0" id="com_int_' + count + '" step="0.01" min="0"></td>' +
+        '<td><input type="number" value="0" id="com_fijo_' + count + '" step="0.01" min="0"></td>' +
+        '<td><input type="number" value="0" id="com_igv_' + count + '" step="0.01" min="0"></td>';
+      tbody.appendChild(tr);
+      tbody.dataset.count = count + 1;
+    }
+
+    function guardarComisiones() {
+      var tbody = document.getElementById('tablaComisiones');
+      var count = parseInt(tbody.dataset.count) || 0;
+      var comisiones = [];
+      for (var i = 0; i < count; i++) {
+        var medio = document.getElementById('com_medio_' + i);
+        if (!medio) continue;
+        var val = medio.value.trim();
+        if (!val) continue;
+        comisiones.push({
+          medioPago: val,
+          porcentajeNacional: parseFloat(document.getElementById('com_nac_' + i).value) || 0,
+          porcentajeInternacional: parseFloat(document.getElementById('com_int_' + i).value) || 0,
+          montoFijo: parseFloat(document.getElementById('com_fijo_' + i).value) || 0,
+          igv: parseFloat(document.getElementById('com_igv_' + i).value) || 0
+        });
+      }
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            showToast('Comisiones guardadas', 'success');
+            cargarComisiones();
+            cargarDashboardFinanciero();
+          } else {
+            showToast(result.message, 'error');
+          }
+        })
+        .withFailureHandler(function(e) { showToast('Error: ' + e, 'error'); })
+        .saveComisiones(comisiones);
+    }
+
+    // ============================================
+    // EXCEPCIONES DE GASTOS FIJOS
+    // ============================================
+    var excepcionGastoId = null;
+
+    function abrirExcepciones(gastoId) {
+      excepcionGastoId = gastoId;
+      var gasto = gastosFijosData.find(function(g) { return g.id === gastoId; });
+      if (!gasto) return;
+      
+      document.getElementById('excModalTitulo').textContent = '📅 Excepciones: ' + gasto.concepto + ' ($' + gasto.monto.toFixed(2) + ' base)';
+      
+      // Renderizar excepciones existentes
+      var exc = gasto.excepciones || {};
+      var keys = Object.keys(exc).sort();
+      var html = '';
+      if (keys.length === 0) {
+        html = '<p style="color:#6b7280;font-size:13px;">Sin excepciones. El monto base aplica todos los meses.</p>';
+      } else {
+        html = '<table style="width:100%;font-size:13px;border-collapse:collapse;">';
+        html += '<tr style="background:#f3f4f6;"><th style="padding:6px;text-align:left;">Mes</th><th>Monto</th><th>Motivo</th><th></th></tr>';
+        keys.forEach(function(k) {
+          var parts = k.split('-');
+          var mesNombre = getNombreMesJS(parseInt(parts[1]) - 1) + ' ' + parts[0];
+          html += '<tr style="border-bottom:1px solid #e5e7eb;">';
+          html += '<td style="padding:6px;">' + mesNombre + '</td>';
+          html += '<td style="padding:6px;text-align:center;font-weight:600;">$' + parseFloat(exc[k].monto).toFixed(2) + '</td>';
+          html += '<td style="padding:6px;color:#666;">' + (exc[k].motivo || '-') + '</td>';
+          html += '<td style="padding:6px;"><button class="btn-danger" onclick="eliminarExcepcion(\'' + k + '\')">✕</button></td>';
+          html += '</tr>';
+        });
+        html += '</table>';
+      }
+      document.getElementById('excListaExistentes').innerHTML = html;
+      
+      // Limpiar form
+      document.getElementById('excMesAnio').value = '';
+      document.getElementById('excMonto').value = '';
+      document.getElementById('excMotivo').value = '';
+      
+      document.getElementById('modalExcepciones').style.display = 'flex';
+    }
+
+    function guardarExcepcion() {
+      var mesAnio = document.getElementById('excMesAnio').value; // "2026-06"
+      var monto = parseFloat(document.getElementById('excMonto').value);
+      var motivo = document.getElementById('excMotivo').value;
+      
+      if (!mesAnio || isNaN(monto)) {
+        showToast('Completa mes y monto', 'error');
+        return;
+      }
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            showToast('Excepción guardada', 'success');
+            // Actualizar datos locales
+            var gasto = gastosFijosData.find(function(g) { return g.id === excepcionGastoId; });
+            if (gasto) gasto.excepciones = result.excepciones;
+            abrirExcepciones(excepcionGastoId);
+            cargarDashboardFinanciero();
+          } else {
+            showToast(result.message, 'error');
+          }
+        })
+        .withFailureHandler(function(e) { showToast('Error: ' + e, 'error'); })
+        .saveExcepcionGastoFijo(excepcionGastoId, mesAnio, monto, motivo);
+    }
+
+    function eliminarExcepcion(mesAnio) {
+      if (!confirm('¿Eliminar excepción de ' + mesAnio + '?')) return;
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            showToast('Excepción eliminada', 'success');
+            var gasto = gastosFijosData.find(function(g) { return g.id === excepcionGastoId; });
+            if (gasto) gasto.excepciones = result.excepciones;
+            abrirExcepciones(excepcionGastoId);
+            cargarDashboardFinanciero();
+          }
+        })
+        .withFailureHandler(function(e) { showToast('Error: ' + e, 'error'); })
+        .deleteExcepcionGastoFijo(excepcionGastoId, mesAnio);
+    }
+
+    function getNombreMesJS(idx) {
+      return ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'][idx] || '';
+    }
+
+    // ============================================
+    // PROYECCIÓN PRÓXIMO MES
+    // ============================================
+    function cargarProyeccion() {
+      google.script.run
+        .withSuccessHandler(function(data) {
+          if (!data || !data.gastos || data.gastos.length === 0) {
+            document.getElementById('proyeccionContainer').style.display = 'none';
+            return;
+          }
+          document.getElementById('proyeccionContainer').style.display = 'block';
+          document.getElementById('proyeccionMes').textContent = data.mes + ' ' + data.anio;
+          document.getElementById('proyeccionTotal').textContent = data.total.toFixed(2);
+          
+          var html = '<table style="width:100%;font-size:12px;border-collapse:collapse;">';
+          html += '<tr style="background:#dbeafe;"><th style="padding:5px;text-align:left;">Concepto</th><th>Tipo</th><th>Monto</th><th>Nota</th></tr>';
+          data.gastos.forEach(function(g) {
+            var nota = g.tieneExcepcion ? '<span style="color:#7c3aed;">⚡ ' + g.motivo + '</span>' : '';
+            var montoStyle = g.tieneExcepcion ? 'color:#7c3aed;font-weight:700;' : '';
+            html += '<tr style="border-bottom:1px solid #e5e7eb;">';
+            html += '<td style="padding:5px;">' + g.concepto + (g.trabajador ? ' (' + g.trabajador + ')' : '') + '</td>';
+            html += '<td style="padding:5px;text-align:center;">' + g.tipo + '</td>';
+            html += '<td style="padding:5px;text-align:center;' + montoStyle + '">$' + g.montoProyectado.toFixed(2) + '</td>';
+            html += '<td style="padding:5px;">' + nota + '</td>';
+            html += '</tr>';
+          });
+          html += '</table>';
+          document.getElementById('proyeccionBody').innerHTML = html;
+        })
+        .withFailureHandler(function() {
+          document.getElementById('proyeccionContainer').style.display = 'none';
+        })
+        .getProyeccionProximoMes();
+    }
+
+    // ============================================
+    // UTILIDADES
+    // ============================================
+    function ejecutarDiagnostico() {
+      var div = document.getElementById('diagnosticoInfo');
+      div.style.display = 'block';
+      div.innerHTML = '⏳ Ejecutando diagnóstico de marzo...';
+      google.script.run
+        .withSuccessHandler(function(result) {
+          var html = '<strong>🔍 Diagnóstico de pagos de MARZO:</strong><br>';
+          if (result.error) {
+            html += '❌ Error: ' + result.error;
+          } else {
+            html += 'Total pagos en marzo: <strong>' + result.totalPagosMarzo + '</strong> | Suma: <strong>$' + result.sumaMarzo.toFixed(2) + '</strong><br>';
+            html += 'Con ID Operación: ' + result.conIdOperacion + ' | Sin ID Operación: ' + result.sinIdOperacion + '<br>';
+            html += 'Medios de pago: ' + JSON.stringify(result.mediosPago) + '<br>';
+            html += 'Tipos de pago: ' + JSON.stringify(result.tiposPago) + '<br>';
+            html += '<br><strong>Distribución por día (top 5):</strong><br>';
+            result.diasConMasPagos.forEach(function(d) {
+              html += '  Día ' + d.dia + ': ' + d.pagos + ' pagos<br>';
+            });
+            html += '<br><strong>Análisis de matrículas:</strong><br>';
+            var am = result.analisisMatriculas;
+            html += '  Pagos con matrícula ANTERIOR a marzo: <strong>' + am.pagosConMatriculaAnteriorAMarzo + '</strong><br>';
+            html += '  Pagos con matrícula EN marzo: ' + am.pagosConMatriculaEnMarzo + '<br>';
+            html += '  Sin dato de matrícula: ' + am.sinDatoMatricula + '<br>';
+            if (am.ejemplosHistoricos && am.ejemplosHistoricos.length > 0) {
+              html += '<br>Ejemplos de pagos posiblemente históricos:<br>';
+              am.ejemplosHistoricos.forEach(function(e) {
+                html += '  • Pago ' + e.pagoId + ' ($' + e.monto + ') fecha_pago=' + e.fechaPago + ' pero matrícula=' + e.fechaMatricula + '<br>';
+              });
+            }
+            html += '<br><strong style="color:#b45309;">📌 ' + result.conclusion + '</strong>';
+          }
+          div.innerHTML = html;
+        })
+        .withFailureHandler(function(e) {
+          div.innerHTML = '❌ Error: ' + e;
+        })
+        .diagnosticoMarzo();
+    }
+
+    function showToast(message, type) {
+      var toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = 'toast ' + type + ' show';
+      setTimeout(function() { toast.classList.remove('show'); }, 4000);
+    }
+  </script>
+</body>
+</html>

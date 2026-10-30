@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Diagnóstico Docentes</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    .container { max-width: 800px; margin: 0 auto; }
+    .btn { padding: 10px 20px; margin: 10px; background: #2563eb; color: white; border: none; border-radius: 5px; cursor: pointer; }
+    .btn:hover { background: #1e40af; }
+    .result { margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 5px; white-space: pre-wrap; font-family: monospace; }
+    .loading { color: #666; font-style: italic; }
+    .error { background: #fee; color: #c00; }
+    .success { background: #efe; color: #060; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔍 Diagnóstico de Docentes</h1>
+    
+    <button class="btn" onclick="ejecutarDiagnostico()">🧪 Ejecutar Diagnóstico Completo</button>
+    <button class="btn" onclick="probarGetDocentes()">📊 Probar getDocentes()</button>
+    <button class="btn" onclick="probarBackendConLogs()">🔥 Backend con Logs Extremos</button>
+    <button class="btn" onclick="limpiarResultados()">🗑️ Limpiar</button>
+    
+    <div id="resultado" class="result" style="display: none;">
+      <div class="loading">Ejecutando...</div>
+    </div>
+  </div>
+
+  <script>
+    function mostrarResultado(contenido, tipo = 'success') {
+      const div = document.getElementById('resultado');
+      div.style.display = 'block';
+      div.className = 'result ' + tipo;
+      div.textContent = contenido;
+    }
+
+    function ejecutarDiagnostico() {
+      mostrarResultado('Ejecutando diagnóstico completo...', 'loading');
+      
+      google.script.run
+        .withSuccessHandler(function(resultado) {
+          mostrarResultado('DIAGNÓSTICO COMPLETO:\n\n' + JSON.stringify(resultado, null, 2), 'success');
+        })
+        .withFailureHandler(function(error) {
+          mostrarResultado('ERROR: ' + error.toString(), 'error');
+        })
+        .ejecutarDiagnosticoWeb();
+    }
+
+    function probarGetDocentes() {
+      mostrarResultado('Probando getDocentes()...', 'loading');
+      
+      google.script.run
+        .withSuccessHandler(function(docentes) {
+          let resultado = 'DOCENTES OBTENIDOS: ' + docentes.length + '\n\n';
+          
+          if (docentes.length > 0) {
+            resultado += 'PRIMER DOCENTE:\n';
+            const primer = docentes[0];
+            resultado += '- ID: ' + primer.ID + '\n';
+            resultado += '- Nombre: ' + primer.Nombre + '\n';
+            resultado += '- Email: ' + primer.Email + '\n';
+            resultado += '- Certificaciones: ' + primer.Certificaciones + '\n';
+            resultado += '- CursosQueDicta: ' + primer.CursosQueDicta + '\n';
+            resultado += '- TarifaHora: ' + primer.TarifaHora + '\n';
+            resultado += '- Foto: ' + (primer.Foto ? 'SÍ (' + primer.Foto.substring(0, 50) + '...)' : 'NO') + '\n';
+            
+            resultado += '\n\nTODOS LOS DOCENTES:\n';
+            docentes.forEach((d, i) => {
+              resultado += `${i + 1}. ${d.Nombre} - Cert: "${d.Certificaciones}" - Cursos: "${d.CursosQueDicta}" - Tarifa: $${d.TarifaHora}\n`;
+            });
+          }
+          
+          mostrarResultado(resultado, 'success');
+        })
+        .withFailureHandler(function(error) {
+          mostrarResultado('ERROR: ' + error.toString(), 'error');
+        })
+        .getDocentes();
+    }
+
+    function probarBackendConLogs() {
+      mostrarResultado('Probando backend con logs extremos...', 'loading');
+      
+      google.script.run
+        .withSuccessHandler(function(resultado) {
+          let contenido = 'BACKEND TEST CON LOGS:\n\n';
+          contenido += 'Success: ' + resultado.success + '\n';
+          contenido += 'Count: ' + resultado.count + '\n';
+          contenido += 'Timestamp: ' + resultado.timestamp + '\n\n';
+          
+          if (resultado.docentes && resultado.docentes.length > 0) {
+            contenido += 'PRIMER DOCENTE:\n';
+            const primer = resultado.docentes[0];
+            contenido += '- ID: ' + primer.ID + '\n';
+            contenido += '- Nombre: ' + primer.Nombre + '\n';
+            contenido += '- Certificaciones: ' + primer.Certificaciones + '\n';
+            contenido += '- CursosQueDicta: ' + primer.CursosQueDicta + '\n';
+            contenido += '- TarifaHora: ' + primer.TarifaHora + '\n';
+            contenido += '- Foto: ' + (primer.Foto ? 'SÍ' : 'NO') + '\n';
+          }
+          
+          mostrarResultado(contenido, 'success');
+        })
+        .withFailureHandler(function(error) {
+          mostrarResultado('ERROR EN BACKEND: ' + error.toString(), 'error');
+        })
+        .testBackendDocentesConLogs();
+    }
+
+    function limpiarResultados() {
+      document.getElementById('resultado').style.display = 'none';
+    }
+  </script>
+</body>
+</html>

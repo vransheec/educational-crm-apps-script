@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="frame-ancestors 'self' https://*.googleusercontent.com https://*.google.com">
+  <?!= includeWithBaseUrl('config'); ?>
+  <?!= include('styles'); ?>
+  <style>
+    .plantillas-container {
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    
+    .plantillas-selector {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      height: fit-content;
+    }
+    
+    .plantilla-item {
+      padding: 12px;
+      margin-bottom: 8px;
+      border: 2px solid #e5e7eb;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .plantilla-item:hover {
+      border-color: var(--primary);
+      background: #f0f7ff;
+    }
+    
+    .plantilla-item.active {
+      border-color: var(--primary);
+      background: var(--primary);
+      color: white;
+    }
+    
+    .plantilla-item h4 {
+      margin: 0 0 4px 0;
+      font-size: 14px;
+    }
+    
+    .plantilla-item p {
+      margin: 0;
+      font-size: 12px;
+      opacity: 0.8;
+    }
+    
+    .plantillas-editor {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .editor-section {
+      margin-bottom: 20px;
+    }
+    
+    .editor-section h3 {
+      margin-top: 0;
+      color: var(--primary);
+      border-bottom: 2px solid var(--primary);
+      padding-bottom: 10px;
+    }
+    
+    .parametros-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+    
+    .parametro-group {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .parametro-group label {
+      font-weight: 600;
+      margin-bottom: 5px;
+      color: #333;
+      font-size: 13px;
+    }
+    
+    .parametro-group select,
+    .parametro-group input {
+      padding: 8px;
+      border: 2px solid #e5e7eb;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+    
+    .parametro-group select:focus,
+    .parametro-group input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    
+    .preview-container {
+      background: #f9f9f9;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 20px;
+      margin-top: 20px;
+      max-height: 600px;
+      overflow-y: auto;
+    }
+    
+    .preview-frame {
+      background: white;
+      border-radius: 4px;
+      padding: 15px;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    
+    .acciones {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    
+    .btn-preview {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    
+    .btn-preview:hover {
+      background: #1e3a8a;
+    }
+    
+    .btn-enviar {
+      background: #10b981;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    
+    .btn-enviar:hover {
+      background: #059669;
+    }
+    
+    .info-box {
+      background: #e0f2fe;
+      border-left: 4px solid var(--primary);
+      padding: 12px;
+      border-radius: 4px;
+      margin-bottom: 15px;
+      font-size: 13px;
+    }
+    
+    .search-results {
+      position: absolute;
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      max-height: 200px;
+      overflow-y: auto;
+      z-index: 1000;
+      width: 100%;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .search-result-item {
+      padding: 10px;
+      cursor: pointer;
+      border-bottom: 1px solid #eee;
+    }
+    
+    .search-result-item:hover {
+      background: #f0f7ff;
+    }
+    
+    .search-result-item:last-child {
+      border-bottom: none;
+    }
+    
+    .parametro-group {
+      position: relative;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <?!= includeWithCurrentPage('nav', currentPage); ?>
+
+    <main class="main plantillas-page" data-page="plantillas">
+      <div class="form-card">
+        <h1 class="form-title">📧 Plantillas de Email</h1>
+        
+        <div class="info-box">
+          ℹ️ Selecciona una plantilla, personaliza los parámetros y previsualiza el resultado antes de enviar.
+        </div>
+
+        <div class="plantillas-container">
+          <!-- Selector de Plantillas -->
+          <div class="plantillas-selector">
+            <h3 style="margin-top: 0; color: var(--primary);">Plantillas Disponibles</h3>
+            <div id="plantillasList"></div>
+          </div>
+
+          <!-- Editor de Plantillas -->
+          <div class="plantillas-editor">
+            <div id="editorContent">
+              <p style="text-align: center; color: #999;">Selecciona una plantilla para comenzar</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Preview -->
+        <div class="editor-section">
+          <h3>📋 Vista Previa</h3>
+          <div class="preview-container">
+            <iframe id="previewFrame" style="width:100%;min-height:600px;border:none;background:white;" sandbox="allow-same-origin"></iframe>
+            <div id="previewContent" style="display:none;">
+              <p style="text-align: center; color: #999;">La vista previa aparecerá aquí</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <?!= include('footer'); ?>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    var plantillasDisponibles = [];
+    var plantillaActual = null;
+    var parametrosActuales = {};
+
+    document.addEventListener('DOMContentLoaded', function() {
+      cargarPlantillas();
+    });
+
+    function cargarPlantillas() {
+      console.log('🔍 [plantillas] Cargando plantillas...');
+      google.script.run
+        .withSuccessHandler(function(plantillas) {
+          console.log('✅ [plantillas] Plantillas cargadas:', plantillas ? plantillas.length : 'null');
+          if (!plantillas || !Array.isArray(plantillas)) {
+            console.error('❌ [plantillas] Datos inválidos:', plantillas);
+            showToast('Error al cargar plantillas', 'error');
+            return;
+          }
+          plantillasDisponibles = plantillas;
+          renderizarPlantillas();
+        })
+        .withFailureHandler(function(error) {
+          console.error('❌ [plantillas] Error:', error);
+          showToast('Error al cargar plantillas: ' + error.message, 'error');
+        })
+        .getPlantillasDisponibles();
+    }
+
+    function renderizarPlantillas() {
+      var html = '';
+      plantillasDisponibles.forEach(function(p) {
+        html += '<div class="plantilla-item" onclick="seleccionarPlantilla(\'' + p.id + '\')">';
+        html += '<h4>' + p.nombre + '</h4>';
+        html += '<p>' + p.descripcion + '</p>';
+        html += '</div>';
+      });
+      document.getElementById('plantillasList').innerHTML = html;
+    }
+
+    function seleccionarPlantilla(plantillaId) {
+      plantillaActual = plantillasDisponibles.find(p => p.id === plantillaId);
+      
+      // Actualizar UI
+      document.querySelectorAll('.plantilla-item').forEach(el => el.classList.remove('active'));
+      event.target.closest('.plantilla-item').classList.add('active');
+      
+      // Cargar parámetros
+      cargarParametrosPlantilla(plantillaId);
+    }
+
+    function cargarParametrosPlantilla(plantillaId) {
+      // USAR MÉTODO DIRECTO PARA CONFIGURACIÓN
+      google.script.run
+        .withSuccessHandler(function(config) {
+          console.log('✅ Configuración cargada exitosamente:', config);
+          renderizarEditor(config);
+        })
+        .withFailureHandler(function(error) {
+          console.error('❌ Error cargando configuración:', error);
+          showToast('Error al cargar parámetros', 'error');
+        })
+        .getConfiguracionPlantilla(plantillaId);
+    }
+
+    function renderizarEditor(config) {
+      console.log('🔧 Renderizando editor con config:', config);
+      
+      // Validar que config y parametros existan
+      if (!config || !config.parametros) {
+        console.error('❌ Config inválida o sin parámetros:', config);
+        document.getElementById('editorContent').innerHTML = '<p style="color: red;">Error: Configuración de plantilla inválida</p>';
+        return;
+      }
+      
+      var html = '<div class="editor-section">';
+      html += '<h3>⚙️ Parámetros</h3>';
+      html += '<div class="parametros-grid">';
+      
+      config.parametros.forEach(function(param) {
+        html += '<div class="parametro-group">';
+        html += '<label>' + param.label + '</label>';
+        
+        if (param.tipo === 'select') {
+          html += '<select id="param_' + param.id + '" onchange="actualizarParametro(\'' + param.id + '\')">';
+          html += '<option value="">Seleccionar...</option>';
+          if (param.opciones && param.opciones.length > 0) {
+            param.opciones.forEach(function(opt) {
+              html += '<option value="' + opt.value + '">' + opt.label + '</option>';
+            });
+          }
+          html += '</select>';
+        } else if (param.tipo === 'multiselect') {
+          html += '<select id="param_' + param.id + '" multiple size="6" onchange="actualizarParametro(\'' + param.id + '\')">';
+          if (param.opciones && param.opciones.length > 0) {
+            param.opciones.forEach(function(opt) {
+              html += '<option value="' + opt.value + '">' + opt.label + '</option>';
+            });
+          } else {
+            html += '<option value="">Selecciona un alumno primero</option>';
+          }
+          html += '</select>';
+          html += '<small style="display: block; margin-top: 5px; color: #666;">Mantén Ctrl (Cmd en Mac) para seleccionar múltiples cuotas</small>';
+        } else if (param.tipo === 'search') {
+          html += '<input type="text" id="param_' + param.id + '" placeholder="' + (param.placeholder || '') + '" onkeyup="buscarAlumnosEnTiempoReal(\'' + param.id + '\')">';
+          html += '<div id="resultados_' + param.id + '" class="search-results" style="display: none; position: absolute; background: white; border: 1px solid #ccc; border-radius: 4px; max-height: 200px; overflow-y: auto; z-index: 1000; width: 100%;"></div>';
+        } else if (param.tipo === 'hidden') {
+          html += '<input type="hidden" id="param_' + param.id + '">';
+          // No mostrar label para campos ocultos
+          html = html.replace('<label>' + param.label + '</label>', '');
+        } else if (param.tipo === 'text') {
+          html += '<input type="text" id="param_' + param.id + '" placeholder="' + (param.placeholder || '') + '" onchange="actualizarParametro(\'' + param.id + '\')">';
+        } else if (param.tipo === 'number') {
+          html += '<input type="number" id="param_' + param.id + '" placeholder="' + (param.placeholder || '') + '" onchange="actualizarParametro(\'' + param.id + '\')">';
+        }
+        
+        html += '</div>';
+      });
+      
+      html += '</div>';
+      html += '<div class="acciones">';
+      html += '<button class="btn-preview" onclick="generarPreview()">👁️ Generar Vista Previa</button>';
+      html += '<button class="btn-enviar" onclick="enviarPlantilla()">✉️ Enviar Email</button>';
+      html += '</div>';
+      html += '</div>';
+      
+      document.getElementById('editorContent').innerHTML = html;
+      console.log('✅ Editor renderizado exitosamente');
+    }
+
+    function actualizarParametro(parametroId) {
+      var elemento = document.getElementById('param_' + parametroId);
+      var valor;
+      
+      if (elemento.multiple) {
+        // Para multiselect, obtener valores seleccionados
+        var selectedOptions = Array.from(elemento.selectedOptions).map(function(opt) { return opt.value; });
+        valor = selectedOptions.join(',');
+      } else {
+        valor = elemento.value;
+      }
+      
+      parametrosActuales[parametroId] = valor;
+    }
+
+    var timeoutBusqueda = null;
+    
+    function buscarAlumnosEnTiempoReal(parametroId) {
+      clearTimeout(timeoutBusqueda);
+      var termino = document.getElementById('param_' + parametroId).value;
+      
+      if (termino.length < 2) {
+        document.getElementById('resultados_' + parametroId).style.display = 'none';
+        return;
+      }
+      
+      timeoutBusqueda = setTimeout(function() {
+        google.script.run
+          .withSuccessHandler(function(alumnos) {
+            console.log('✅ [plantillas] Búsqueda completada:', alumnos ? alumnos.length : 'null');
+            mostrarResultadosBusqueda(parametroId, alumnos || []);
+          })
+          .withFailureHandler(function(error) {
+            console.error('❌ [plantillas] Error en búsqueda:', error);
+          })
+          .buscarAlumno(termino);
+      }, 300);
+    }
+    
+    function mostrarResultadosBusqueda(parametroId, alumnos) {
+      var contenedor = document.getElementById('resultados_' + parametroId);
+      
+      if (alumnos.length === 0) {
+        contenedor.innerHTML = '<div class="search-result-item">No se encontraron alumnos</div>';
+        contenedor.style.display = 'block';
+        return;
+      }
+      
+      var html = '';
+      alumnos.forEach(function(alumno) {
+        var nombre = alumno.Nombre || 'Sin nombre';
+        var email = alumno.Gmail || alumno.Email || 'Sin email';
+        var telefono = alumno.Telefono || 'Sin teléfono';
+        var id = alumno.ID || '';
+        
+        html += '<div class="search-result-item" onclick="seleccionarAlumno(\'' + parametroId + '\', \'' + id + '\', \'' + nombre.replace(/'/g, "\\'") + '\', \'' + email.replace(/'/g, "\\'") + '\')">';
+        html += '<strong>' + nombre + '</strong><br>';
+        html += '<small>' + email + ' - ' + telefono + '</small>';
+        html += '</div>';
+      });
+      
+      contenedor.innerHTML = html;
+      contenedor.style.display = 'block';
+    }
+    
+    function seleccionarAlumno(parametroId, alumnoId, nombre, email) {
+      // Validar que los elementos existan antes de usarlos
+      var inputBusqueda = document.getElementById('param_' + parametroId);
+      var inputAlumnoId = document.getElementById('param_alumno_id');
+      var inputEmail = document.getElementById('param_email_alumno');
+      
+      if (inputBusqueda) inputBusqueda.value = nombre || '';
+      if (inputAlumnoId) inputAlumnoId.value = alumnoId || '';
+      if (inputEmail) inputEmail.value = email || '';
+      
+      // Actualizar parámetros
+      parametrosActuales[parametroId] = nombre || '';
+      parametrosActuales['alumno_id'] = alumnoId || '';
+      parametrosActuales['email_alumno'] = email || '';
+      
+      // Ocultar resultados
+      var resultados = document.getElementById('resultados_' + parametroId);
+      if (resultados) resultados.style.display = 'none';
+      
+      // Si es plantilla de confirmación de pago, cargar matrículas
+      if (plantillaActual && plantillaActual.id === 'confirmacion-pago' && alumnoId) {
+        cargarMatriculasAlumno(alumnoId);
+      }
+      
+      // Si es plantilla de recordatorio de pago, cargar cuotas pendientes
+      if (plantillaActual && plantillaActual.id === 'recordatorio-pago' && alumnoId) {
+        cargarCuotasPendientes(alumnoId);
+      }
+      
+      // Si es plantilla de cambio de sección, cargar secciones del alumno como origen
+      if (plantillaActual && plantillaActual.id === 'cambio-seccion' && alumnoId) {
+        cargarSeccionesOrigenAlumno(alumnoId);
+      }
+      
+      // Si es plantilla de cambio de inicio de sección, cargar secciones del alumno
+      if (plantillaActual && plantillaActual.id === 'cambio-inicio-seccion' && alumnoId) {
+        cargarSeccionesAlumnoCambioInicio(alumnoId);
+      }
+    }
+    
+    function cargarCuotasPendientes(alumnoId) {
+      google.script.run
+        .withSuccessHandler(function(cuotas) {
+          var select = document.getElementById('param_cuotas_pendientes');
+          if (select) {
+            select.innerHTML = '';
+            
+            if (cuotas.length === 0) {
+              select.innerHTML = '<option value="">No hay cuotas pendientes</option>';
+            } else {
+              cuotas.forEach(function(c) {
+                select.innerHTML += '<option value="' + c.id + '">' + c.descripcion + '</option>';
+              });
+            }
+          }
+        })
+        .withFailureHandler(function(error) {
+          console.error('Error cargando cuotas:', error);
+        })
+        .obtenerCuotasPendientes(alumnoId);
+    }
+    
+    function cargarMatriculasAlumno(alumnoId) {
+      google.script.run
+        .withSuccessHandler(function(matriculas) {
+          var select = document.getElementById('param_matricula_id');
+          select.innerHTML = '<option value="">Seleccionar...</option>';
+          if (matriculas && matriculas.length > 0) {
+            matriculas.forEach(function(m) {
+              var label = m.seccion + ' - Pagado: $' + m.totalPagado.toFixed(2) + ' / Total: $' + m.precioTotal.toFixed(2);
+              select.innerHTML += '<option value="' + m.id + '">' + label + '</option>';
+            });
+          } else {
+            select.innerHTML = '<option value="">No se encontraron matriculas</option>';
+          }
+        })
+        .withFailureHandler(function(error) {
+          console.error('Error cargando matriculas:', error);
+        })
+        .obtenerMatriculasPendientes(alumnoId);
+    }
+
+    function cargarSeccionesOrigenAlumno(alumnoId) {
+      google.script.run
+        .withSuccessHandler(function(secciones) {
+          var select = document.getElementById('param_seccion_actual');
+          if (select) {
+            select.innerHTML = '<option value="">Seleccionar sección origen...</option>';
+            if (secciones && secciones.length > 0) {
+              secciones.forEach(function(s) {
+                select.innerHTML += '<option value="' + s.Codigo + '">' + s.Codigo + ' - ' + s.NombreCurso + ' (' + s.Frecuencia + ')</option>';
+              });
+            } else {
+              select.innerHTML = '<option value="">El alumno no tiene secciones</option>';
+            }
+          }
+        })
+        .withFailureHandler(function(error) {
+          console.error('Error cargando secciones del alumno:', error);
+        })
+        .obtenerSeccionesAlumno(alumnoId);
+    }
+
+    function cargarSeccionesAlumnoCambioInicio(alumnoId) {
+      google.script.run
+        .withSuccessHandler(function(secciones) {
+          var select = document.getElementById('param_seccion');
+          if (select) {
+            select.innerHTML = '<option value="">Seleccionar sección...</option>';
+            if (secciones && secciones.length > 0) {
+              secciones.forEach(function(s) {
+                select.innerHTML += '<option value="' + s.Codigo + '">' + s.Codigo + ' - ' + s.NombreCurso + ' (' + s.Frecuencia + ')</option>';
+              });
+            } else {
+              select.innerHTML = '<option value="">El alumno no tiene secciones</option>';
+            }
+          }
+        })
+        .withFailureHandler(function(error) {
+          console.error('Error cargando secciones:', error);
+        })
+        .obtenerSeccionesAlumno(alumnoId);
+    }
+
+    // Cerrar resultados de búsqueda al hacer click fuera
+    document.addEventListener('click', function(event) {
+      var searchResults = document.querySelectorAll('.search-results');
+      searchResults.forEach(function(result) {
+        if (!result.contains(event.target) && !event.target.matches('input[type="text"]')) {
+          result.style.display = 'none';
+        }
+      });
+    });
+
+    function generarPreview() {
+      if (!plantillaActual) {
+        showToast('Selecciona una plantilla primero', 'error');
+        return;
+      }
+      
+      console.log('Generando preview para:', plantillaActual.id, 'con parametros:', parametrosActuales);
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          console.log('Preview response:', result);
+          if (result && result.success) {
+            var iframe = document.getElementById('previewFrame');
+            var doc = iframe.contentDocument || iframe.contentWindow.document;
+            doc.open();
+            doc.write(result.html || '<p>No hay contenido</p>');
+            doc.close();
+            showToast('Vista previa generada', 'success');
+          } else {
+            var iframe2 = document.getElementById('previewFrame');
+            var doc2 = iframe2.contentDocument || iframe2.contentWindow.document;
+            doc2.open();
+            doc2.write(result && result.html ? result.html : '<p style="color: red;">Error al generar preview</p>');
+            doc2.close();
+            showToast('Error al generar vista previa: ' + (result && result.error ? result.error : 'Unknown error'), 'error');
+          }
+        })
+        .withFailureHandler(function(error) {
+          console.error('Error generando preview:', error);
+          showToast('Error al generar vista previa: ' + error, 'error');
+        })
+        .generarPreviewPlantilla(plantillaActual.id, parametrosActuales);
+    }
+
+    function enviarPlantilla() {
+      if (!plantillaActual) {
+        showToast('Selecciona una plantilla primero', 'error');
+        return;
+      }
+      
+      var confirmacion = confirm('¿Enviar email con esta plantilla?');
+      if (!confirmacion) return;
+      
+      var btnEnviar = document.querySelector('.btn-enviar');
+      if (btnEnviar) { btnEnviar.disabled = true; btnEnviar.textContent = '⏳ Enviando...'; }
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (btnEnviar) { btnEnviar.disabled = false; btnEnviar.textContent = '✉️ Enviar Email'; }
+          if (result.success) {
+            showToast('Email enviado exitosamente', 'success');
+          } else {
+            showToast(result.message, 'error');
+          }
+        })
+        .withFailureHandler(function(error) {
+          if (btnEnviar) { btnEnviar.disabled = false; btnEnviar.textContent = '✉️ Enviar Email'; }
+          console.error('Error enviando email:', error);
+          showToast('Error al enviar email', 'error');
+        })
+        .enviarPlantilla(plantillaActual.id, parametrosActuales);
+    }
+
+    function showToast(message, type) {
+      var toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = 'toast show ' + type;
+      setTimeout(function() {
+        toast.classList.remove('show');
+      }, 3000);
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="frame-ancestors 'self' https://*.googleusercontent.com https://*.google.com">
+  
+  <!-- Open Graph Meta Tags para compartir en redes sociales -->
+  <meta property="og:title" content="Educational CRM - CRM Educativo">
+  <meta property="og:description" content="Sistema de gestión educativa para certificaciones profesionales en tecnología">
+  <meta property="og:image" content="https://drive.google.com/uc?export=view&id=1gxxaDb8g_aJXfGR8tMp6r8c3gUVS3I_X">
+  <meta property="og:url" content="https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Educational CRM">
+  
+  <!-- Twitter Card Meta Tags -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Educational CRM - CRM Educativo">
+  <meta name="twitter:description" content="Sistema de gestión educativa para certificaciones profesionales en tecnología">
+  <meta name="twitter:image" content="https://drive.google.com/uc?export=view&id=1gxxaDb8g_aJXfGR8tMp6r8c3gUVS3I_X">
+  
+  <!-- Meta Tags adicionales -->
+  <meta name="description" content="Educational CRM - CRM Educativo para gestión de cursos y certificaciones profesionales">
+  <meta name="keywords" content="Educational CRM, Academy, CRM, Educativo, Certificaciones, AWS, Google Cloud, Cursos">
+  <meta name="author" content="Educational CRM">
+  
+  <title>Educational CRM - CRM Educativo</title>
+  
+  <?!= includeWithBaseUrl('config'); ?>
+  <?!= include('styles'); ?>
+</head>
+<body>
+  <div class="container">
+    <?!= includeWithCurrentPage('nav', currentPage); ?>
+    <main class="main ventas-page" data-page="ventas">
+      <div class="form-card">
+        <h1 class="form-title">💰 Registro de Ventas</h1>
+        
+        <!-- Modo Test Banner v81 -->
+        <div id="modoTestBanner" style="background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <label class="checkbox-label" style="margin: 0; font-weight: 600; color: #856404;">
+                <input type="checkbox" id="modoTest" onchange="toggleModoTest()">
+                🧪 Modo Test (Simulación)
+              </label>
+              <span id="modoTestIndicador" style="display: none; background: #ffc107; color: #000; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: bold;">
+                MODO TEST ACTIVO
+              </span>
+            </div>
+            <button type="button" class="btn-small" onclick="confirmarLimpiarTests()" style="background: #dc3545; color: white;">
+              🗑️ Limpiar Todos los Tests
+            </button>
+          </div>
+          <p style="margin: 10px 0 0 0; font-size: 13px; color: #856404;">
+            Activa el Modo Test para hacer pruebas sin afectar la base de datos real. Los registros de prueba pueden eliminarse con el botón "Limpiar Tests".
+          </p>
+        </div>
+        
+        <!-- Toggle Curso / Simulador / Custom / Retake -->
+        <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
+          <button type="button" id="btnToggleCurso" onclick="toggleTipoVenta('curso')" class="btn-submit" style="flex:1;background:var(--primary);">📚 Venta de Curso</button>
+          <button type="button" id="btnToggleSimulador" onclick="toggleTipoVenta('simulador')" class="btn-submit" style="flex:1;background:#e5e7eb;color:#374151;">🎮 Venta de Simulador</button>
+          <button type="button" id="btnToggleCustom" onclick="toggleTipoVenta('custom')" class="btn-submit" style="flex:1;background:#e5e7eb;color:#374151;">🎁 Venta Custom</button>
+          <button type="button" id="btnToggleRetake" onclick="toggleTipoVenta('retake')" class="btn-submit" style="flex:1;background:#e5e7eb;color:#374151;">🔄 Retake</button>
+        </div>
+        
+        <!-- Formulario de Curso (existente) -->
+        <div id="formCursoContainer">
+        <form id="ventaForm" onsubmit="handleSubmitVenta(event)">
+          <div class="section">
+            <h2 class="section-title">👤 Datos del Alumno</h2>
+            <div class="form-group full-width">
+              <label>¿Es un alumno existente?</label>
+              <div style="display: flex; gap: 10px; align-items: center;">
+                <input type="text" id="buscarAlumnoInput" placeholder="Buscar por nombre, email o teléfono..." style="flex: 1;" oninput="buscarAlumnoExistente()">
+                <button type="button" class="btn-small" onclick="limpiarBusquedaAlumno()">🔄 Limpiar</button>
+              </div>
+              <div id="resultadosAlumno" style="display: none; margin-top: 10px; max-height: 200px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 8px; background: white;"></div>
+            </div>
+            <div class="form-grid">
+              <div class="form-group">
+                <label>Nombre completo *</label>
+                <input type="text" name="nombre" id="alumnoNombre" required oninput="if(alumnoSeleccionadoId){alumnoSeleccionadoId=null;console.log('⚠️ alumnoSeleccionadoId limpiado por edición manual de nombre');}">
+              </div>
+              <div class="form-group">
+                <label>Gmail *</label>
+                <input type="email" name="gmail" id="alumnoGmail" required oninput="if(alumnoSeleccionadoId){alumnoSeleccionadoId=null;console.log('⚠️ alumnoSeleccionadoId limpiado por edición manual de email');}">
+              </div>
+              <div class="form-group">
+                <label>Teléfono *</label>
+                <input type="tel" name="telefono" id="alumnoTelefono" required>
+              </div>
+              <div class="form-group">
+                <label>País *</label>
+                <select name="pais" id="alumnoPais" required>
+                  <option value="">Seleccionar...</option>
+                  <option value="Perú">Perú</option>
+                  <option value="México">México</option>
+                  <option value="Colombia">Colombia</option>
+                  <option value="Chile">Chile</option>
+                  <option value="Argentina">Argentina</option>
+                  <option value="España">España</option>
+                  <option value="USA">USA</option>
+                  <option value="Otro">Otro</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>LinkedIn (opcional)</label>
+                <input type="text" name="linkedin" id="alumnoLinkedin" placeholder="https://linkedin.com/in/..." onblur="if(this.value && !this.value.startsWith('http')){this.value='https://'+this.value;}">
+              </div>
+            </div>
+          </div>
+          <div class="section">
+            <h2 class="section-title">📚 Cursos y Secciones</h2>
+            <div id="seccionesContainer">
+              <div class="seccion-row" data-index="0">
+                <div class="form-group" style="flex: 1;">
+                  <label>Tecnología *</label>
+                  <select class="tecnologia-select" onchange="cargarProvidersVenta(0)" required>
+                    <option value="">Seleccionar...</option>
+                  </select>
+                </div>
+                <div class="form-group" style="flex: 1;">
+                  <label>Provider *</label>
+                  <select class="provider-select" onchange="cargarCursosVenta(0)" disabled required>
+                    <option value="">Seleccionar...</option>
+                  </select>
+                </div>
+                <div class="form-group" style="flex: 1;">
+                  <label>Curso *</label>
+                  <input type="text" class="curso-input" list="cursosList0" onchange="cargarSeccionesVenta(0)" disabled required>
+                  <datalist id="cursosList0"></datalist>
+                </div>
+                <div class="form-group" style="flex: 1;">
+                  <label>Sección *</label>
+                  <select class="seccion-select" disabled required>
+                    <option value="">Seleccionar...</option>
+                  </select>
+                </div>
+                <div class="form-group" style="flex: 0.8;">
+                  <label>Fecha Comprometida</label>
+                  <input type="date" class="fecha-comprometida">
+                </div>
+                <div class="form-group" style="flex: 0.7;">
+                  <label>Modalidad *</label>
+                  <select class="modalidad-select" onchange="actualizarPrecioModalidad(0)" required>
+                    <option value="Basic">🟢 Basic</option>
+                    <option value="Pro" selected>🔵 Pro</option>
+                    <option value="Certify">🟣 Certify</option>
+                  </select>
+                </div>
+                <div class="form-group monto-examen-group" style="flex: 0.6; display:none;">
+                  <label>Monto Examen *</label>
+                  <input type="number" class="monto-examen" step="0.01" min="0" placeholder="0.00">
+                </div>
+                <button type="button" class="btn-icon" onclick="eliminarSeccion(0)" style="margin-top: 24px;">🗑️</button>
+              </div>
+            </div>
+            <button type="button" onclick="agregarSeccionConWarning()" class="btn-small">➕ Agregar Otra Sección</button>
+          </div>
+          <div class="section">
+            <h2 class="section-title">💵 Información de Venta</h2>
+            <div class="form-grid">
+              <div class="form-group">
+                <label>Precio Recomendado (USD)</label>
+                <input type="number" id="precioRecomendado" step="0.01" min="0" readonly style="background: #f0f0f0;">
+                <span class="hint" id="precioHint">Selecciona cursos para ver precio recomendado</span>
+              </div>
+              <div class="form-group">
+                <label>Precio Final (USD) *</label>
+                <input type="number" name="precioTotal" id="precioTotal" step="0.01" min="0" required onchange="actualizarMontoTotal()">
+                <span class="hint">Puedes modificar el precio recomendado</span>
+              </div>
+              <div class="form-group" id="incluyeExamenGroup">
+                <label class="checkbox-label">
+                  <input type="checkbox" name="incluyeExamen" id="incluyeExamen" onchange="toggleExamen()">
+                  Incluye costo de examen
+                </label>
+              </div>
+              <div class="form-group" id="examenGroup" style="display:none;">
+                <label>Seleccionar Examen</label>
+                <select name="examenIncluido" id="examenIncluido">
+                  <option value="">Seleccionar...</option>
+                </select>
+              </div>
+              <div class="form-group" id="porcentajeExamenGroup" style="display:none;">
+                <label>Porcentaje del Examen (%)</label>
+                <input type="number" name="porcentajeExamen" id="porcentajeExamen" min="0" max="100" step="1" value="0">
+                <span class="hint">% del precio total que corresponde al examen</span>
+              </div>
+            </div>
+          </div>
+          <div class="section">
+            <h2 class="section-title">💳 Información de Pago</h2>
+            <div class="form-grid">
+              <div class="form-group full-width">
+                <label>Tipo de Pago *</label>
+                <div style="display: flex; gap: 10px;">
+                  <button type="button" class="btn-small" id="btnPagoCompleto" onclick="seleccionarTipoPago('completo')" style="flex: 1;">Pago Completo</button>
+                  <button type="button" class="btn-small" id="btnFraccionamiento" onclick="seleccionarTipoPago('fraccionado')" style="flex: 1;">Fraccionamiento</button>
+                </div>
+                <input type="hidden" name="tipoPago" id="tipoPago" required>
+              </div>
+            </div>
+            <div id="pagoCompletoSection" style="display:none;">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label>Monto Total</label>
+                  <input type="number" id="montoCompleto" step="0.01" readonly style="background: #f0f0f0;">
+                </div>
+                <div class="form-group">
+                  <label>Medio de Pago *</label>
+                  <select name="medioPagoCompleto" id="medioPagoCompleto">
+                    <option value="">Seleccionar...</option>
+                    <option value="Openpay">Openpay</option>
+                    <option value="PayPal">PayPal</option>
+                    <option value="Transferencia Bancaria">Transferencia Bancaria</option>
+                    <option value="Shopify">Shopify</option>
+                    <option value="Yape">Yape</option>
+                    <option value="Plin">Plin</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>ID / Número de Operación</label>
+                  <input type="text" name="idOperacionCompleto" id="idOperacionCompleto">
+                </div>
+              </div>
+            </div>
+            <div id="fraccionamientoSection" style="display:none;">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label>Cantidad de Cuotas *</label>
+                  <input type="number" name="cantidadCuotas" id="cantidadCuotas" min="2" max="12" onchange="generarCamposCuotas()">
+                </div>
+                <div class="form-group">
+                  <label>Medio de Pago *</label>
+                  <select name="medioPagoFraccionado" id="medioPagoFraccionado">
+                    <option value="">Seleccionar...</option>
+                    <option value="Openpay">Openpay</option>
+                    <option value="PayPal">PayPal</option>
+                    <option value="Transferencia Bancaria">Transferencia Bancaria</option>
+                    <option value="Shopify">Shopify</option>
+                    <option value="Yape">Yape</option>
+                    <option value="Plin">Plin</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>ID / Número de Operación</label>
+                  <input type="text" name="idOperacionFraccionado" id="idOperacionFraccionado">
+                </div>
+              </div>
+              <div id="cuotasDetalleContainer" style="margin-top:15px;"></div>
+              <div id="cuotasValidacion" style="margin-top:8px;font-size:13px;"></div>
+            </div>
+            <div class="form-grid">
+              <div class="form-group full-width">
+                <label>Observaciones</label>
+                <textarea name="observaciones" rows="3"></textarea>
+              </div>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn-submit">💾 Registrar Venta</button>
+          </div>
+        </form>
+        </div><!-- end formCursoContainer -->
+        
+        <!-- Formulario de Simulador -->
+        <div id="formSimuladorContainer" style="display:none;">
+          <form id="simuladorForm" onsubmit="handleSubmitSimulador(event)">
+            <div class="section">
+              <h2 class="section-title">👤 Datos del Alumno</h2>
+              <div class="form-group full-width">
+                <label>¿Es un alumno existente?</label>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                  <input type="text" id="simBuscarAlumno" placeholder="Buscar por nombre o email..." oninput="buscarAlumnoSimulador()">
+                  <div id="simResultadosBusqueda" style="position:absolute;background:white;border:1px solid #ccc;max-height:150px;overflow-y:auto;z-index:100;display:none;"></div>
+                </div>
+              </div>
+              <div class="form-grid">
+                <div class="form-group"><label>Nombre *</label><input type="text" id="simNombre" required></div>
+                <div class="form-group"><label>Gmail *</label><input type="email" id="simGmail" required></div>
+                <div class="form-group"><label>Teléfono *</label><input type="tel" id="simTelefono" required></div>
+                <div class="form-group"><label>País *</label>
+                  <select id="simPais" required>
+                    <option value="">Seleccionar...</option>
+                    <option value="Perú">Perú</option>
+                    <option value="Colombia">Colombia</option>
+                    <option value="México">México</option>
+                    <option value="Chile">Chile</option>
+                    <option value="Ecuador">Ecuador</option>
+                    <option value="Argentina">Argentina</option>
+                    <option value="Bolivia">Bolivia</option>
+                    <option value="Otro">Otro</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div class="section">
+              <h2 class="section-title">🎮 Simulador</h2>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label>Cursos del Simulador *</label>
+                  <select id="simCursos" multiple size="5" required onchange="calcularPrecioSimulador()"></select>
+                  <small>Mantén Ctrl/Cmd para seleccionar varios</small>
+                </div>
+                <div class="form-group">
+                  <label>Meses de Acceso *</label>
+                  <input type="number" id="simMeses" min="1" max="12" value="1" onchange="calcularPrecioSimulador()">
+                </div>
+                <div class="form-group">
+                  <label>Precio Total</label>
+                  <input type="text" id="simPrecioTotal" readonly style="background:#f0f0f0;font-weight:bold;">
+                </div>
+              </div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label>Medio de Pago *</label>
+                  <select id="simMedioPago" required>
+                    <option value="">Seleccionar...</option>
+                    <option value="Openpay">Openpay</option>
+                    <option value="PayPal">PayPal</option>
+                    <option value="Transferencia Bancaria">Transferencia Bancaria</option>
+                    <option value="Shopify">Shopify</option>
+                    <option value="Yape">Yape</option>
+                    <option value="Plin">Plin</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>ID / Número de Operación</label>
+                  <input type="text" id="simIdOperacion">
+                </div>
+              </div>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn-submit">💾 Registrar Simulador</button>
+            </div>
+          </form>
+        </div><!-- end formSimuladorContainer -->
+        
+        <!-- Formulario Custom -->
+        <div id="formCustomContainer" style="display:none;">
+          <form id="customForm" onsubmit="handleSubmitCustom(event)">
+            <div class="section">
+              <h2 class="section-title">👤 Datos del Alumno</h2>
+              <div class="form-group full-width">
+                <label>¿Es un alumno existente?</label>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                  <input type="text" id="custBuscarAlumno" placeholder="Buscar por nombre o email..." oninput="buscarAlumnoCustom()">
+                </div>
+                <div id="custResultadosBusqueda" style="display:none;max-height:150px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:4px;margin-top:5px;"></div>
+              </div>
+              <div class="form-grid">
+                <div class="form-group"><label>Nombre *</label><input type="text" id="custNombre" required></div>
+                <div class="form-group"><label>Gmail *</label><input type="email" id="custGmail" required></div>
+                <div class="form-group"><label>Teléfono *</label><input type="tel" id="custTelefono" required></div>
+                <div class="form-group"><label>País *</label>
+                  <select id="custPais" required>
+                    <option value="">Seleccionar...</option>
+                    <option value="Perú">Perú</option>
+                    <option value="Colombia">Colombia</option>
+                    <option value="México">México</option>
+                    <option value="Chile">Chile</option>
+                    <option value="Argentina">Argentina</option>
+                    <option value="España">España</option>
+                    <option value="USA">USA</option>
+                    <option value="Otro">Otro</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            
+            <div class="section">
+              <h2 class="section-title">🎁 Paquete Custom - Cursos y Beneficios</h2>
+              <div id="customCursosContainer">
+                <div class="custom-curso-row" data-cindex="0" style="border:1px solid #e5e7eb;border-radius:8px;padding:15px;margin-bottom:15px;background:#f9fafb;">
+                  <div class="form-grid" style="margin-bottom:10px;">
+                    <div class="form-group" style="flex:1;">
+                      <label>Curso *</label>
+                      <select class="custom-curso-select" onchange="cargarSeccionesCustom(0)" required>
+                        <option value="">Seleccionar curso...</option>
+                      </select>
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                      <label>Sección (para Drive/Classroom)</label>
+                      <select class="custom-seccion-select">
+                        <option value="">Seleccionar sección...</option>
+                      </select>
+                    </div>
+                    <button type="button" class="btn-icon" onclick="eliminarCursoCustom(0)" style="margin-top:24px;">🗑️</button>
+                  </div>
+                  <div style="display:flex;flex-wrap:wrap;gap:15px;font-size:13px;">
+                    <label><input type="checkbox" class="chk-grabaciones"> 📹 Grabaciones</label>
+                    <label><input type="checkbox" class="chk-material"> 📂 Material</label>
+                    <label><input type="checkbox" class="chk-simulador" onchange="toggleSimCustom(0)"> 🎮 Simulador</label>
+                    <label><input type="checkbox" class="chk-voucher" onchange="toggleVoucherCustom(0)"> 🎓 Voucher Examen</label>
+                    <label><input type="checkbox" class="chk-sesiones" onchange="toggleSesionesCustom(0)"> 👨‍💻 Sesiones 1:1</label>
+                    <label><input type="checkbox" class="chk-classroom"> 🪧 Classroom</label>
+                  </div>
+                  <div class="custom-sim-fields" style="display:none;margin-top:10px;padding:10px;background:white;border-radius:4px;">
+                    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                      <div><label style="font-size:12px;">Meses</label><input type="number" class="sim-meses" min="1" max="12" value="2" style="padding:6px;width:60px;border:1px solid #ccc;border-radius:4px;"></div>
+                      <div><label style="font-size:12px;">Fecha inicio acceso</label><input type="date" class="sim-fecha-inicio" style="padding:6px;border:1px solid #ccc;border-radius:4px;"></div>
+                    </div>
+                  </div>
+                  <div class="custom-voucher-fields" style="display:none;margin-top:10px;">
+                    <label style="font-size:12px;">Monto Examen (USD)</label>
+                    <input type="number" class="voucher-monto" step="0.01" min="0" placeholder="0.00" style="padding:6px;width:100px;border:1px solid #ccc;border-radius:4px;">
+                  </div>
+                  <div class="custom-sesiones-fields" style="display:none;margin-top:10px;">
+                    <label style="font-size:12px;">Cantidad de sesiones</label>
+                    <input type="number" class="sesiones-cantidad" min="1" max="20" value="2" style="padding:6px;width:60px;border:1px solid #ccc;border-radius:4px;">
+                  </div>
+                </div>
+              </div>
+              <button type="button" onclick="agregarCursoCustom()" class="btn-small">➕ Agregar Otro Curso</button>
+            </div>
+            
+            <div class="section">
+              <h2 class="section-title">💵 Información de Pago</h2>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label>Precio Total (USD) *</label>
+                  <input type="number" id="custPrecioTotal" step="0.01" min="0" required>
+                </div>
+                <div class="form-group">
+                  <label>Medio de Pago *</label>
+                  <select id="custMedioPago" required>
+                    <option value="">Seleccionar...</option>
+                    <option value="Openpay">Openpay</option>
+                    <option value="PayPal">PayPal</option>
+                    <option value="Transferencia Bancaria">Transferencia Bancaria</option>
+                    <option value="Shopify">Shopify</option>
+                    <option value="Yape">Yape</option>
+                    <option value="Plin">Plin</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>ID / Número de Operación</label>
+                  <input type="text" id="custIdOperacion">
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Observaciones</label>
+                <textarea id="custObservaciones" rows="2"></textarea>
+              </div>
+            </div>
+            
+            <div class="form-actions">
+              <button type="submit" class="btn-submit">💾 Registrar Venta Custom</button>
+            </div>
+          </form>
+        </div><!-- end formCustomContainer -->
+        
+        <!-- Formulario Retake -->
+        <div id="formRetakeContainer" style="display:none;">
+          <form id="retakeForm" onsubmit="handleSubmitRetake(event)">
+            <div class="section">
+              <h2 class="section-title">🔄 Retake - Re-inscripción de Alumno</h2>
+              <p style="color:#64748b;font-size:13px;margin-bottom:15px;">El alumno debe existir en el sistema y haber tomado el curso previamente.</p>
+              
+              <!-- Búsqueda de alumno existente -->
+              <div class="form-group full-width">
+                <label>Buscar alumno existente *</label>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                  <input type="text" id="retakeBuscarInput" placeholder="Buscar por nombre, email o teléfono..." style="flex: 1;" oninput="retakeBuscarAlumno()">
+                  <button type="button" class="btn-small" onclick="retakeLimpiarAlumno()">🔄 Limpiar</button>
+                </div>
+                <div id="retakeResultadosAlumno" style="display: none; margin-top: 10px; max-height: 200px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 8px; background: white;"></div>
+              </div>
+              
+              <!-- Info del alumno seleccionado -->
+              <div id="retakeAlumnoInfo" style="display:none; background:#f0f9ff; border:1px solid #bae6fd; border-radius:8px; padding:12px; margin:10px 0;">
+                <strong id="retakeAlumnoNombre"></strong> — <span id="retakeAlumnoEmail" style="color:#64748b;"></span>
+                <input type="hidden" id="retakeAlumnoId">
+                <input type="hidden" id="retakeAlumnoTelefono">
+                <input type="hidden" id="retakeAlumnoPais">
+              </div>
+            </div>
+            
+            <!-- Selección de curso y sección -->
+            <div class="section" id="retakeCursoSection" style="display:none;">
+              <h2 class="section-title">📚 Curso a Retomar</h2>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label>Curso previo *</label>
+                  <select id="retakeCursoSelect" onchange="retakeCargarSecciones()" required>
+                    <option value="">Seleccionar curso...</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Sección disponible *</label>
+                  <select id="retakeSeccionSelect" required>
+                    <option value="">Seleccionar sección...</option>
+                  </select>
+                </div>
+              </div>
+              <div id="retakeNoCursos" style="display:none; color:#dc2626; padding:10px; background:#fef2f2; border-radius:8px;">
+                ⚠️ Este alumno no tiene cursos previos registrados.
+              </div>
+              <div id="retakeNoSecciones" style="display:none; color:#dc2626; padding:10px; background:#fef2f2; border-radius:8px;">
+                ⚠️ No hay secciones activas o programadas para este curso.
+              </div>
+            </div>
+            
+            <!-- Constancia y precio -->
+            <div class="section" id="retakePrecioSection" style="display:none;">
+              <h2 class="section-title">💰 Precio del Retake</h2>
+              <div class="form-group full-width">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="retakeConstancia" onchange="retakeToggleConstancia()">
+                  ¿El alumno envió constancia de examen fallido a contact@example.com?
+                </label>
+                <p style="font-size:12px;color:#64748b;margin-top:5px;">Si marcado → $0 (gratis). Si no → $19 USD.</p>
+              </div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label>Precio (USD) *</label>
+                  <input type="number" id="retakePrecio" step="0.01" min="0" value="19" onchange="retakeActualizarPago()">
+                </div>
+              </div>
+              
+              <!-- Simulador opcional -->
+              <div class="form-group full-width" style="margin-top:15px;">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="retakeSimulador" onchange="retakeToggleSimulador()">
+                  ¿Incluir acceso a simulador?
+                </label>
+              </div>
+              <div id="retakeSimuladorMeses" style="display:none; margin-top:10px;">
+                <div class="form-group" style="max-width:200px;">
+                  <label>Meses de acceso</label>
+                  <input type="number" id="retakeMeses" min="1" max="12" value="2">
+                </div>
+              </div>
+            </div>
+            
+            <!-- Pago -->
+            <div class="section" id="retakePagoSection" style="display:none;">
+              <h2 class="section-title">💳 Datos de Pago</h2>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label>Medio de pago *</label>
+                  <select id="retakeMedioPago" required>
+                    <option value="">Seleccionar...</option>
+                    <option value="Openpay">Openpay</option>
+                    <option value="PayPal">PayPal</option>
+                    <option value="Transferencia Bancaria">Transferencia Bancaria</option>
+                    <option value="Shopify">Shopify</option>
+                    <option value="Yape">Yape</option>
+                    <option value="Plin">Plin</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>ID de Operación</label>
+                  <input type="text" id="retakeIdOperacion" placeholder="Número de operación...">
+                </div>
+              </div>
+            </div>
+            
+            <!-- Submit -->
+            <div class="section">
+              <button type="submit" id="retakeSubmitBtn" class="btn-submit" disabled>💾 Registrar Retake</button>
+            </div>
+          </form>
+        </div><!-- end formRetakeContainer -->
+        
+      </div>
+    </main>
+    <?!= include('footer'); ?>
+  </div>
+  <div id="toast" class="toast"></div>
+  <!-- Modal de Resumen de Venta -->
+  <div id="resumenModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: white; border-radius: 12px; padding: 30px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+      <h2 style="margin-top: 0; color: #1e40af;">📋 Resumen de Venta</h2>
+      <div id="resumenContenido" style="margin: 20px 0; font-size: 14px; line-height: 1.8;"></div>
+      <div style="display: flex; gap: 10px; margin-top: 20px;">
+        <button type="button" onclick="cerrarResumen()" class="btn-small" style="flex: 1; background: #6b7280;">Cancelar</button>
+        <button type="button" onclick="confirmarVenta()" class="btn-small" style="flex: 1; background: #10b981;">Confirmar</button>
+      </div>
+    </div>
+  </div>
+  
+  <?!= include('script'); ?>
+</body>
+</html>

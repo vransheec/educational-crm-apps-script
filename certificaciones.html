@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <?!= includeWithBaseUrl('config'); ?>
+  <?!= include('styles'); ?>
+  <style>
+    .editable { cursor: pointer; border-bottom: 1px dashed #ccc; }
+    .editable:hover { background: #f0f0f0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <?!= includeWithCurrentPage('nav', currentPage); ?>
+
+    <main class="main certificaciones-page" data-page="certificaciones">
+      <div class="form-card">
+        <h1 class="form-title">🏆 Gestión de Certificaciones</h1>
+        
+        <div class="tabs">
+          <button class="tab active" onclick="showTab('todas')">Todas las Certificaciones</button>
+          <button class="tab" onclick="showTab('agregar')">Agregar Certificación</button>
+        </div>
+
+        <!-- Tab: Todas -->
+        <div id="tab-todas" class="tab-content active">
+          <div class="section">
+            <h2 class="section-title">Filtrar Certificaciones</h2>
+            <div class="form-grid">
+              <div class="form-group">
+                <label>Tecnología</label>
+                <select id="filtroTecnologia" onchange="filtrarCertificaciones()">
+                  <option value="">Todas</option>
+                  <option value="Cloud">Cloud</option>
+                  <option value="DevOps">DevOps</option>
+                  <option value="Sistema Operativo">Sistema Operativo</option>
+                  <option value="Redes">Redes</option>
+                  <option value="Seguridad">Seguridad</option>
+                  <option value="Gestión">Gestión</option>
+                  <option value="Agile">Agile</option>
+                  <option value="ITSM">ITSM</option>
+                  <option value="Base de Datos">Base de Datos</option>
+                  <option value="Data Science">Data Science</option>
+                  <option value="Data Engineering">Data Engineering</option>
+                  <option value="BI">BI</option>
+                  <option value="Hardware">Hardware</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Provider</label>
+                <select id="filtroProvider" onchange="filtrarCertificaciones()">
+                  <option value="">Todos</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Código</th>
+                  <th>Nombre</th>
+                  <th>Tecnología</th>
+                  <th>Provider</th>
+                  <th>Nivel</th>
+                  <th>Descripción</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="certificacionesBody">
+                <tr><td colspan="7">Cargando...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Tab: Agregar -->
+        <div id="tab-agregar" class="tab-content">
+          <form id="certificacionForm" onsubmit="handleSubmitCertificacion(event)">
+            <div class="section">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label>Código *</label>
+                  <input type="text" name="codigo" required placeholder="CLF, LPIC-1, CKA..." style="text-transform: uppercase;">
+                  <span class="hint">Usa el acrónimo estándar de la certificación</span>
+                </div>
+                <div class="form-group full-width">
+                  <label>Nombre Completo *</label>
+                  <input type="text" name="nombre" required placeholder="AWS Certified Cloud Practitioner">
+                </div>
+                <div class="form-group">
+                  <label>Tecnología *</label>
+                  <select name="tecnologia" required>
+                    <option value="">Seleccionar...</option>
+                    <option value="Cloud">Cloud</option>
+                    <option value="DevOps">DevOps</option>
+                    <option value="Sistema Operativo">Sistema Operativo</option>
+                    <option value="Redes">Redes</option>
+                    <option value="Seguridad">Seguridad</option>
+                    <option value="Gestión">Gestión</option>
+                    <option value="Agile">Agile</option>
+                    <option value="ITSM">ITSM</option>
+                    <option value="Arquitectura">Arquitectura</option>
+                    <option value="Base de Datos">Base de Datos</option>
+                    <option value="Data Science">Data Science</option>
+                    <option value="Data Engineering">Data Engineering</option>
+                    <option value="Data Warehouse">Data Warehouse</option>
+                    <option value="BI">BI</option>
+                    <option value="Hardware">Hardware</option>
+                    <option value="Microsoft">Microsoft</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Provider *</label>
+                  <input type="text" name="provider" required placeholder="AWS, Azure, GCP, CompTIA...">
+                </div>
+                <div class="form-group">
+                  <label>Nivel *</label>
+                  <select name="nivel" required>
+                    <option value="">Seleccionar...</option>
+                    <option value="Básico">Básico</option>
+                    <option value="Asociado">Asociado</option>
+                    <option value="Profesional">Profesional</option>
+                    <option value="Experto">Experto</option>
+                    <option value="Especialidad">Especialidad</option>
+                    <option value="Avanzado">Avanzado</option>
+                  </select>
+                </div>
+                <div class="form-group full-width">
+                  <label>Descripción</label>
+                  <textarea name="descripcion" rows="2" placeholder="Breve descripción de la certificación"></textarea>
+                </div>
+              </div>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn-submit">💾 Guardar Certificación</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </main>
+
+    <?!= include('footer'); ?>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  
+  <script>
+    var todasCertificaciones = [];
+
+    document.addEventListener('DOMContentLoaded', function() {
+      loadCertificaciones();
+    });
+
+    function loadCertificaciones() {
+      google.script.run
+        .withSuccessHandler(function(certificaciones) {
+          todasCertificaciones = certificaciones;
+          renderCertificaciones(certificaciones);
+          poblarProviders();
+        })
+        .getCertificaciones();
+    }
+
+    function poblarProviders() {
+      var providers = [...new Set(todasCertificaciones.map(c => c.Provider))].sort();
+      var select = document.getElementById('filtroProvider');
+      select.innerHTML = '<option value="">Todos</option>';
+      providers.forEach(function(p) {
+        select.add(new Option(p, p));
+      });
+    }
+
+    function filtrarCertificaciones() {
+      var tecnologia = document.getElementById('filtroTecnologia').value;
+      var provider = document.getElementById('filtroProvider').value;
+      
+      var filtradas = todasCertificaciones.filter(function(c) {
+        return (!tecnologia || c.Tecnologia === tecnologia) &&
+               (!provider || c.Provider === provider);
+      });
+      
+      renderCertificaciones(filtradas);
+    }
+
+    function renderCertificaciones(certificaciones) {
+      var tbody = document.getElementById('certificacionesBody');
+      if (!certificaciones || certificaciones.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7">No hay certificaciones registradas</td></tr>';
+        return;
+      }
+
+      var html = '';
+      certificaciones.forEach(function(c) {
+        html += '<tr>';
+        html += '<td><strong>' + c.Codigo + '</strong></td>';
+        html += '<td class="editable" onclick="editarCampoCertificacion(\'' + c.Codigo + '\', \'Nombre\', this)">' + c.Nombre + '</td>';
+        html += '<td class="editable" onclick="editarCampoCertificacion(\'' + c.Codigo + '\', \'Tecnologia\', this)">' + c.Tecnologia + '</td>';
+        html += '<td class="editable" onclick="editarCampoCertificacion(\'' + c.Codigo + '\', \'Provider\', this)">' + c.Provider + '</td>';
+        html += '<td class="editable" onclick="editarCampoCertificacion(\'' + c.Codigo + '\', \'Nivel\', this)">' + c.Nivel + '</td>';
+        html += '<td class="editable" onclick="editarCampoCertificacion(\'' + c.Codigo + '\', \'Descripcion\', this)">' + (c.Descripcion || '-') + '</td>';
+        html += '<td><button class="btn-small" onclick="eliminarCertificacion(\'' + c.Codigo + '\')">🗑️</button></td>';
+        html += '</tr>';
+      });
+      tbody.innerHTML = html;
+    }
+
+    function editarCampoCertificacion(codigo, campo, celda) {
+      var valorActual = celda.textContent.replace('-', '').trim();
+      var nuevoValor = prompt('Nuevo valor para ' + campo + ':', valorActual);
+      
+      if (nuevoValor !== null && nuevoValor !== valorActual) {
+        google.script.run
+          .withSuccessHandler(function(result) {
+            if (result.success) {
+              celda.textContent = nuevoValor || '-';
+              showToast('Campo actualizado', 'success');
+              loadCertificaciones();
+            } else {
+              showToast('Error al actualizar', 'error');
+            }
+          })
+          .updateCertificacion(codigo, campo, nuevoValor);
+      }
+    }
+
+    function eliminarCertificacion(codigo) {
+      if (!confirm('¿Eliminar la certificación ' + codigo + '? Esta acción no se puede deshacer.')) {
+        return;
+      }
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            showToast(result.message, 'success');
+            loadCertificaciones();
+          } else {
+            showToast(result.message, 'error');
+          }
+        })
+        .deleteCertificacion(codigo);
+    }
+
+    function handleSubmitCertificacion(event) {
+      event.preventDefault();
+      var form = event.target;
+
+      var data = {
+        codigo: form.codigo.value.toUpperCase(),
+        nombre: form.nombre.value,
+        tecnologia: form.tecnologia.value,
+        provider: form.provider.value,
+        nivel: form.nivel.value,
+        descripcion: form.descripcion.value
+      };
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            showToast(result.message, 'success');
+            form.reset();
+            loadCertificaciones();
+            showTab('todas');
+          } else {
+            showToast(result.message, 'error');
+          }
+        })
+        .saveCertificacion(data);
+    }
+
+    function showTab(tabName) {
+      document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+      document.querySelectorAll('.tab-content').forEach(function(t) { t.classList.remove('active'); });
+      document.getElementById('tab-' + tabName).classList.add('active');
+      event.target.classList.add('active');
+    }
+
+    function showToast(message, type) {
+      var toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = 'toast ' + type + ' show';
+      setTimeout(function() { toast.classList.remove('show'); }, 4000);
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,1620 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="frame-ancestors 'self' https://*.googleusercontent.com https://*.google.com">
+  <?!= includeWithBaseUrl('config'); ?>
+  <?!= include('styles'); ?>
+  <style>
+    .docente-contratado { background-color: #dcfce7 !important; }
+    .editable { cursor: pointer; border-bottom: 1px dashed #ccc; padding: 8px; }
+    .editable:hover { background: #e0f2fe; }
+    
+    /* Columnas ocultas por defecto */
+    .col-pais { display: none !important; }
+    .col-linkedin { display: none !important; }
+    .col-estado { display: none !important; }
+    .col-webinars { display: none !important; }
+    .col-comentarios { display: none !important; }
+    .cell-pais { display: none !important; }
+    .cell-linkedin { display: none !important; }
+    .cell-estado { display: none !important; }
+    .cell-webinars { display: none !important; }
+    .cell-comentarios { display: none !important; }
+    
+    /* Limitar ancho de columnas de certificaciones y cursos */
+    .col-certificaciones,
+    .col-cursos,
+    .cell-certificaciones,
+    .cell-cursos {
+      max-width: 250px;
+      white-space: normal !important;
+      word-wrap: break-word;
+    }
+    
+    /* Headers clickeables para ordenar */
+    th.sortable { cursor: pointer; user-select: none; }
+    th.sortable:hover { background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); }
+    th.sortable::after { content: ' ⇅'; opacity: 0.5; }
+    
+    /* Badges de cursos por nube */
+    .curso-badge {
+      display: inline-block;
+      padding: 3px 8px;
+      margin: 2px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      color: white;
+    }
+    .curso-aws { background: #FF9900; }
+    .curso-azure { background: #0078D4; }
+    .curso-gcp { background: #EA4335; }
+    .curso-terraform { background: #7B42BC; }
+    .curso-kubernetes { background: #326CE5; }
+    .curso-otro { background: #6B7280; }
+    
+    /* Modal para edición */
+    .edit-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .edit-modal.show {
+      display: flex;
+    }
+    .edit-modal-content {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      max-width: 500px;
+      width: 90%;
+    }
+    .edit-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid var(--primary);
+    }
+    .edit-modal-header h3 {
+      margin: 0;
+      color: var(--primary);
+      font-size: 20px;
+    }
+    .edit-modal-close {
+      background: none;
+      border: none;
+      font-size: 28px;
+      cursor: pointer;
+      color: #666;
+      padding: 0;
+      width: 30px;
+      height: 30px;
+      line-height: 1;
+    }
+    .edit-modal-close:hover {
+      color: var(--danger);
+    }
+    .edit-modal-body {
+      margin-bottom: 20px;
+    }
+    .edit-modal-body label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #333;
+    }
+    .edit-modal-body input,
+    .edit-modal-body select,
+    .edit-modal-body textarea {
+      width: 100%;
+      padding: 10px;
+      border: 2px solid #e5e7eb;
+      border-radius: 6px;
+      font-size: 14px;
+      transition: border-color 0.2s;
+      box-sizing: border-box;
+    }
+    .edit-modal-body input:focus,
+    .edit-modal-body select:focus,
+    .edit-modal-body textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    .edit-modal-body textarea {
+      min-height: 80px;
+      resize: vertical;
+    }
+    .edit-modal-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+    .edit-modal-actions button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .btn-cancel {
+      background: #e5e7eb;
+      color: #374151;
+    }
+    .btn-cancel:hover {
+      background: #d1d5db;
+    }
+    .btn-save {
+      background: var(--primary);
+      color: white;
+    }
+    .btn-save:hover {
+      background: #1e3a8a;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <?!= includeWithCurrentPage('nav', currentPage); ?>
+
+    <main class="main docentes-page" data-page="docentes">
+      <div class="form-card">
+        <h1 class="form-title">👨‍🏫 Gestión de Docentes</h1>
+        
+        <div class="tabs">
+          <button class="tab active" onclick="showTab('lista')">Lista Completa</button>
+          <button class="tab" onclick="showTab('porCurso')">Por Curso</button>
+          <button class="tab" onclick="showTab('nuevo')">Nuevo Docente</button>
+        </div>
+
+        <!-- Tab: Por Curso -->
+        <div id="tab-porCurso" class="tab-content">
+          <div class="section">
+            <h2 class="section-title">Filtrar por Curso</h2>
+            <div class="form-grid">
+              <div class="form-group">
+                <label>Tecnología *</label>
+                <select id="filtroTecnologia" onchange="cargarProviders()">
+                  <option value="">Seleccionar...</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Provider (opcional)</label>
+                <select id="filtroProvider" onchange="cargarNiveles()" disabled>
+                  <option value="">Todos</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Nivel (opcional)</label>
+                <select id="filtroNivel" onchange="cargarCursos()" disabled>
+                  <option value="">Todos</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Curso (opcional)</label>
+                <select id="filtroCurso" onchange="cargarDocentesPorCurso()" disabled>
+                  <option value="">Todos</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th class="sortable" onclick="ordenarDocentesPorCurso('Nombre')">Nombre</th>
+                  <th>País</th>
+                  <th class="sortable" onclick="ordenarDocentesPorCurso('TarifaHora')">Tarifa/Hora</th>
+                  <th>Método Pago</th>
+                  <th>Teléfono</th>
+                  <th>Estado</th>
+                  <th>Webinars</th>
+                </tr>
+              </thead>
+              <tbody id="docentesPorCursoBody">
+                <tr><td colspan="7">Selecciona un curso para ver docentes</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Tab: Lista Completa -->
+        <div id="tab-lista" class="tab-content active">
+          <div class="section">
+            <h2 class="section-title">Columnas Visibles</h2>
+            <div class="checkbox-grid">
+              <label class="checkbox-label">
+                <input type="checkbox" class="col-toggle" data-col="nombre" checked disabled> Nombre
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" class="col-toggle" data-col="certificaciones" checked> Certificaciones
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" class="col-toggle" data-col="cursos" checked disabled> Cursos
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" class="col-toggle" data-col="pais"> País
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" class="col-toggle" data-col="tarifa" checked> Tarifa/Hora
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" class="col-toggle" data-col="metodo" checked> Método Pago
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" class="col-toggle" data-col="telefono" checked> Teléfono
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" class="col-toggle" data-col="email" checked> Email
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" class="col-toggle" data-col="linkedin"> LinkedIn
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" class="col-toggle" data-col="estado"> Estado
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" class="col-toggle" data-col="webinars"> Webinars
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" class="col-toggle" data-col="comentarios"> Comentarios
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" class="col-toggle" data-col="foto" checked> Foto
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" class="col-toggle" data-col="acciones" checked disabled> Acciones
+              </label>
+            </div>
+          </div>
+          
+          <p class="hint">Click en cualquier celda para editar (excepto ID)</p>
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th class="col-nombre sortable" onclick="ordenarDocentes('Nombre')">Nombre</th>
+                  <th class="col-certificaciones">Certificaciones</th>
+                  <th class="col-cursos">Cursos</th>
+                  <th class="col-pais" style="display:none;">País</th>
+                  <th class="col-tarifa sortable" onclick="ordenarDocentes('TarifaHora')">Tarifa/Hora</th>
+                  <th class="col-metodo">Método Pago</th>
+                  <th class="col-telefono">Teléfono</th>
+                  <th class="col-email">Email</th>
+                  <th class="col-linkedin" style="display:none;">LinkedIn</th>
+                  <th class="col-estado" style="display:none;">Estado</th>
+                  <th class="col-webinars" style="display:none;">Webinars</th>
+                  <th class="col-comentarios" style="display:none;">Comentarios</th>
+                  <th class="col-foto">Foto</th>
+                  <th class="col-acciones">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="docentesBody">
+                <tr><td colspan="14">Cargando...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Tab: Nuevo -->
+        <div id="tab-nuevo" class="tab-content">
+          <form id="docenteForm" onsubmit="handleSubmitDocente(event)">
+            <div class="section">
+              <h2 class="section-title">👤 Datos Personales</h2>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label>Nombre completo *</label>
+                  <input type="text" name="nombre" required>
+                </div>
+                <div class="form-group">
+                  <label>Email *</label>
+                  <input type="email" name="email" required>
+                </div>
+                <div class="form-group">
+                  <label>Teléfono *</label>
+                  <input type="tel" name="telefono" required>
+                </div>
+                <div class="form-group">
+                  <label>País *</label>
+                  <select name="pais" required>
+                    <option value="">Seleccionar...</option>
+                    <option value="Perú">Perú</option>
+                    <option value="México">México</option>
+                    <option value="Colombia">Colombia</option>
+                    <option value="Chile">Chile</option>
+                    <option value="Argentina">Argentina</option>
+                    <option value="España">España</option>
+                    <option value="USA">USA</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>LinkedIn URL</label>
+                  <input type="url" name="linkedin" placeholder="https://linkedin.com/in/...">
+                </div>
+                <div class="form-group">
+                  <label>Cargo / Rol Actual</label>
+                  <input type="text" name="cargo" placeholder="Ej: Cloud Infrastructure Architect en AWS">
+                  <span class="hint">Aparecerá en el correo de bienvenida debajo del título</span>
+                </div>
+                <div class="form-group">
+                  <label>Estado *</label>
+                  <select name="estado" required>
+                    <option value="Contratado">Contratado</option>
+                    <option value="Solicitud en LinkedIn">Solicitud en LinkedIn</option>
+                    <option value="Contactado">Contactado</option>
+                    <option value="Agendado">Agendado</option>
+                    <option value="Stand By">Stand By</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div class="section">
+              <h2 class="section-title">📷 Foto del Docente</h2>
+              <div class="form-group full-width">
+                <label>Foto Actual</label>
+                <div id="docenteFotoActual" style="margin-bottom: 15px; padding: 15px; background: #f5f5f5; border-radius: 8px; text-align: center; display: none;">
+                  <img id="docenteFotoActualImg" src="" style="max-width: 200px; max-height: 200px; border-radius: 8px; margin-bottom: 10px;">
+                  <p style="margin: 5px 0; font-size: 12px; color: #666;">Foto actual del docente</p>
+                </div>
+                <div id="docenteFotoNoActual" style="margin-bottom: 15px; padding: 15px; background: #f5f5f5; border-radius: 8px; text-align: center;">
+                  <p style="margin: 0; font-size: 12px; color: #999;">Sin foto cargada</p>
+                </div>
+              </div>
+              <div class="form-group full-width">
+                <label>Cambiar Foto (opcional)</label>
+                <input type="file" id="docenteFoto" accept="image/*" onchange="previewDocenteFoto(this)">
+                <span class="hint">Formats: JPG, PNG. Max 5MB. Aparece en correos de bienvenida.</span>
+                <div id="docenteFotoPreview" style="margin-top: 10px; display: none;">
+                  <p style="font-size: 12px; color: #666; margin-bottom: 10px;">Nueva foto (preview):</p>
+                  <img id="docenteFotoImg" src="" style="max-width: 200px; max-height: 200px; border-radius: 8px;">
+                  <button type="button" onclick="eliminarDocenteFoto()" class="btn-small" style="margin-left: 10px; background: #dc3545; color: white;">🗑️ Cancelar cambio</button>
+                </div>
+                <input type="hidden" name="fotoBase64" id="fotoBase64">
+                <input type="hidden" name="fotoFileId" id="fotoFileId">
+              </div>
+            </div>
+
+            <div class="section">
+              <h2 class="section-title">📜 Certificaciones y Cursos</h2>
+              
+              <div class="form-group full-width">
+                <label>Certificaciones del Docente</label>
+                <div style="display: flex; gap: 10px; align-items: flex-start;">
+                  <select id="certificacionesSelect" multiple size="8" style="flex: 1; padding: 8px;">
+                    <option value="">Cargando certificaciones...</option>
+                  </select>
+                  <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <button type="button" onclick="agregarCertificacionRapida()" class="btn-small" style="white-space: nowrap;">➕ Nueva</button>
+                    <button type="button" onclick="limpiarCertificaciones()" class="btn-small" style="white-space: nowrap;">🗑️ Limpiar</button>
+                  </div>
+                </div>
+                <span class="hint">Mantén Ctrl (Cmd en Mac) para seleccionar múltiples. Click en "➕ Nueva" para agregar certificaciones no listadas.</span>
+                <div id="certificacionesSeleccionadas" style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 5px;"></div>
+                <input type="hidden" name="certificaciones" id="certificacionesHidden">
+              </div>
+              
+              <div class="form-group">
+                <label>Tecnología *</label>
+                <select id="nuevaTecnologia" onchange="cargarProvidersNuevo()">
+                  <option value="">Seleccionar...</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Provider *</label>
+                <select id="nuevoProvider" onchange="cargarCursosNuevo()" disabled>
+                  <option value="">Seleccionar...</option>
+                </select>
+              </div>
+              <div class="form-group full-width">
+                <label>Cursos que puede dictar *</label>
+                <div id="cursosCheckboxes" class="checkbox-grid">
+                  <p>Selecciona Tecnología y Provider primero</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="section">
+              <h2 class="section-title">💰 Información de Pago</h2>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label>Tarifa por hora (USD) *</label>
+                  <input type="number" name="tarifaHora" step="0.01" min="0" required>
+                </div>
+                <div class="form-group">
+                  <label>Método de Pago *</label>
+                  <select name="canalPago" id="canalPago" required onchange="togglePagoFields()">
+                    <option value="">Seleccionar...</option>
+                    <option value="PayPal">PayPal</option>
+                    <option value="Transferencia Bancaria">Transferencia Bancaria</option>
+                  </select>
+                </div>
+                <div class="form-group" id="paypalGroup" style="display:none;">
+                  <label>Email PayPal</label>
+                  <input type="email" name="emailPaypal">
+                </div>
+                <div class="form-group" id="bancoGroup" style="display:none;">
+                  <label>Banco</label>
+                  <input type="text" name="banco">
+                </div>
+                <div class="form-group" id="cuentaGroup" style="display:none;">
+                  <label>Número de Cuenta</label>
+                  <input type="text" name="numeroCuenta">
+                </div>
+              </div>
+            </div>
+
+            <div class="section">
+              <h2 class="section-title">📚 Disponibilidad</h2>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label class="checkbox-label">
+                    <input type="checkbox" name="puedeWebinars">
+                    Puede dictar webinars
+                  </label>
+                </div>
+                <div class="form-group">
+                  <label class="checkbox-label">
+                    <input type="checkbox" name="tieneMateriales">
+                    Tiene materiales propios
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div class="section">
+              <h2 class="section-title">📝 Comentarios</h2>
+              <div class="form-group full-width">
+                <label>Comentarios adicionales</label>
+                <textarea name="comentarios" rows="4" placeholder="Notas sobre el docente, experiencia, disponibilidad especial, etc." style="width: 100%; padding: 10px; border: 2px solid #e5e7eb; border-radius: 6px; font-family: inherit; font-size: 14px;"></textarea>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" class="btn-submit">💾 Guardar Docente</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </main>
+
+    <?!= include('footer'); ?>
+  </div>
+
+  <!-- Modal de Edición -->
+  <div id="editModal" class="edit-modal">
+    <div class="edit-modal-content">
+      <div class="edit-modal-header">
+        <h3>✏️ Editar Campo</h3>
+        <button class="edit-modal-close" onclick="closeEditModal()">×</button>
+      </div>
+      <div class="edit-modal-body">
+        <label id="editLabel">Campo</label>
+        <input type="text" id="editInput" style="display:none;">
+        <select id="editSelect" style="display:none;"></select>
+        <textarea id="editTextarea" style="display:none;"></textarea>
+      </div>
+      <div class="edit-modal-actions">
+        <button class="btn-cancel" onclick="closeEditModal()">Cancelar</button>
+        <button class="btn-save" onclick="saveEdit()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Agregar Certificación Rápida -->
+  <div id="certModal" class="edit-modal">
+    <div class="edit-modal-content">
+      <div class="edit-modal-header">
+        <h3>➕ Agregar Certificación</h3>
+        <button class="edit-modal-close" onclick="closeCertModal()">×</button>
+      </div>
+      <div class="edit-modal-body">
+        <label>Código de Certificación *</label>
+        <input type="text" id="certCodigo" placeholder="LPIC-1, CKA, PSM-I..." style="text-transform: uppercase;">
+        <span class="hint" style="display: block; margin-top: 5px; font-size: 12px;">Usa el acrónimo estándar</span>
+        
+        <label style="margin-top: 15px;">Nombre Completo *</label>
+        <input type="text" id="certNombre" placeholder="Linux Professional Institute Certification Level 1">
+        
+        <label style="margin-top: 15px;">Tecnología</label>
+        <input type="text" id="certTecnologia" placeholder="Sistema Operativo, Seguridad, etc.">
+        
+        <label style="margin-top: 15px;">Provider</label>
+        <input type="text" id="certProvider" placeholder="Linux, CompTIA, etc.">
+      </div>
+      <div class="edit-modal-actions">
+        <button class="btn-cancel" onclick="closeCertModal()">Cancelar</button>
+        <button class="btn-save" onclick="guardarCertificacionRapida()">Guardar y Seleccionar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  
+  <script>
+    var todosCursos = [];
+    var todosDocentes = [];
+    var todasCertificaciones = [];
+    var certificacionesSeleccionadasArray = [];
+    var currentEditData = null;
+
+    document.addEventListener('DOMContentLoaded', function() {
+      cargarCursosYDocentes();
+      configurarToggleColumnas();
+    });
+
+    function configurarToggleColumnas() {
+      document.querySelectorAll('.col-toggle').forEach(function(checkbox) {
+        checkbox.addEventListener('change', function() {
+          var col = this.getAttribute('data-col');
+          var display = this.checked ? 'table-cell' : 'none';
+          
+          // Toggle header
+          document.querySelectorAll('.col-' + col).forEach(function(el) {
+            el.style.display = display;
+            el.style.setProperty('display', display, 'important');
+          });
+          
+          // Toggle cells
+          document.querySelectorAll('.cell-' + col).forEach(function(el) {
+            el.style.display = display;
+            el.style.setProperty('display', display, 'important');
+          });
+        });
+      });
+    }
+
+    function cargarCursosYDocentes() {
+      google.script.run
+        .withSuccessHandler(function(cursos) {
+          todosCursos = cursos;
+          poblarTecnologias();
+        })
+        .getCursos();
+      
+      google.script.run
+        .withSuccessHandler(function(docentes) {
+          // LOGS EXTREMOS EN FRONTEND
+          console.log('🔥🔥🔥 SUCCESS HANDLER EJECUTADO 🔥🔥🔥');
+          console.log('🔥 Tipo de respuesta:', typeof docentes);
+          console.log('🔥 Es array:', Array.isArray(docentes));
+          console.log('🔥 Longitud:', docentes ? docentes.length : 'null/undefined');
+          
+          if (docentes && docentes.length > 0) {
+            console.log('🔥 PRIMER DOCENTE RECIBIDO:');
+            console.log('   - ID:', docentes[0].ID);
+            console.log('   - Nombre:', docentes[0].Nombre);
+            console.log('   - Certificaciones:', docentes[0].Certificaciones);
+            console.log('   - CursosQueDicta:', docentes[0].CursosQueDicta);
+            console.log('   - TarifaHora:', docentes[0].TarifaHora);
+            console.log('   - Foto:', docentes[0].Foto ? 'SÍ' : 'NO');
+            
+            console.log('🔥 TODOS LOS DOCENTES:');
+            docentes.forEach(function(d, i) {
+              if (i < 5) { // Solo primeros 5
+                console.log(`   ${i + 1}. ${d.Nombre} - Cert:"${d.Certificaciones}" - Cursos:"${d.CursosQueDicta}" - $${d.TarifaHora}`);
+              }
+            });
+          } else {
+            console.log('❌ DOCENTES VACÍO O NULL');
+          }
+          
+          todosDocentes = docentes;
+          // Ordenar por tarifa de mayor a menor por default
+          var docentesOrdenados = [...docentes];
+          docentesOrdenados.sort(function(a, b) {
+            var tarifaA = parseFloat(a.TarifaHora) || 0;
+            var tarifaB = parseFloat(b.TarifaHora) || 0;
+            return tarifaB - tarifaA; // Mayor a menor
+          });
+          
+          console.log('🔥 LLAMANDO renderDocentesLista con', docentesOrdenados.length, 'docentes');
+          renderDocentesLista(docentesOrdenados);
+        })
+        .withFailureHandler(function(error) {
+          console.log('❌❌❌ FAILURE HANDLER EJECUTADO ❌❌❌');
+          console.log('❌ Error:', error.toString());
+        })
+        .getDocentes();
+      
+      google.script.run
+        .withSuccessHandler(function(certificaciones) {
+          todasCertificaciones = certificaciones;
+          poblarCertificaciones();
+        })
+        .getCertificaciones();
+    }
+    
+    function poblarCertificaciones() {
+      var select = document.getElementById('certificacionesSelect');
+      select.innerHTML = '';
+      
+      todasCertificaciones.forEach(function(cert) {
+        var option = document.createElement('option');
+        option.value = cert.Codigo;
+        option.textContent = cert.Codigo + ' - ' + cert.Nombre;
+        option.setAttribute('data-tecnologia', cert.Tecnologia);
+        option.setAttribute('data-provider', cert.Provider);
+        select.appendChild(option);
+      });
+      
+      // Event listener para actualizar badges
+      select.addEventListener('change', actualizarCertificacionesSeleccionadas);
+    }
+    
+    function actualizarCertificacionesSeleccionadas() {
+      var select = document.getElementById('certificacionesSelect');
+      var selected = Array.from(select.selectedOptions).map(function(opt) { return opt.value; });
+      certificacionesSeleccionadasArray = selected;
+      
+      // Actualizar badges visuales
+      var container = document.getElementById('certificacionesSeleccionadas');
+      container.innerHTML = '';
+      
+      selected.forEach(function(codigo) {
+        var cert = todasCertificaciones.find(function(c) { return c.Codigo === codigo; });
+        if (cert) {
+          var badge = document.createElement('span');
+          badge.className = 'curso-badge curso-' + (cert.Provider === 'AWS' ? 'aws' : cert.Provider === 'Azure' ? 'azure' : cert.Provider === 'GCP' ? 'gcp' : 'otro');
+          badge.textContent = codigo;
+          badge.style.cursor = 'pointer';
+          badge.title = 'Click para remover';
+          badge.onclick = function() { removerCertificacion(codigo); };
+          container.appendChild(badge);
+        }
+      });
+      
+      // Actualizar campo hidden
+      document.getElementById('certificacionesHidden').value = selected.join(', ');
+    }
+    
+    function removerCertificacion(codigo) {
+      var select = document.getElementById('certificacionesSelect');
+      Array.from(select.options).forEach(function(opt) {
+        if (opt.value === codigo) opt.selected = false;
+      });
+      actualizarCertificacionesSeleccionadas();
+    }
+    
+    function limpiarCertificaciones() {
+      var select = document.getElementById('certificacionesSelect');
+      Array.from(select.options).forEach(function(opt) { opt.selected = false; });
+      actualizarCertificacionesSeleccionadas();
+    }
+    
+    function agregarCertificacionRapida() {
+      document.getElementById('certModal').classList.add('show');
+      document.getElementById('certCodigo').value = '';
+      document.getElementById('certNombre').value = '';
+      document.getElementById('certTecnologia').value = '';
+      document.getElementById('certProvider').value = '';
+    }
+    
+    function closeCertModal() {
+      document.getElementById('certModal').classList.remove('show');
+    }
+    
+    function guardarCertificacionRapida() {
+      var codigo = document.getElementById('certCodigo').value.toUpperCase().trim();
+      var nombre = document.getElementById('certNombre').value.trim();
+      
+      if (!codigo || !nombre) {
+        showToast('Código y nombre son obligatorios', 'error');
+        return;
+      }
+      
+      var data = {
+        codigo: codigo,
+        nombre: nombre,
+        tecnologia: document.getElementById('certTecnologia').value.trim() || 'Otra',
+        provider: document.getElementById('certProvider').value.trim() || 'Otro',
+        nivel: 'Asociado',
+        descripcion: ''
+      };
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            showToast('Certificación agregada', 'success');
+            closeCertModal();
+            // Recargar certificaciones y seleccionar la nueva
+            google.script.run
+              .withSuccessHandler(function(certificaciones) {
+                todasCertificaciones = certificaciones;
+                poblarCertificaciones();
+                // Seleccionar la nueva certificación
+                var select = document.getElementById('certificacionesSelect');
+                Array.from(select.options).forEach(function(opt) {
+                  if (opt.value === codigo) opt.selected = true;
+                });
+                actualizarCertificacionesSeleccionadas();
+              })
+              .getCertificaciones();
+          } else {
+            showToast(result.message, 'error');
+          }
+        })
+        .saveCertificacion(data);
+    }
+
+    function poblarTecnologias() {
+      var tecnologias = [...new Set(todosCursos.map(c => c.Tecnologia))];
+      var select1 = document.getElementById('filtroTecnologia');
+      var select2 = document.getElementById('nuevaTecnologia');
+      
+      tecnologias.forEach(function(t) {
+        select1.add(new Option(t, t));
+        select2.add(new Option(t, t));
+      });
+    }
+
+    function cargarProviders() {
+      var tec = document.getElementById('filtroTecnologia').value;
+      var select = document.getElementById('filtroProvider');
+      select.innerHTML = '<option value="">Todos</option>';
+      select.disabled = !tec;
+      
+      if (tec) {
+        var providers = [...new Set(todosCursos.filter(c => c.Tecnologia === tec).map(c => c.Provider))];
+        providers.forEach(function(p) { select.add(new Option(p, p)); });
+      }
+      
+      document.getElementById('filtroNivel').disabled = true;
+      document.getElementById('filtroNivel').innerHTML = '<option value="">Todos</option>';
+      document.getElementById('filtroCurso').disabled = true;
+      document.getElementById('filtroCurso').innerHTML = '<option value="">Todos</option>';
+      
+      // Mostrar docentes inmediatamente al seleccionar tecnología
+      if (tec) {
+        filtrarYMostrarDocentes();
+      }
+    }
+
+    function cargarNiveles() {
+      var tec = document.getElementById('filtroTecnologia').value;
+      var prov = document.getElementById('filtroProvider').value;
+      var select = document.getElementById('filtroNivel');
+      select.innerHTML = '<option value="">Todos</option>';
+      select.disabled = !prov;
+      
+      if (prov) {
+        var niveles = [...new Set(todosCursos.filter(c => c.Tecnologia === tec && c.Provider === prov).map(c => c.Nivel))];
+        niveles.forEach(function(n) { select.add(new Option(n, n)); });
+        select.disabled = false;
+        
+        // Habilitar selector de cursos inmediatamente
+        cargarCursosSinNivel();
+      }
+      
+      // Mostrar docentes al seleccionar provider
+      filtrarYMostrarDocentes();
+    }
+    
+    function cargarCursosSinNivel() {
+      var tec = document.getElementById('filtroTecnologia').value;
+      var prov = document.getElementById('filtroProvider').value;
+      var select = document.getElementById('filtroCurso');
+      select.innerHTML = '<option value="">Todos</option>';
+      
+      if (prov) {
+        var cursos = todosCursos.filter(c => c.Tecnologia === tec && c.Provider === prov);
+        cursos.forEach(function(c) { select.add(new Option(c.Nombre, c.Codigo)); });
+        select.disabled = false;
+      }
+    }
+
+    function cargarCursos() {
+      var tec = document.getElementById('filtroTecnologia').value;
+      var prov = document.getElementById('filtroProvider').value;
+      var niv = document.getElementById('filtroNivel').value;
+      var select = document.getElementById('filtroCurso');
+      select.innerHTML = '<option value="">Todos</option>';
+      
+      if (prov) {
+        var cursos = niv ? 
+          todosCursos.filter(c => c.Tecnologia === tec && c.Provider === prov && c.Nivel === niv) :
+          todosCursos.filter(c => c.Tecnologia === tec && c.Provider === prov);
+        cursos.forEach(function(c) { select.add(new Option(c.Nombre, c.Codigo)); });
+        select.disabled = false;
+      }
+      
+      // Mostrar docentes al seleccionar nivel
+      filtrarYMostrarDocentes();
+    }
+
+    function cargarDocentesPorCurso() {
+      // Mostrar docentes al seleccionar curso específico
+      filtrarYMostrarDocentes();
+    }
+    
+    function filtrarYMostrarDocentes() {
+      var tec = document.getElementById('filtroTecnologia').value;
+      var prov = document.getElementById('filtroProvider').value;
+      var niv = document.getElementById('filtroNivel').value;
+      var curso = document.getElementById('filtroCurso').value;
+      
+      if (!tec) {
+        document.getElementById('docentesPorCursoBody').innerHTML = '<tr><td colspan="7">Selecciona una tecnología</td></tr>';
+        return;
+      }
+      
+      // Filtrar docentes según los criterios seleccionados
+      var docentesFiltrados = todosDocentes.filter(function(d) {
+        if (!d.CursosQueDicta) return false;
+        
+        // ARREGLO COMPLETO - Manejar todos los tipos de datos de forma segura
+        var cursosString = '';
+        try {
+          cursosString = String(d.CursosQueDicta || '').trim();
+        } catch (error) {
+          console.log('Error convirtiendo CursosQueDicta a string:', d.CursosQueDicta, error);
+          return false;
+        }
+        
+        if (!cursosString || cursosString === 'null' || cursosString === 'undefined') {
+          return false;
+        }
+        
+        var cursosDocente = cursosString.split(',').map(function(c) { return c.trim(); }).filter(function(c) { return c && c !== ''; });
+        
+        // Obtener cursos que coincidan con los filtros
+        var cursosValidos = todosCursos.filter(function(c) {
+          var match = c.Tecnologia === tec;
+          if (prov) match = match && c.Provider === prov;
+          if (niv) match = match && c.Nivel === niv;
+          if (curso) match = match && c.Codigo === curso;
+          return match;
+        });
+        
+        // Verificar si el docente dicta alguno de los cursos válidos
+        return cursosValidos.some(function(cv) {
+          return cursosDocente.includes(cv.Codigo);
+        });
+      });
+      
+      // Ordenar por tarifa de mayor a menor por default
+      docentesFiltrados.sort(function(a, b) {
+        var tarifaA = parseFloat(a.TarifaHora) || 0;
+        var tarifaB = parseFloat(b.TarifaHora) || 0;
+        return tarifaB - tarifaA; // Mayor a menor
+      });
+      
+      renderDocentesPorCurso(docentesFiltrados);
+    }
+    
+    var docentesPorCursoCache = [];
+    var ordenPorCurso = { campo: 'Nombre', ascendente: true };
+    
+    function getPaisConBandera(pais) {
+      if (!pais || pais === '-') return '-';
+      
+      // Normalizar el país (primera letra mayúscula, resto minúscula)
+      var paisNormalizado = pais.charAt(0).toUpperCase() + pais.slice(1).toLowerCase();
+      
+      var banderas = {
+        'Perú': '🇵🇪',
+        'Peru': '🇵🇪',
+        'México': '🇲🇽',
+        'Mexico': '🇲🇽',
+        'Colombia': '🇨🇴',
+        'Chile': '🇨🇱',
+        'Argentina': '🇦🇷',
+        'España': '🇪🇸',
+        'Espana': '🇪🇸',
+        'Usa': '🇺🇸',
+        'Estados unidos': '🇺🇸',
+        'Brasil': '🇧🇷',
+        'Brazil': '🇧🇷',
+        'Ecuador': '🇪🇨',
+        'Venezuela': '🇻🇪',
+        'Uruguay': '🇺🇾',
+        'Paraguay': '🇵🇾',
+        'Bolivia': '🇧🇴',
+        'Costa rica': '🇨🇷',
+        'Panamá': '🇵🇦',
+        'Panama': '🇵🇦',
+        'Guatemala': '🇬🇹',
+        'Honduras': '🇭🇳',
+        'El salvador': '🇸🇻',
+        'Nicaragua': '🇳🇮',
+        'República dominicana': '🇩🇴',
+        'Puerto rico': '🇵🇷',
+        'Cuba': '🇨🇺'
+      };
+      
+      var bandera = banderas[paisNormalizado] || '🌎';
+      return bandera + ' ' + pais;
+    }
+    
+    function ordenarDocentesPorCurso(campo) {
+      if (ordenPorCurso.campo === campo) {
+        ordenPorCurso.ascendente = !ordenPorCurso.ascendente;
+      } else {
+        ordenPorCurso.campo = campo;
+        ordenPorCurso.ascendente = true;
+      }
+      
+      var docentesOrdenados = [...docentesPorCursoCache];
+      docentesOrdenados.sort(function(a, b) {
+        var valA = a[campo] || '';
+        var valB = b[campo] || '';
+        
+        if (campo === 'TarifaHora') {
+          valA = parseFloat(valA) || 0;
+          valB = parseFloat(valB) || 0;
+        } else {
+          valA = valA.toString().toLowerCase();
+          valB = valB.toString().toLowerCase();
+        }
+        
+        if (valA < valB) return ordenPorCurso.ascendente ? -1 : 1;
+        if (valA > valB) return ordenPorCurso.ascendente ? 1 : -1;
+        return 0;
+      });
+      
+      renderDocentesPorCurso(docentesOrdenados);
+    }
+
+    function renderDocentesPorCurso(docentes) {
+      docentesPorCursoCache = docentes;
+      var tbody = document.getElementById('docentesPorCursoBody');
+      if (!docentes || docentes.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7">No hay docentes para este curso</td></tr>';
+        return;
+      }
+
+      var html = '';
+      docentes.forEach(function(d) {
+        var rowClass = d.Estado === 'Contratado' ? 'docente-contratado' : '';
+        html += '<tr class="' + rowClass + '">';
+        html += '<td class="editable" ondblclick="editarCampo(\'' + d.ID + '\', \'Nombre\', this)"><strong>' + d.Nombre + '</strong></td>';
+        html += '<td class="editable" ondblclick="editarCampo(\'' + d.ID + '\', \'Pais\', this)">' + getPaisConBandera(d.Pais) + '</td>';
+        html += '<td class="editable" ondblclick="editarCampo(\'' + d.ID + '\', \'TarifaHora\', this)">$' + (d.TarifaHora || 0) + '</td>';
+        html += '<td class="editable" ondblclick="editarCampo(\'' + d.ID + '\', \'MetodoPago\', this)">' + (d.MetodoPago || '-') + '</td>';
+        html += '<td class="editable" ondblclick="editarCampo(\'' + d.ID + '\', \'Telefono\', this)">' + (d.Telefono || '-') + '</td>';
+        html += '<td class="editable" ondblclick="editarCampo(\'' + d.ID + '\', \'Estado\', this)">' + (d.Estado || '-') + '</td>';
+        html += '<td class="editable" ondblclick="editarCampo(\'' + d.ID + '\', \'PuedeWebinars\', this)">' + (d.PuedeWebinars || '-') + '</td>';
+        html += '</tr>';
+      });
+      tbody.innerHTML = html;
+    }
+
+    function renderDocentesLista(docentes) {
+      console.log('🔥🔥🔥 renderDocentesLista LLAMADA 🔥🔥🔥');
+      console.log('🔥 Docentes recibidos:', docentes ? docentes.length : 'null/undefined');
+      
+      var tbody = document.getElementById('docentesBody');
+      if (!docentes || docentes.length === 0) {
+        console.log('❌ No hay docentes para mostrar');
+        tbody.innerHTML = '<tr><td colspan="14">No hay docentes</td></tr>';
+        return;
+      }
+
+      console.log('🔥 Generando HTML para', docentes.length, 'docentes...');
+      
+      var html = '';
+      docentes.forEach(function(d, index) {
+        if (index < 3) {
+          console.log(`🔥 Procesando docente ${index + 1}: ${d.Nombre} - Cert:"${d.Certificaciones}" - Cursos:"${d.CursosQueDicta}"`);
+        }
+        
+        var rowClass = d.Estado === 'Contratado' ? 'docente-contratado' : '';
+        html += '<tr class="' + rowClass + '">';
+        html += '<td class="editable cell-nombre" onclick="editarCampo(\'' + d.ID + '\', \'Nombre\', this)">' + d.Nombre + '</td>';
+        html += '<td class="editable cell-certificaciones" onclick="editarCampo(\'' + d.ID + '\', \'Certificaciones\', this)">' + formatCursosBadges(d.Certificaciones) + '</td>';
+        html += '<td class="editable cell-cursos" onclick="editarCampo(\'' + d.ID + '\', \'CursosQueDicta\', this)">' + formatCursosBadges(d.CursosQueDicta) + '</td>';
+        html += '<td class="editable cell-pais" onclick="editarCampo(\'' + d.ID + '\', \'Pais\', this)">' + getPaisConBandera(d.Pais) + '</td>';
+        html += '<td class="editable cell-tarifa" onclick="editarCampo(\'' + d.ID + '\', \'TarifaHora\', this)">$' + (d.TarifaHora || 0) + '</td>';
+        html += '<td class="editable cell-metodo" onclick="editarCampo(\'' + d.ID + '\', \'MetodoPago\', this)">' + (d.MetodoPago || '-') + '</td>';
+        html += '<td class="editable cell-telefono" onclick="editarCampo(\'' + d.ID + '\', \'Telefono\', this)">' + (d.Telefono || '-') + '</td>';
+        html += '<td class="editable cell-email" onclick="editarCampo(\'' + d.ID + '\', \'Email\', this)">' + (d.Email || '-') + '</td>';
+        html += '<td class="editable cell-linkedin" onclick="editarCampo(\'' + d.ID + '\', \'LinkedIn\', this)">' + (d.LinkedIn || '-') + '</td>';
+        html += '<td class="editable cell-estado" onclick="editarCampo(\'' + d.ID + '\', \'Estado\', this)">' + (d.Estado || '-') + '</td>';
+        html += '<td class="editable cell-webinars" onclick="editarCampo(\'' + d.ID + '\', \'PuedeWebinars\', this)">' + (d.PuedeWebinars || '-') + '</td>';
+        html += '<td class="editable cell-comentarios" onclick="editarCampo(\'' + d.ID + '\', \'Comentarios\', this)">' + (d.Comentarios || '-') + '</td>';
+        html += '<td class="cell-foto" style="text-align: center;">';
+        if (d.Foto) {
+          html += '<img src="' + d.Foto + '" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; cursor: pointer;" onclick="abrirModalFotoDocente(\'' + d.ID + '\', \'' + d.Nombre.replace(/'/g, "\\'") + '\', \'' + (d.Foto || '').replace(/'/g, "\\'") + '\')" title="Click para cambiar foto">';
+        } else {
+          html += '<span style="cursor: pointer; font-size: 20px;" onclick="abrirModalFotoDocente(\'' + d.ID + '\', \'' + d.Nombre.replace(/'/g, "\\'") + '\', \'\')" title="Click para agregar foto">📷</span>';
+        }
+        html += '</td>';
+        html += '<td class="cell-acciones"><button class="btn-small" onclick="eliminarDocente(\'' + d.ID + '\', \'' + d.Nombre.replace(/'/g, "\\'") + '\')" title="Eliminar docente">🗑️</button></td>';
+        html += '</tr>';
+      });
+      
+      console.log('🔥 HTML generado, insertando en tbody...');
+      tbody.innerHTML = html;
+      console.log('✅ Tabla actualizada con', docentes.length, 'filas');
+    }
+    
+    function formatCursosBadges(cursosStr) {
+      // ARREGLO COMPLETO - Manejar todos los tipos de datos
+      if (!cursosStr || cursosStr === null || cursosStr === undefined || cursosStr === '') {
+        return '-';
+      }
+      
+      // Convertir a string de forma segura
+      var cursosString = '';
+      try {
+        cursosString = String(cursosStr).trim();
+      } catch (error) {
+        console.log('Error convirtiendo cursosStr a string:', cursosStr, error);
+        return '-';
+      }
+      
+      // Si está vacío después de convertir
+      if (!cursosString || cursosString === 'null' || cursosString === 'undefined') {
+        return '-';
+      }
+      
+      var cursos = cursosString.split(',').map(function(c) { return c.trim(); }).filter(function(c) { return c && c !== ''; });
+      
+      if (cursos.length === 0) {
+        return '-';
+      }
+      
+      var html = '';
+      
+      cursos.forEach(function(codigo) {
+        if (!codigo || codigo.trim() === '') return;
+        
+        var clase = 'curso-otro';
+        
+        // Determinar el color según el curso
+        var curso = todosCursos.find(function(c) { return c.Codigo === codigo; });
+        if (curso) {
+          if (curso.Provider === 'AWS') clase = 'curso-aws';
+          else if (curso.Provider === 'Azure') clase = 'curso-azure';
+          else if (curso.Provider === 'GCP') clase = 'curso-gcp';
+          else if (curso.Provider === 'Terraform') clase = 'curso-terraform';
+          else if (curso.Provider === 'Kubernetes') clase = 'curso-kubernetes';
+        }
+        
+        html += '<span class="curso-badge ' + clase + '">' + codigo + '</span>';
+      });
+      
+      return html || '-';
+    }
+    
+    function ordenarDocentes(criterio) {
+      var docentesOrdenados = [...todosDocentes];
+      
+      // Toggle ascendente/descendente si se hace click en el mismo campo
+      if (!window.ordenDocentesActual) {
+        window.ordenDocentesActual = { campo: null, ascendente: true };
+      }
+      
+      if (window.ordenDocentesActual.campo === criterio) {
+        window.ordenDocentesActual.ascendente = !window.ordenDocentesActual.ascendente;
+      } else {
+        window.ordenDocentesActual.campo = criterio;
+        window.ordenDocentesActual.ascendente = true;
+      }
+      
+      if (criterio === 'Nombre') {
+        docentesOrdenados.sort(function(a, b) {
+          var nameA = (a.Nombre || '').toLowerCase();
+          var nameB = (b.Nombre || '').toLowerCase();
+          return window.ordenDocentesActual.ascendente ? 
+            nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
+        });
+      } else if (criterio === 'TarifaHora') {
+        docentesOrdenados.sort(function(a, b) {
+          var tarifaA = parseFloat(a.TarifaHora) || 0;
+          var tarifaB = parseFloat(b.TarifaHora) || 0;
+          return window.ordenDocentesActual.ascendente ? 
+            tarifaA - tarifaB : tarifaB - tarifaA;
+        });
+      }
+      
+      renderDocentesLista(docentesOrdenados);
+    }
+
+    function editarCampo(id, campo, celda) {
+      var valorActual = celda.textContent.replace('$', '').trim();
+      
+      // Si es el campo País, extraer solo el nombre sin la bandera
+      if (campo === 'Pais') {
+        // Remover emojis de banderas (caracteres Unicode de banderas)
+        valorActual = valorActual.replace(/[\u{1F1E6}-\u{1F1FF}]/gu, '').trim();
+      }
+      
+      // Si es un campo con badges, extraer solo los códigos
+      if (campo === 'Certificaciones' || campo === 'CursosQueDicta') {
+        var badges = celda.querySelectorAll('.curso-badge');
+        if (badges.length > 0) {
+          valorActual = Array.from(badges).map(function(b) { return b.textContent; }).join(', ');
+        }
+      }
+      
+      currentEditData = {
+        id: id,
+        campo: campo,
+        celda: celda,
+        valorActual: valorActual
+      };
+      
+      // Configurar el modal según el tipo de campo
+      document.getElementById('editLabel').textContent = 'Editar ' + campo;
+      document.getElementById('editInput').style.display = 'none';
+      document.getElementById('editSelect').style.display = 'none';
+      document.getElementById('editTextarea').style.display = 'none';
+      
+      // Campos con opciones predefinidas
+      if (campo === 'Pais') {
+        var select = document.getElementById('editSelect');
+        select.innerHTML = '<option value="">Seleccionar...</option>' +
+          '<option value="Perú">Perú</option>' +
+          '<option value="México">México</option>' +
+          '<option value="Colombia">Colombia</option>' +
+          '<option value="Chile">Chile</option>' +
+          '<option value="Argentina">Argentina</option>' +
+          '<option value="España">España</option>' +
+          '<option value="USA">USA</option>' +
+          '<option value="Brasil">Brasil</option>' +
+          '<option value="Ecuador">Ecuador</option>' +
+          '<option value="Venezuela">Venezuela</option>' +
+          '<option value="Uruguay">Uruguay</option>' +
+          '<option value="Costa Rica">Costa Rica</option>';
+        select.value = valorActual;
+        select.style.display = 'block';
+      } else if (campo === 'Estado') {
+        var select = document.getElementById('editSelect');
+        select.innerHTML = '<option value="">Seleccionar...</option>' +
+          '<option value="Contratado">Contratado</option>' +
+          '<option value="Solicitud Enviada">Solicitud Enviada</option>' +
+          '<option value="Contactado">Contactado</option>' +
+          '<option value="Llamada Coordinada">Llamada Coordinada</option>' +
+          '<option value="Información Levantada">Información Levantada</option>' +
+          '<option value="Sin Respuesta">Sin Respuesta</option>' +
+          '<option value="Sin Interés">Sin Interés</option>';
+        select.value = valorActual;
+        select.style.display = 'block';
+      } else if (campo === 'MetodoPago') {
+        var select = document.getElementById('editSelect');
+        select.innerHTML = '<option value="">Seleccionar...</option>' +
+          '<option value="Transferencia Bancaria">Transferencia Bancaria</option>' +
+          '<option value="PayPal">PayPal</option>' +
+          '<option value="Otro">Otro</option>';
+        select.value = valorActual;
+        select.style.display = 'block';
+      } else if (campo === 'PuedeWebinars') {
+        var select = document.getElementById('editSelect');
+        select.innerHTML = '<option value="Sí">Sí</option><option value="No">No</option>';
+        select.value = valorActual;
+        select.style.display = 'block';
+      } else if (campo === 'Certificaciones') {
+        // Usar multi-select para certificaciones
+        var select = document.getElementById('editSelect');
+        select.innerHTML = '';
+        select.multiple = true;
+        select.size = 8;
+        
+        todasCertificaciones.forEach(function(cert) {
+          var option = document.createElement('option');
+          option.value = cert.Codigo;
+          option.textContent = cert.Codigo + ' - ' + cert.Nombre;
+          select.appendChild(option);
+        });
+        
+        // Seleccionar las certificaciones actuales
+        var certificacionesActuales = String(valorActual || '').split(',').map(function(c) { return c.trim(); });
+        Array.from(select.options).forEach(function(opt) {
+          opt.selected = certificacionesActuales.includes(opt.value);
+        });
+        
+        select.style.display = 'block';
+        document.getElementById('editLabel').textContent = 'Seleccionar Certificaciones (Ctrl+Click para múltiples)';
+      } else if (campo === 'CursosQueDicta') {
+        // Usar multi-select para cursos
+        var select = document.getElementById('editSelect');
+        select.innerHTML = '';
+        select.multiple = true;
+        select.size = 8;
+        
+        todosCursos.forEach(function(curso) {
+          var option = document.createElement('option');
+          option.value = curso.Codigo;
+          option.textContent = curso.Codigo + ' - ' + curso.Nombre;
+          select.appendChild(option);
+        });
+        
+        // Seleccionar los cursos actuales
+        var cursosActuales = String(valorActual || '').split(',').map(function(c) { return c.trim(); });
+        Array.from(select.options).forEach(function(opt) {
+          opt.selected = cursosActuales.includes(opt.value);
+        });
+        
+        select.style.display = 'block';
+        document.getElementById('editLabel').textContent = 'Seleccionar Cursos (Ctrl+Click para múltiples)';
+      } else if (campo === 'Comentarios') {
+        var textarea = document.getElementById('editTextarea');
+        textarea.value = valorActual;
+        textarea.style.display = 'block';
+      } else {
+        var input = document.getElementById('editInput');
+        input.value = valorActual;
+        input.type = campo === 'TarifaHora' ? 'number' : 'text';
+        input.style.display = 'block';
+      }
+      
+      document.getElementById('editModal').classList.add('show');
+    }
+    
+    function closeEditModal() {
+      document.getElementById('editModal').classList.remove('show');
+      currentEditData = null;
+    }
+    
+    function saveEdit() {
+      if (!currentEditData) return;
+      
+      var nuevoValor;
+      var input = document.getElementById('editInput');
+      var select = document.getElementById('editSelect');
+      var textarea = document.getElementById('editTextarea');
+      
+      if (input.style.display !== 'none') {
+        nuevoValor = input.value;
+      } else if (select.style.display !== 'none') {
+        // Si es multi-select (Certificaciones o CursosQueDicta)
+        if (select.multiple) {
+          var selectedOptions = Array.from(select.selectedOptions).map(function(opt) { return opt.value; });
+          nuevoValor = selectedOptions.join(', ');
+        } else {
+          nuevoValor = select.value;
+        }
+      } else if (textarea.style.display !== 'none') {
+        nuevoValor = textarea.value;
+      }
+      
+      if (nuevoValor === currentEditData.valorActual) {
+        closeEditModal();
+        return;
+      }
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            var displayValue = nuevoValor;
+            if (currentEditData.campo === 'TarifaHora') {
+              displayValue = '$' + nuevoValor;
+              currentEditData.celda.textContent = displayValue;
+            } else if (currentEditData.campo === 'Pais') {
+              currentEditData.celda.textContent = getPaisConBandera(nuevoValor);
+            } else if (currentEditData.campo === 'Certificaciones' || currentEditData.campo === 'CursosQueDicta') {
+              currentEditData.celda.innerHTML = formatCursosBadges(nuevoValor);
+            } else {
+              currentEditData.celda.textContent = displayValue;
+            }
+            showToast('Campo actualizado', 'success');
+            closeEditModal();
+            cargarCursosYDocentes();
+          } else {
+            showToast('Error al actualizar: ' + (result.message || 'desconocido'), 'error');
+            console.error('updateDocente error:', result.message);
+          }
+        })
+        .withFailureHandler(function(error) {
+          showToast('Error al actualizar: ' + error, 'error');
+          console.error('updateDocente failure:', error);
+        })
+        .updateDocente(currentEditData.id, currentEditData.campo, nuevoValor);
+    }
+
+    function eliminarDocente(id, nombre) {
+      var mensaje = '⚠️ ADVERTENCIA: Estás a punto de eliminar al docente "' + nombre + '".\n\n';
+      mensaje += 'Esta acción:\n';
+      mensaje += '• Eliminará permanentemente todos sus datos\n';
+      mensaje += '• NO se puede deshacer\n';
+      mensaje += '• Puede afectar secciones asignadas a este docente\n\n';
+      mensaje += '¿Estás seguro de que deseas continuar?';
+      
+      if (!confirm(mensaje)) {
+        return;
+      }
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            showToast(result.message, 'success');
+            cargarCursosYDocentes();
+          } else {
+            showToast(result.message, 'error');
+          }
+        })
+        .deleteDocente(id);
+    }
+
+    function cargarProvidersNuevo() {
+      var tec = document.getElementById('nuevaTecnologia').value;
+      var select = document.getElementById('nuevoProvider');
+      select.innerHTML = '<option value="">Seleccionar...</option>';
+      select.disabled = !tec;
+      
+      if (tec) {
+        var providers = [...new Set(todosCursos.filter(c => c.Tecnologia === tec).map(c => c.Provider))];
+        providers.forEach(function(p) { select.add(new Option(p, p)); });
+      }
+      
+      document.getElementById('cursosCheckboxes').innerHTML = '<p>Selecciona Provider</p>';
+    }
+
+    function cargarCursosNuevo() {
+      var tec = document.getElementById('nuevaTecnologia').value;
+      var prov = document.getElementById('nuevoProvider').value;
+      var container = document.getElementById('cursosCheckboxes');
+      
+      if (!prov) {
+        container.innerHTML = '<p>Selecciona Provider</p>';
+        return;
+      }
+      
+      var cursos = todosCursos.filter(c => c.Tecnologia === tec && c.Provider === prov);
+      var html = '';
+      cursos.forEach(function(c) {
+        html += '<label class="checkbox-label">';
+        html += '<input type="checkbox" name="cursosQueDicta" value="' + c.Codigo + '"> ';
+        html += c.Nombre;
+        html += '</label>';
+      });
+      container.innerHTML = html || '<p>No hay cursos</p>';
+    }
+
+    function togglePagoFields() {
+      var canal = document.getElementById('canalPago').value;
+      document.getElementById('paypalGroup').style.display = canal === 'PayPal' ? 'block' : 'none';
+      document.getElementById('bancoGroup').style.display = canal === 'Transferencia Bancaria' ? 'block' : 'none';
+      document.getElementById('cuentaGroup').style.display = canal === 'Transferencia Bancaria' ? 'block' : 'none';
+    }
+
+    function handleSubmitDocente(event) {
+      event.preventDefault();
+      var form = event.target;
+      
+      var cursosSeleccionados = Array.from(form.querySelectorAll('input[name="cursosQueDicta"]:checked'))
+        .map(function(cb) { return cb.value; });
+
+      if (cursosSeleccionados.length === 0) {
+        showToast('Selecciona al menos un curso', 'error');
+        return;
+      }
+
+      var data = {
+        nombre: form.nombre.value,
+        email: form.email.value,
+        telefono: form.telefono.value,
+        pais: form.pais.value,
+        linkedin: form.linkedin.value,
+        cargo: form.cargo ? form.cargo.value : '',
+        estado: form.estado.value,
+        certificaciones: String(form.certificaciones.value || '').split(',').map(function(s) { return s.trim(); }).filter(function(s) { return s; }),
+        cursosQueDicta: cursosSeleccionados,
+        tarifaHora: form.tarifaHora.value,
+        canalPago: form.canalPago.value,
+        emailPaypal: form.emailPaypal ? form.emailPaypal.value : '',
+        banco: form.banco ? form.banco.value : '',
+        numeroCuenta: form.numeroCuenta ? form.numeroCuenta.value : '',
+        tieneMateriales: form.tieneMateriales.checked,
+        puedeWebinars: form.puedeWebinars.checked,
+        comentarios: form.comentarios ? form.comentarios.value : '',
+        fotoBase64: form.fotoBase64 ? form.fotoBase64.value : '',
+        fotoFileId: form.fotoFileId ? form.fotoFileId.value : ''
+      };
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            showToast(result.message, 'success');
+            form.reset();
+            // Limpiar preview de foto
+            document.getElementById('docenteFoto').value = '';
+            document.getElementById('docenteFotoPreview').style.display = 'none';
+            document.getElementById('fotoBase64').value = '';
+            document.getElementById('fotoFileId').value = '';
+            cargarCursosYDocentes();
+            showTab('lista');
+          } else {
+            showToast(result.message, 'error');
+          }
+        })
+        .saveDocente(data);
+    }
+
+    function showTab(tabName) {
+      document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+      document.querySelectorAll('.tab-content').forEach(function(t) { t.classList.remove('active'); });
+      document.getElementById('tab-' + tabName).classList.add('active');
+      event.target.classList.add('active');
+      
+      // Limpiar formulario cuando se abre la pestaña "Nuevo Docente"
+      if (tabName === 'nuevo') {
+        document.getElementById('docenteForm').reset();
+        document.getElementById('docenteFoto').value = '';
+        document.getElementById('docenteFotoPreview').style.display = 'none';
+        document.getElementById('docenteFotoActual').style.display = 'none';
+        document.getElementById('docenteFotoNoActual').style.display = 'block';
+        document.getElementById('fotoBase64').value = '';
+        document.getElementById('fotoFileId').value = '';
+        document.getElementById('certificacionesSeleccionadas').innerHTML = '';
+        document.getElementById('certificacionesHidden').value = '';
+        document.getElementById('nuevaTecnologia').value = '';
+        document.getElementById('nuevoProvider').value = '';
+        document.getElementById('nuevoProvider').disabled = true;
+        document.getElementById('cursosCheckboxes').innerHTML = '<p>Selecciona Tecnología y Provider primero</p>';
+      }
+    }
+
+    function showToast(message, type) {
+      var toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = 'toast ' + type + ' show';
+      setTimeout(function() { toast.classList.remove('show'); }, 4000);
+    }
+
+    // Funciones para manejar foto del docente
+    function previewDocenteFoto(input) {
+      if (input.files && input.files[0]) {
+        var file = input.files[0];
+        
+        // Validar tamaño (5MB max)
+        if (file.size > 5 * 1024 * 1024) {
+          showToast('La imagen no puede superar 5MB', 'error');
+          input.value = '';
+          return;
+        }
+        
+        // Validar tipo
+        if (!file.type.match('image.*')) {
+          showToast('Solo se permiten imágenes (JPG, PNG)', 'error');
+          input.value = '';
+          return;
+        }
+        
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          document.getElementById('docenteFotoImg').src = e.target.result;
+          document.getElementById('docenteFotoPreview').style.display = 'block';
+          document.getElementById('fotoBase64').value = e.target.result.split(',')[1];
+          document.getElementById('fotoFileId').value = '';
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+    
+    function eliminarDocenteFoto() {
+      document.getElementById('docenteFoto').value = '';
+      document.getElementById('docenteFotoPreview').style.display = 'none';
+      document.getElementById('docenteFotoImg').src = '';
+      document.getElementById('fotoBase64').value = '';
+      document.getElementById('fotoFileId').value = 'ELIMINAR';
+    }
+
+    function mostrarFotoActualDocente(fotoUrl) {
+      if (fotoUrl && fotoUrl.trim()) {
+        document.getElementById('docenteFotoActualImg').src = fotoUrl;
+        document.getElementById('docenteFotoActual').style.display = 'block';
+        document.getElementById('docenteFotoNoActual').style.display = 'none';
+      } else {
+        document.getElementById('docenteFotoActual').style.display = 'none';
+        document.getElementById('docenteFotoNoActual').style.display = 'block';
+      }
+    }
+
+    function abrirModalFotoDocente(docenteId, docenteNombre, fotoUrl) {
+      window.fotoModalData = { docenteId: docenteId, docenteNombre: docenteNombre };
+      document.getElementById('fotoModalDocenteNombre').textContent = docenteNombre;
+      document.getElementById('fotoModalInput').value = '';
+      document.getElementById('fotoModalPreview').style.display = 'none';
+      document.getElementById('fotoModalPreviewImg').src = '';
+      
+      if (fotoUrl && fotoUrl.trim()) {
+        document.getElementById('fotoModalActualImg').src = fotoUrl;
+        document.getElementById('fotoModalActual').style.display = 'block';
+        document.getElementById('fotoModalNoActual').style.display = 'none';
+      } else {
+        document.getElementById('fotoModalActual').style.display = 'none';
+        document.getElementById('fotoModalNoActual').style.display = 'block';
+      }
+      
+      document.getElementById('fotoModalDocente').classList.add('show');
+    }
+
+    function cerrarModalFotoDocente() {
+      document.getElementById('fotoModalDocente').classList.remove('show');
+      window.fotoModalData = null;
+    }
+
+    function previewFotoModal(input) {
+      if (input.files && input.files[0]) {
+        var file = input.files[0];
+        
+        if (file.size > 5 * 1024 * 1024) {
+          showToast('La imagen no puede superar 5MB', 'error');
+          input.value = '';
+          return;
+        }
+        
+        if (!file.type.match('image.*')) {
+          showToast('Solo se permiten imágenes (JPG, PNG)', 'error');
+          input.value = '';
+          return;
+        }
+        
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          document.getElementById('fotoModalPreviewImg').src = e.target.result;
+          document.getElementById('fotoModalPreview').style.display = 'block';
+          window.fotoModalBase64 = e.target.result.split(',')[1];
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function guardarFotoDocente() {
+      if (!window.fotoModalData || !window.fotoModalBase64) {
+        showToast('Selecciona una foto primero', 'error');
+        return;
+      }
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            showToast('Foto actualizada', 'success');
+            cerrarModalFotoDocente();
+            cargarCursosYDocentes();
+          } else {
+            showToast(result.message, 'error');
+          }
+        })
+        .actualizarFotoDocente(window.fotoModalData.docenteId, window.fotoModalBase64);
+    }
+  </script>
+
+  <div id="fotoModalDocente" class="edit-modal">
+    <div class="edit-modal-content">
+      <div class="edit-modal-header">
+        <h3>📷 Cambiar Foto del Docente</h3>
+        <button class="edit-modal-close" onclick="cerrarModalFotoDocente()">×</button>
+      </div>
+      <div class="edit-modal-body">
+        <label>Docente: <span id="fotoModalDocenteNombre"></span></label>
+        <div id="fotoModalActual" style="margin: 15px 0; padding: 15px; background: #f5f5f5; border-radius: 8px; text-align: center; display: none;">
+          <p style="margin: 0 0 10px 0; font-size: 12px; color: #666;">Foto actual:</p>
+          <img id="fotoModalActualImg" src="" style="max-width: 200px; max-height: 200px; border-radius: 8px;">
+        </div>
+        <div id="fotoModalNoActual" style="margin: 15px 0; padding: 15px; background: #f5f5f5; border-radius: 8px; text-align: center;">
+          <p style="margin: 0; font-size: 12px; color: #999;">Sin foto cargada</p>
+        </div>
+        <label style="margin-top: 15px;">Seleccionar nueva foto:</label>
+        <input type="file" id="fotoModalInput" accept="image/*" onchange="previewFotoModal(this)">
+        <div id="fotoModalPreview" style="margin-top: 10px; display: none;">
+          <p style="font-size: 12px; color: #666; margin-bottom: 10px;">Nueva foto (preview):</p>
+          <img id="fotoModalPreviewImg" src="" style="max-width: 200px; max-height: 200px; border-radius: 8px;">
+        </div>
+      </div>
+      <div class="edit-modal-actions">
+        <button class="btn-cancel" onclick="cerrarModalFotoDocente()">Cancelar</button>
+        <button class="btn-save" onclick="guardarFotoDocente()">Guardar Foto</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+</body>
+</html>

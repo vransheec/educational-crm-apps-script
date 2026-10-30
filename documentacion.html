@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <base target="_top">
+  <?!= includeWithBaseUrl('config'); ?>
+  <title>Documentación del Sistema CRM - Educational CRM</title>
+  <style>
+    body { font-family: 'Segoe UI', Arial, sans-serif; max-width: 950px; margin: 0 auto; padding: 20px; color: #333; line-height: 1.7; }
+    .back-btn { position: fixed; top: 15px; left: 15px; background: #263d86; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 13px; z-index: 100; cursor: pointer; border: none; }
+    .back-btn:hover { background: #1e3a5f; }
+    h1 { color: #263d86; font-size: 28px; border-bottom: 3px solid #263d86; padding-bottom: 10px; margin-top: 50px; }
+    h2 { color: #263d86; font-size: 22px; margin-top: 40px; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px; }
+    h3 { color: #1e3a5f; font-size: 17px; margin-top: 25px; }
+    h4 { color: #374151; font-size: 15px; margin-top: 15px; }
+    ul, ol { padding-left: 25px; }
+    li { margin-bottom: 6px; }
+    .module { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 15px 0; }
+    .warning { background: #fff3cd; border-left: 4px solid #ffc107; padding: 12px 15px; margin: 10px 0; border-radius: 4px; }
+    .info { background: #e0f2fe; border-left: 4px solid #0ea5e9; padding: 12px 15px; margin: 10px 0; border-radius: 4px; }
+    .rule { background: #fce4ec; border-left: 4px solid #e91e63; padding: 12px 15px; margin: 10px 0; border-radius: 4px; }
+    table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 14px; }
+    th, td { border: 1px solid #e5e7eb; padding: 8px 12px; text-align: left; }
+    th { background: #263d86; color: white; }
+    tr:nth-child(even) { background: #f9fafb; }
+    code { background: #f3f4f6; padding: 2px 6px; border-radius: 3px; font-size: 13px; }
+    .toc { background: #f0f7ff; border: 2px solid #263d86; border-radius: 8px; padding: 20px; margin: 20px 0; }
+    .toc a { color: #263d86; text-decoration: none; }
+    .toc a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<button class="back-btn" onclick="window.top.location.href=window.APP_BASE_URL+'?page=ventas'">← Volver al Sistema</button>
+
+<h1>📘 Documentación del Sistema CRM - Educational CRM</h1>
+<p><em>Última actualización: Abril 2026</em></p>
+
+<div class="toc">
+  <h3>📋 Tabla de Contenidos</h3>
+  <ol>
+    <li><a href="#reglas">Reglas de Negocio</a></li>
+    <li><a href="#ventas">Registro de Ventas de Cursos</a></li>
+    <li><a href="#simuladores">Venta de Simuladores</a></li>
+    <li><a href="#secciones">Gestión de Secciones</a></li>
+    <li><a href="#alumnos">Gestión de Alumnos</a></li>
+    <li><a href="#pagos">Gestión de Pagos</a></li>
+    <li><a href="#cobranza">Cobranza</a></li>
+    <li><a href="#plantillas">Plantillas de Email</a></li>
+    <li><a href="#admin-plantillas">Admin Plantillas</a></li>
+    <li><a href="#dashboard">Dashboard</a></li>
+    <li><a href="#docentes">Gestión de Docentes</a></li>
+    <li><a href="#mantenimiento">Mantenimiento</a></li>
+    <li><a href="#limpieza">Limpieza de Tests</a></li>
+    <li><a href="#automatizaciones">Automatizaciones</a></li>
+    <li><a href="#drive">Archivos y Carpetas en Drive</a></li>
+    <li><a href="#hojas">Hojas de la Base de Datos</a></li>
+  </ol>
+</div>
+
+<!-- ==================== REGLAS DE NEGOCIO ==================== -->
+<h2 id="reglas">1. 📜 Reglas de Negocio</h2>
+
+<div class="module">
+  <h3>Distribución de Precios entre Cursos</h3>
+  <div class="rule">
+    <p>Cuando se venden 2 o más cursos en una misma venta, el <strong>precio total se divide en partes iguales</strong> entre las matrículas. Ejemplo: venta de 2 cursos por $300 → cada matrícula tiene PrecioTotal = $150.</p>
+  </div>
+
+  <h3>Distribución de Pagos (Cascada)</h3>
+  <div class="rule">
+    <p>Los pagos se aplican en <strong>cascada</strong>: primero se llena la primera matrícula hasta cubrir su precio total. Si sobra dinero (excedente), se aplica automáticamente a la siguiente matrícula del mismo alumno que tenga saldo pendiente.</p>
+    <p><strong>Ejemplo:</strong> Alumno con M001 ($150) y M002 ($150). Paga $200:</p>
+    <ul>
+      <li>M001: recibe $150 → saldo = $0 (pagada completamente)</li>
+      <li>M002: recibe $50 (excedente) → saldo = $100</li>
+    </ul>
+  </div>
+
+  <h3>Cuotas Programadas</h3>
+  <div class="rule">
+    <p>Las cuotas son <strong>compartidas entre todas las matrículas</strong> de una misma venta (vinculadas por ID_Venta). No se dividen por matrícula individual.</p>
+    <p>La primera cuota no tiene fecha de vencimiento (se paga al momento). Las siguientes sí.</p>
+    <p>La suma de todas las cuotas debe ser igual al precio total de la venta.</p>
+  </div>
+
+  <h3>Acceso a Material (Carpeta Drive)</h3>
+  <div class="rule">
+    <p>Un alumno recibe acceso (viewer) a la carpeta Drive de una sección <strong>solo cuando completa el pago de esa matrícula</strong> (saldo = $0). Si la carpeta aún no fue creada, se le compartirá cuando se cree.</p>
+  </div>
+
+  <h3>Restricciones del Vendedor</h3>
+  <ul>
+    <li>No puede mover un alumno entre secciones de <strong>cursos distintos</strong> (solo entre secciones del mismo curso)</li>
+    <li>No puede eliminar una sección que <strong>tiene alumnos matriculados</strong></li>
+    <li>No puede fusionar secciones de <strong>cursos distintos</strong></li>
+    <li>No puede fraccionar la venta de <strong>simuladores</strong></li>
+    <li>No puede editar directamente el campo Mes/Año de una sección (debe usar Reprogramar)</li>
+  </ul>
+
+  <h3>Emails Automáticos</h3>
+  <div class="info">
+    <p>Los emails se envían automáticamente en los siguientes eventos. <strong>No se pueden desactivar</strong> desde el sistema (excepto el de cambio de sección en Mantenimiento que tiene checkbox).</p>
+  </div>
+  <table>
+    <tr><th>Evento</th><th>Email</th><th>Destinatario</th></tr>
+    <tr><td>Registrar venta de curso</td><td>Bienvenida + Confirmación de pago</td><td>Alumno</td></tr>
+    <tr><td>Registrar pago (manual o cascada)</td><td>Confirmación de pago</td><td>Alumno</td></tr>
+    <tr><td>Completar pago de matrícula</td><td>Acceso a material (link Drive)</td><td>Alumno</td></tr>
+    <tr><td>Reprogramar sección</td><td>Cambio de fecha de inicio</td><td>Todos los alumnos de la sección</td></tr>
+    <tr><td>Vender simulador</td><td>Acceso a simulador (credenciales)</td><td>Alumno</td></tr>
+  </table>
+
+  <h3>Modo Test</h3>
+  <div class="warning">
+    <p><strong>⚠️ El modo test SÍ envía emails reales y SÍ llama a APIs externas (simulador AWS).</strong> Los registros test se pueden eliminar con "Limpiar Todos los Tests" pero los emails y llamadas API no se revierten.</p>
+  </div>
+</div>
+</body>
+</html>
+
+<!-- ==================== VENTAS ==================== -->
+<h2 id="ventas">2. 💰 Registro de Ventas de Cursos</h2>
+
+<div class="module">
+  <h3>Acceso</h3>
+  <p>Menú lateral → <strong>Ventas</strong>. Es la página principal del sistema.</p>
+
+  <h3>Toggle: Venta de Curso / Venta de Simulador</h3>
+  <p>En la parte superior hay dos botones para alternar entre el formulario de venta de cursos y el de simuladores.</p>
+
+  <h3>Paso a paso: Registrar Venta de Curso</h3>
+  <ol>
+    <li><strong>Modo Test (opcional):</strong> Activar el checkbox amarillo si es una prueba. Se puede activar antes o después de llenar los datos — lo que importa es que esté marcado al momento de dar click en Registrar.</li>
+    <li><strong>Buscar alumno existente:</strong> Escribir nombre o email. Si aparece en la lista, seleccionarlo (se auto-llenan los campos). Si es alumno nuevo, llenar manualmente.</li>
+    <li><strong>Datos del alumno:</strong> Nombre, Gmail (obligatorio), Teléfono, País, LinkedIn (opcional — acepta www, se agrega https automáticamente).</li>
+    <li><strong>Seleccionar cursos:</strong> Tecnología → Provider → Curso → Sección. Se puede agregar más de una sección con el botón "➕ Agregar Otra Sección".</li>
+    <li><strong>Fecha de inicio comprometida:</strong> Se auto-llena con la fecha de inicio de la sección. El vendedor puede cambiarla si el compromiso con el alumno es diferente. Se guarda en la matrícula para consulta futura.</li>
+    <li><strong>Precio total:</strong> Ingresar el monto total de la venta.</li>
+    <li><strong>Tipo de pago:</strong>
+      <ul>
+        <li><strong>Pago Completo:</strong> Medio de pago + ID de operación. El monto se divide equitativamente entre las matrículas.</li>
+        <li><strong>Fraccionado:</strong> Cantidad de cuotas → aparecen campos de monto por cuota (auto-distribuidos, editables) + fechas de vencimiento (cuota 1 sin fecha). La suma debe igualar el precio total.</li>
+      </ul>
+    </li>
+    <li><strong>Registrar:</strong> Se muestra un resumen con todos los datos. Confirmar para registrar.</li>
+  </ol>
+
+  <h3>¿Qué ocurre al registrar?</h3>
+  <ul>
+    <li>Se crea el alumno si es nuevo, o se reutiliza si el email ya existe en la BD</li>
+    <li>Se crean las matrículas (una por sección) con precio = total ÷ cantidad de secciones</li>
+    <li>Se genera un <code>ID_Venta</code> que agrupa las matrículas y cuotas</li>
+    <li>Se registra en las hojas: Ventas, Matrículas, Pagos, CuotasProgramadas</li>
+    <li>Se envía email de bienvenida (con imágenes de todos los cursos, beneficios por curso, docentes)</li>
+    <li>Se envía email de confirmación de pago (con cuotas pendientes si las hay)</li>
+    <li>Se agrega al alumno a Google Calendar y Google Classroom de cada sección (si existen)</li>
+    <li>Si alguna matrícula queda completamente pagada, se comparte la carpeta Drive</li>
+  </ul>
+
+  <h3>Limpieza del formulario</h3>
+  <p>Después de registrar exitosamente, <strong>todos los campos se limpian</strong>: datos del alumno, secciones, cuotas, precio, tipo de pago. El modo test se mantiene.</p>
+
+  <div class="warning">
+    <strong>⚠️ Precaución con alumno existente:</strong> Si buscás y seleccionás un alumno, y luego editás manualmente el nombre o email, el sistema detecta el cambio y desvincula al alumno seleccionado. Esto evita que la venta se registre para el alumno equivocado.
+  </div>
+</div>
+
+<!-- ==================== SIMULADORES ==================== -->
+<h2 id="simuladores">3. 🎮 Venta de Simuladores</h2>
+
+<div class="module">
+  <h3>Acceso</h3>
+  <p>Menú lateral → Ventas → Toggle "🎮 Venta de Simulador"</p>
+
+  <h3>Datos de la venta</h3>
+  <table>
+    <tr><th>Campo</th><th>Detalle</th></tr>
+    <tr><td>Precio</td><td>$14.90 USD × curso × mes</td></tr>
+    <tr><td>Cursos</td><td>Multiselect (Ctrl/Cmd + click para varios)</td></tr>
+    <tr><td>Meses</td><td>1 a 12</td></tr>
+    <tr><td>Pago</td><td>Solo completo (sin fraccionamiento)</td></tr>
+  </table>
+
+  <h3>¿Qué ocurre al registrar?</h3>
+  <ol>
+    <li>Se crea/reutiliza el alumno</li>
+    <li>Se registra en la hoja <code>VentasSimulador</code></li>
+    <li>Se genera contraseña automática (formato: <code>Abc1234!</code>)</li>
+    <li>Se llama a la API de AWS para crear el acceso por cada curso</li>
+    <li>Se envía email con credenciales (usuario = email del alumno, contraseña generada)</li>
+  </ol>
+
+  <div class="info">
+    <p>El precio se recalcula automáticamente al seleccionar/deseleccionar cursos o cambiar meses.</p>
+  </div>
+</div>
+
+<!-- ==================== SECCIONES ==================== -->
+<h2 id="secciones">4. 📚 Gestión de Secciones</h2>
+
+<div class="module">
+  <h3>Acceso</h3>
+  <p>Menú lateral → <strong>Secciones</strong></p>
+
+  <h3>Crear Sección</h3>
+  <p>Formulario superior: Tecnología → Provider → Nivel → Curso → Docente (opcional) → Mes → Año → Frecuencia → Fecha de Inicio → Crear.</p>
+  <p>El código se genera automáticamente: <code>[CodigoCurso][MM][AA]-[Puesto]</code> (ej: <code>CLF0726-A</code>).</p>
+
+  <h3>Tabla de Secciones</h3>
+  <p>Columnas: Código, Curso, Docente, Mes/Año, Fecha Inicio, Frecuencia, Estado, Acciones.</p>
+  <p>Se puede filtrar por Tecnología, Provider, Nivel, Curso o buscar por código.</p>
+
+  <h3>Botones de Acción (por sección)</h3>
+  <table>
+    <tr><th>Botón</th><th>Función</th><th>Verde</th><th>Gris</th></tr>
+    <tr><td>👨‍🏫</td><td><strong>Asignar Docente:</strong> Abre modal con docentes habilitados para ese curso. Al asignar, se agrega a Calendar y Classroom.</td><td>Docente asignado</td><td>Sin docente</td></tr>
+    <tr><td>👥</td><td><strong>Ver Alumnos:</strong> Muestra tabla con alumnos matriculados, estado de pago, saldo, fecha de venta, y botón "Mover".</td><td>Tiene alumnos</td><td>Sin alumnos</td></tr>
+    <tr><td>🕐</td><td><strong>Reprogramar:</strong> Cambia fecha de inicio. Si el mes cambia, el código cambia. Actualiza matrículas, Drive, Calendar. Envía email.</td><td colspan="2">Siempre púrpura</td></tr>
+    <tr><td>🔀</td><td><strong>Fusionar:</strong> Mueve alumnos de una sección a otra del mismo curso. Elimina la sección origen.</td><td colspan="2">Siempre rosa</td></tr>
+    <tr><td>🗑️</td><td><strong>Eliminar:</strong> Solo si no tiene alumnos. Elimina carpeta Drive y eventos Calendar.</td><td colspan="2">Rojo si no tiene alumnos. Gris/deshabilitado si tiene.</td></tr>
+    <tr><td>📁/📂</td><td><strong>Carpeta Drive:</strong> Crea carpeta, copia contenido de CARPETA MAESTRA, comparte con alumnos pagados y docente.</td><td>Creada (abre Drive)</td><td>No creada (click para crear)</td></tr>
+    <tr><td>📆</td><td><strong>Google Calendar:</strong> Crea serie de eventos recurrentes con Meet.</td><td>Creada (abre Calendar)</td><td>No creada (click para crear)</td></tr>
+    <tr><td>🪧</td><td><strong>Google Classroom:</strong> Crea clase e invita alumnos y docente.</td><td>Creada (abre Classroom)</td><td>No creada (click para crear)</td></tr>
+  </table>
+
+  <h3>Reprogramar — Detalle</h3>
+  <ul>
+    <li>Se selecciona nueva fecha de inicio con date picker</li>
+    <li>El sistema valida si la fecha coincide con la frecuencia (ej: L-M-V debe caer lunes, miércoles o viernes). Si no coincide, advierte que la frecuencia cambiará.</li>
+    <li>Si el mes/año cambian → código cambia → se actualizan matrículas, se renombra carpeta Drive, se recrea serie Calendar, se envía email a todos los alumnos</li>
+    <li>Si solo cambia el día dentro del mismo mes → solo se actualiza la fecha, sin cambiar código</li>
+    <li>Se registra en el Historial de Reprogramaciones</li>
+  </ul>
+
+  <h3>Fusionar — Detalle</h3>
+  <ul>
+    <li>Se elige la sección destino (del mismo curso)</li>
+    <li>Mueve todas las matrículas de origen a destino</li>
+    <li>Mueve alumnos en Calendar (agrega a destino, elimina serie origen)</li>
+    <li>Elimina carpeta Drive de origen (a papelera)</li>
+    <li>Elimina la fila de la sección origen</li>
+    <li>No envía email a los alumnos</li>
+  </ul>
+
+  <h3>Google Calendar — Detalle</h3>
+  <table>
+    <tr><th>Frecuencia</th><th>Días</th><th>Horario (GMT-5)</th></tr>
+    <tr><td>L-M-V</td><td>Lunes, Miércoles, Viernes</td><td>19:00 - 22:00</td></tr>
+    <tr><td>M-J-S</td><td>Martes, Jueves: 19:00-22:00 / Sábado: 10:00-13:00</td><td>Mixto</td></tr>
+    <tr><td>Solo Sábados</td><td>Sábados</td><td>14:00 - 19:00</td></tr>
+  </table>
+  <p>Cantidad de sesiones = HorasTotales ÷ horas por sesión. Si sobran horas, la última sesión es más corta.</p>
+  <p>Nombre del evento: <code>Clase [SECCION] [NOMBRE_CURSO] [FRECUENCIA]</code></p>
+  <p>Permisos: invitados no pueden ver lista de asistentes ni invitar a otros.</p>
+</div>
+
+<!-- ==================== ALUMNOS ==================== -->
+<h2 id="alumnos">5. 👤 Gestión de Alumnos</h2>
+
+<div class="module">
+  <h3>Acceso</h3>
+  <p>Menú lateral → <strong>Alumnos</strong></p>
+
+  <h3>Buscar Alumnos</h3>
+  <p>Campo de búsqueda por nombre, email, teléfono o ID. Muestra alumnos de cursos y de simuladores (sin duplicados).</p>
+
+  <h3>Editar Datos</h3>
+  <p>Click en cualquier campo de la tabla (nombre, email, teléfono, país) para editarlo directamente. Se guarda al confirmar.</p>
+
+  <h3>Botón "📚 Ver" — Detalle del Alumno</h3>
+  <p>Abre un modal con toda la información del alumno:</p>
+
+  <h4>Secciones Inscritas</h4>
+  <p>Tabla con: Sección, Precio, Pagado, Saldo, Estado, Acciones.</p>
+
+  <h4>Acciones por matrícula:</h4>
+  <table>
+    <tr><th>Botón</th><th>Función</th><th>Cuándo aparece</th></tr>
+    <tr><td>🚫 Retirar</td><td>Marca la matrícula como "Retirado" con motivo. El alumno deja de aparecer como activo en esa sección.</td><td>Si no está retirado y no está pagado completamente</td></tr>
+    <tr><td>🔄 Cambiar</td><td>Cambia al alumno a otra sección <strong>del mismo curso</strong>. Requiere monto de pago administrativo, medio de pago e ID de operación. Registra un pago de tipo "Cambio de Sección" en la hoja Pagos.</td><td>Si no está retirado</td></tr>
+    <tr><td>Sin acciones</td><td>No hay acciones disponibles</td><td>Si está retirado o pagado completamente</td></tr>
+  </table>
+
+  <h4>Simuladores</h4>
+  <p>Si el alumno compró simuladores, aparece una sección adicional con: ID, Cursos, Meses, Precio, Fecha Inicio, Fecha Fin.</p>
+
+  <div class="info">
+    <p><strong>Diferencia entre "Cambiar" (Alumnos) y "Mover" (Secciones):</strong></p>
+    <ul>
+      <li><strong>Cambiar (🔄):</strong> Desde Gestión de Alumnos. Registra un pago administrativo. Solo permite secciones del mismo curso.</li>
+      <li><strong>Mover:</strong> Desde Gestión de Secciones → Ver Alumnos. No registra pago. Solo permite secciones del mismo curso.</li>
+      <li><strong>Corregir Sección (Mantenimiento):</strong> Permite mover a cualquier sección sin restricción de curso. Para corregir errores.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ==================== PAGOS ==================== -->
+<h2 id="pagos">6. 💳 Gestión de Pagos</h2>
+
+<div class="module">
+  <h3>Acceso</h3>
+  <p>Menú lateral → <strong>Pagos</strong></p>
+
+  <h3>Flujo de Registro de Pago</h3>
+  <ol>
+    <li>Buscar alumno por nombre o email</li>
+    <li>Se muestran sus matrículas con: ID, Sección, Precio Total, Total Pagado, Saldo Pendiente, Estado</li>
+    <li>Historial de pagos por matrícula (cuota, medio, monto, fecha)</li>
+    <li>Click en "➕ Registrar Pago" en la matrícula deseada</li>
+    <li>El monto se sugiere automáticamente:
+      <ul>
+        <li>Si hay cuotas programadas → sugiere el monto de la cuota correspondiente</li>
+        <li>Si no hay cuotas → sugiere el saldo pendiente total</li>
+      </ul>
+    </li>
+    <li>Ingresar medio de pago e ID de operación</li>
+    <li>Registrar</li>
+  </ol>
+
+  <h3>Comportamiento automático</h3>
+  <ul>
+    <li>Se recalculan TotalPagado y SaldoPendiente (con reintento si falla)</li>
+    <li>Si hay excedente → se aplica a la siguiente matrícula del mismo alumno (cascada)</li>
+    <li>Si la matrícula queda pagada (saldo = 0):
+      <ul>
+        <li>Se comparte la carpeta Drive como viewer</li>
+        <li>Se envía email de acceso a material con link a la carpeta</li>
+      </ul>
+    </li>
+    <li>Se envía email de confirmación de pago con detalle de cuotas pendientes</li>
+  </ul>
+
+  <div class="warning">
+    <p><strong>⚠️ Excedente:</strong> Si el monto pagado supera el saldo de la matrícula, el sistema pregunta si desea continuar. El excedente se aplica automáticamente a la siguiente matrícula del alumno.</p>
+  </div>
+</div>
+
+<!-- ==================== COBRANZA ==================== -->
+<h2 id="cobranza">7. 💸 Cobranza</h2>
+
+<div class="module">
+  <h3>Acceso</h3>
+  <p>Menú lateral → <strong>Cobranza</strong></p>
+
+  <h3>Vista</h3>
+  <p>Lista de todas las matrículas con información para gestión de cobranza:</p>
+  <ul>
+    <li>Alumno, email, teléfono, país</li>
+    <li>Sección, precio total, total pagado, saldo pendiente</li>
+    <li>Estado de pago (Pago Completo, Pago Pendiente, Pendiente)</li>
+    <li>Días transcurridos desde la matrícula</li>
+    <li>Botón para ir a Gestión de Pagos</li>
+  </ul>
+</div>
+
+<!-- ==================== PLANTILLAS ==================== -->
+<h2 id="plantillas">8. 📧 Plantillas de Email</h2>
+
+<div class="module">
+  <h3>Acceso</h3>
+  <p>Menú lateral → <strong>Plantillas</strong></p>
+
+  <h3>Plantillas Disponibles</h3>
+  <table>
+    <tr><th>Plantilla</th><th>Parámetros</th><th>Envío Automático</th></tr>
+    <tr><td>🎉 Bienvenida</td><td>Cursos (multiselect), nombre, email, fecha inicio, frecuencia</td><td>Sí, al registrar venta</td></tr>
+    <tr><td>💰 Recordatorio de Pago</td><td>Buscar alumno, cuotas pendientes</td><td>No, solo manual</td></tr>
+    <tr><td>✅ Confirmación de Pago</td><td>Buscar alumno, pago realizado, monto</td><td>Sí, al registrar pago</td></tr>
+    <tr><td>🔄 Cambio de Sección</td><td>Buscar alumno, sección origen (del alumno), sección destino, motivo</td><td>Opcional (Mantenimiento)</td></tr>
+    <tr><td>📅 Cambio de Inicio</td><td>Buscar alumno, sección (del alumno), nueva fecha</td><td>Sí, al reprogramar</td></tr>
+    <tr><td>🎮 Acceso a Simulador</td><td>Buscar alumno, cursos, contraseña, fechas</td><td>Sí, al vender simulador</td></tr>
+    <tr><td>📂 Acceso a Material</td><td>Buscar alumno, curso, sección, URL carpeta</td><td>Sí, al completar pago</td></tr>
+  </table>
+
+  <h3>Uso Manual</h3>
+  <ol>
+    <li>Seleccionar plantilla en el panel izquierdo</li>
+    <li>Llenar parámetros (algunos se auto-llenan al buscar alumno)</li>
+    <li>"👁️ Generar Vista Previa" — se muestra en iframe aislado (no afecta la página)</li>
+    <li>"✉️ Enviar Email" — envía al email del campo "Email del Alumno"</li>
+  </ol>
+
+  <div class="info">
+    <p>Si se superpone un email diferente al que el sistema cargó, el correo se enviará al email superpuesto.</p>
+  </div>
+
+  <h3>Todas las plantillas incluyen:</h3>
+  <ul>
+    <li>Logo de Educational CRM en la parte superior</li>
+    <li>Banner con título</li>
+    <li>Datos de contacto (email, web, teléfono)</li>
+    <li>Iconos de redes sociales (LinkedIn, Facebook, Instagram)</li>
+    <li>Footer con copyright</li>
+  </ul>
+</div>
+
+<!-- ==================== ADMIN PLANTILLAS ==================== -->
+<h2 id="admin-plantillas">9. ⚙️ Admin Plantillas</h2>
+
+<div class="module">
+  <h3>Acceso</h3>
+  <p>Menú lateral → <strong>Admin Plantillas</strong></p>
+
+  <h3>Función</h3>
+  <p>Permite editar el texto de las plantillas de email. <strong>Los cambios se reflejan tanto en la vista previa de Plantillas como en los correos enviados automáticamente.</strong></p>
+
+  <h3>Campos Editables</h3>
+  <ul>
+    <li><strong>Asunto:</strong> Línea de asunto del email</li>
+    <li><strong>Título:</strong> Texto del banner superior</li>
+    <li><strong>Mensaje de Bienvenida:</strong> Cuerpo del email. Soporta variables entre <code>{{ }}</code> y saltos de línea.</li>
+    <li><strong>Footer:</strong> Texto del pie de página</li>
+  </ul>
+
+  <h3>Variables Disponibles</h3>
+  <table>
+    <tr><th>Variable</th><th>Se reemplaza por</th></tr>
+    <tr><td><code>{{NOMBRE_ALUMNO}}</code></td><td>Nombre del alumno</td></tr>
+    <tr><td><code>{{NOMBRE_CURSO}}</code></td><td>Nombre del curso o secciones</td></tr>
+    <tr><td><code>{{PRECIO}}</code></td><td>Monto del pago</td></tr>
+    <tr><td><code>{{SALDO_PENDIENTE}}</code></td><td>Saldo pendiente con detalle de cuotas</td></tr>
+    <tr><td><code>{{SECCION_ACTUAL}}</code></td><td>Sección de origen</td></tr>
+    <tr><td><code>{{SECCION_NUEVA}}</code></td><td>Sección de destino</td></tr>
+    <tr><td><code>{{NUEVA_FECHA}}</code></td><td>Nueva fecha de inicio (formateada)</td></tr>
+    <tr><td><code>{{CURSOS_SIMULADOR}}</code></td><td>Cursos del simulador</td></tr>
+    <tr><td><code>{{PASSWORD}}</code></td><td>Contraseña generada</td></tr>
+    <tr><td><code>{{URL_CARPETA}}</code></td><td>Link a la carpeta de Drive</td></tr>
+    <tr><td><code>{{FECHA_INICIO}}</code></td><td>Fecha de inicio del curso</td></tr>
+    <tr><td><code>{{FRECUENCIA}}</code></td><td>Frecuencia del curso</td></tr>
+  </table>
+
+  <h3>Secciones adicionales</h3>
+  <ul>
+    <li><strong>Editar Logo:</strong> Subir nuevo logo (se usa en todas las plantillas)</li>
+    <li><strong>Editar Iconos de Redes Sociales:</strong> Subir iconos y configurar URLs</li>
+  </ul>
+</div>
+
+<!-- ==================== DASHBOARD ==================== -->
+<h2 id="dashboard">10. 📊 Dashboard</h2>
+
+<div class="module">
+  <h3>Acceso</h3>
+  <p>Menú lateral → <strong>Dashboard</strong></p>
+
+  <h3>Métricas Principales</h3>
+  <ul>
+    <li><strong>Total Matrículas:</strong> Cantidad de matrículas activas (excluye retiradas)</li>
+    <li><strong>Ingresos Totales:</strong> Suma de PrecioTotal de todas las matrículas</li>
+    <li><strong>Total Cobrado:</strong> Suma de TotalPagado</li>
+    <li><strong>Por Cobrar:</strong> Suma de SaldoPendiente</li>
+  </ul>
+
+  <h3>Margen por Sección</h3>
+  <ul>
+    <li>Filtro desplegable por sección (ordenadas de más recientes a más antiguas, máximo 7 visibles con scroll)</li>
+    <li>Columnas: Sección, Curso, Alumnos, Ingresos, Cobrado, Pendiente, Costo Docente, Margen, %</li>
+    <li>Costo Docente = TarifaHora × HorasTotales de la sección</li>
+    <li>Margen = Ingresos - Costo Docente</li>
+    <li>Porcentaje = Margen ÷ Costo × 100 (calculado sobre el costo, no sobre el ingreso)</li>
+    <li>Click en una fila para seleccionar esa sección y abrir el simulador</li>
+  </ul>
+
+  <h3>Simulador de Margen</h3>
+  <p>Al seleccionar una sección aparece un panel azul con:</p>
+  <ul>
+    <li><strong>Simular con total de alumnos:</strong> Cambiar la cantidad y ver cómo cambia el margen</li>
+    <li><strong>Simular con docente:</strong> Seleccionar otro docente habilitado para ese curso y ver el impacto en el costo/margen</li>
+    <li>Muestra: ingresos simulados, costo, margen, porcentaje, y diferencia vs actual</li>
+  </ul>
+
+  <h3>Pendientes por Cobrar (Top 20)</h3>
+  <p>Lista de los 20 alumnos con mayor saldo pendiente. Botón "Ver" redirige a Cobranza.</p>
+
+  <h3>Estado de Pagos</h3>
+  <p>Tarjetas con la distribución de matrículas por estado: Pago Completo, Pago Pendiente, Pendiente, Retirado.</p>
+</div>
+
+<!-- ==================== DOCENTES ==================== -->
+<h2 id="docentes">11. 👨‍🏫 Gestión de Docentes</h2>
+
+<div class="module">
+  <h3>Acceso</h3>
+  <p>Menú lateral → <strong>Docentes</strong></p>
+
+  <h3>Datos del Docente</h3>
+  <p>Nombre, Email, Teléfono, País, Certificaciones, Cursos que Dicta, Tarifa por Hora, Método de Pago, Email PayPal, Banco, Número de Cuenta, LinkedIn, Estado, Foto.</p>
+
+  <h3>Asignación a Secciones</h3>
+  <p>Desde Gestión de Secciones → botón 👨‍🏫. Al asignar:</p>
+  <ul>
+    <li>Se valida que el docente pueda dictar ese curso (campo <code>CursosQueDicta</code> debe contener el <code>CodigoCursoBD</code>)</li>
+    <li>Se agrega como invitado a los eventos de Google Calendar de la sección</li>
+    <li>Se envía invitación como teacher en Google Classroom</li>
+    <li><strong>No</strong> se comparte la carpeta Drive automáticamente (solo al crear la carpeta)</li>
+  </ul>
+</div>
+
+<!-- ==================== MANTENIMIENTO ==================== -->
+<h2 id="mantenimiento">12. 🔧 Mantenimiento</h2>
+
+<div class="module">
+  <h3>Acceso</h3>
+  <p>Menú lateral → <strong>Mantenimiento</strong></p>
+
+  <h3>Herramientas</h3>
+  <table>
+    <tr><th>Herramienta</th><th>Descripción</th></tr>
+    <tr><td>🔍 Verificar Integridad</td><td>Verifica consistencia de datos sin modificar nada</td></tr>
+    <tr><td>🔧 Reparar Datos</td><td>Repara problemas detectados automáticamente</td></tr>
+    <tr><td>🔄 Recalcular Totales</td><td>Recalcula TotalPagado y SaldoPendiente de todas las matrículas basándose en la hoja Pagos como fuente de verdad</td></tr>
+    <tr><td>🔄 Cambiar Código de Sección</td><td>Cambia el código de una sección existente en todas las hojas</td></tr>
+    <tr><td>💰 Corregir Monto Pagado</td><td>Busca una matrícula y corrige el monto total pagado</td></tr>
+    <tr><td>💰 Corrección de Precios</td><td>Corrige el precio de una venta ya registrada y recalcula saldo</td></tr>
+    <tr><td>🗑️ Eliminar Venta Específica</td><td>Elimina una venta completa con doble confirmación (ver detalle abajo)</td></tr>
+    <tr><td>🔀 Corregir Sección de Matrícula</td><td>Mueve una matrícula a cualquier sección sin restricción de curso (ver detalle abajo)</td></tr>
+  </table>
+
+  <h3>Eliminar Venta Específica — Detalle</h3>
+  <ol>
+    <li>Buscar alumno por nombre o email</li>
+    <li>Se muestran todas sus ventas agrupadas por ID_Venta con secciones y monto</li>
+    <li>Click en "🗑️ Eliminar esta venta" → doble confirmación</li>
+    <li>Se elimina: pagos, cuotas programadas, matrículas, registro de venta</li>
+    <li>Se remueve al alumno de los eventos de Calendar de las secciones</li>
+    <li>Si el alumno no tiene otras matrículas, también se elimina el alumno</li>
+  </ol>
+
+  <h3>Corregir Sección de Matrícula — Detalle</h3>
+  <ol>
+    <li>Buscar alumno</li>
+    <li>Se muestran sus matrículas con la sección actual</li>
+    <li>Seleccionar nueva sección (cualquiera, sin restricción de curso)</li>
+    <li>Checkbox "Enviar email" (marcado por defecto) — envía email de cambio de sección al alumno</li>
+    <li>Click en "🔀 Mover"</li>
+    <li>Actualiza la matrícula, mueve en Calendar (quita de origen, agrega a destino)</li>
+  </ol>
+</div>
+
+<!-- ==================== LIMPIEZA ==================== -->
+<h2 id="limpieza">13. 🧹 Limpieza de Tests</h2>
+
+<div class="module">
+  <h3>Botón "Limpiar Todos los Tests de Ventas"</h3>
+  <p>Ubicado en la página de Ventas. Elimina todos los registros marcados con <code>EsTest = 'Sí'</code>:</p>
+  <ul>
+    <li>Pagos test</li>
+    <li>Matrículas test (remueve alumnos de Calendar antes de borrar)</li>
+    <li>Alumnos test</li>
+    <li>Cuotas programadas huérfanas (cuyo ID_Venta ya no tiene matrículas)</li>
+    <li>Ventas test</li>
+    <li>Ventas de simulador test</li>
+  </ul>
+
+  <h3>Botón "🧹 Limpiar Todos los Tests de Secciones"</h3>
+  <p>Ubicado en Gestión de Secciones. Elimina secciones con <code>EsTest = 'Sí'</code>:</p>
+  <ul>
+    <li>Carpetas Drive (a papelera)</li>
+    <li>Eventos de Google Calendar</li>
+    <li>Matrículas asociadas a esas secciones</li>
+    <li>Las filas de secciones</li>
+  </ul>
+
+  <div class="warning">
+    <p><strong>⚠️ Los emails ya enviados y las llamadas a APIs externas (simulador AWS) NO se revierten.</strong></p>
+  </div>
+</div>
+
+<!-- ==================== AUTOMATIZACIONES ==================== -->
+<h2 id="automatizaciones">14. ⚡ Automatizaciones</h2>
+
+<div class="module">
+  <h3>Google Calendar</h3>
+  <table>
+    <tr><th>Evento del Sistema</th><th>Acción en Calendar</th></tr>
+    <tr><td>Matricular alumno (venta)</td><td>Se agrega como invitado a la serie de eventos</td></tr>
+    <tr><td>Asignar docente</td><td>Se agrega como invitado</td></tr>
+    <tr><td>Mover alumno de sección</td><td>Se quita de origen, se agrega a destino</td></tr>
+    <tr><td>Reprogramar sección</td><td>Se elimina serie vieja, se recrea con nuevas fechas</td></tr>
+    <tr><td>Fusionar secciones</td><td>Se agregan alumnos a destino, se elimina serie origen</td></tr>
+    <tr><td>Eliminar venta</td><td>Se remueve alumno de los eventos</td></tr>
+    <tr><td>Limpiar tests secciones</td><td>Se eliminan series de secciones test</td></tr>
+    <tr><td>Limpiar tests ventas</td><td>Se remueven alumnos test de los eventos</td></tr>
+  </table>
+
+  <h3>Google Classroom</h3>
+  <table>
+    <tr><th>Evento del Sistema</th><th>Acción en Classroom</th></tr>
+    <tr><td>Matricular alumno</td><td>Se envía invitación como estudiante</td></tr>
+    <tr><td>Asignar docente</td><td>Se envía invitación como teacher</td></tr>
+  </table>
+
+  <h3>Carpeta Drive</h3>
+  <table>
+    <tr><th>Evento del Sistema</th><th>Acción en Drive</th></tr>
+    <tr><td>Completar pago de matrícula</td><td>Se comparte carpeta como viewer con el alumno + email de acceso</td></tr>
+    <tr><td>Crear carpeta (botón 📁)</td><td>Se comparte con alumnos pagados (viewer) y docente (editor)</td></tr>
+    <tr><td>Reprogramar sección</td><td>Se renombra la carpeta</td></tr>
+    <tr><td>Fusionar secciones</td><td>Se elimina carpeta de sección origen</td></tr>
+  </table>
+
+  <h3>Protección contra Doble Click</h3>
+  <p>Los siguientes botones se deshabilitan y muestran "⏳ Procesando..." mientras se ejecuta la operación:</p>
+  <ul>
+    <li>Registrar Venta</li>
+    <li>Registrar Pago</li>
+    <li>Enviar Email</li>
+    <li>Cambiar Sección de Alumno</li>
+    <li>Confirmar venta (modal de resumen)</li>
+  </ul>
+
+  <h3>Reintento Automático</h3>
+  <p><code>actualizarTotalesMatricula</code> reintenta una vez después de 2 segundos si falla por error transitorio de Google Sheets.</p>
+</div>
+
+<!-- ==================== DRIVE ==================== -->
+<h2 id="drive">15. 📁 Archivos y Carpetas en Drive</h2>
+
+<div class="module">
+  <h3>Carpetas que NO se deben mover ni renombrar (referenciadas por ruta)</h3>
+  <ul>
+    <li><code>My Drive / A. ACADÉMICA / Contenido Académico / Classroom /</code></li>
+    <li><code>My Drive / A. ACADÉMICA / Contenido Académico / CARPETA MAESTRA /</code></li>
+  </ul>
+
+  <h3>Carpetas que SÍ se pueden mover (referenciadas por ID)</h3>
+  <ul>
+    <li><code>Educational CRM - Docentes Fotos</code></li>
+    <li><code>Educational CRM - Cursos Imagenes</code></li>
+    <li><code>Educational CRM - Iconos</code></li>
+    <li><code>Educational CRM - Logos</code></li>
+  </ul>
+
+  <h3>Estructura de Carpetas de Sección</h3>
+  <p><strong>Destino:</strong> <code>Classroom / [Provider] / [CodigoCurso] / [Seccion] [NombreCurso] [Frecuencia]</code></p>
+  <p><strong>Origen (copia):</strong> <code>CARPETA MAESTRA / [Provider] / [CodigoCurso] (maestra)</code></p>
+
+  <h3>Renombrar archivo de Apps Script</h3>
+  <p>Se puede renombrar sin afectar el sistema. Se referencia por ID, no por nombre.</p>
+</div>
+
+<div class="module">
+  <h3>⚠️ Propiedad de los recursos (Drive, Classroom, Calendar)</h3>
+  <p>La app web se ejecuta como <code>USER_DEPLOYING</code> con acceso anónimo. Esto significa que
+  todo el código del backend corre con la identidad de la cuenta que <strong>desplegó</strong> el
+  sistema, <strong>no</strong> con la del usuario que abre el CRM en ese momento.</p>
+  <ul>
+    <li><strong>Cuenta propietaria actual:</strong> <code>admin@example.com</code></li>
+    <li>Aunque otro usuario (ej. <code>contact@example.com</code>) use el CRM, todos los recursos se crean bajo <code>admin@example.com</code>.</li>
+    <li><strong>Drive:</strong> las carpetas de sección quedan en el Drive de esa cuenta.</li>
+    <li><strong>Classroom:</strong> los cursos se crean con <code>ownerId: 'me'</code> = <code>admin@example.com</code> (profesor/propietario).</li>
+    <li><strong>Calendar:</strong> los eventos se crean en el calendario <code>primary</code> de esa cuenta.</li>
+  </ul>
+  <p><strong>Importante:</strong> si se vuelve a desplegar el sistema con otra cuenta, los recursos
+  nuevos se crearían en esa otra cuenta y se fragmentaría la propiedad. Mantener siempre el
+  deployment bajo <code>admin@example.com</code>.</p>
+</div>
+
+<!-- ==================== HOJAS ==================== -->
+<h2 id="hojas">16. 🗄️ Hojas de la Base de Datos</h2>
+
+<div class="module">
+  <table>
+    <tr><th>Hoja</th><th>Columnas Principales</th></tr>
+    <tr><td>Alumnos</td><td>ID, Nombre, Gmail, Teléfono, País, LinkedIn, FechaRegistro, EsTest</td></tr>
+    <tr><td>Matriculas</td><td>ID, AlumnoID, Sección, Precio, IncluyeExamen, EstadoPago, TotalPagado, EstadoMatricula, Saldo, FechaMatricula, Observaciones, EsTest, ID_Venta, FechaInicioComprometida</td></tr>
+    <tr><td>Pagos</td><td>ID, MatriculaID, NumeroCuota, Monto, MedioPago, TipoPago, IDOperacion, Fecha, EsTest</td></tr>
+    <tr><td>Secciones</td><td>Codigo, NombreCurso, Tecnologia, Provider, Nivel, DocenteID, DocenteNombre, HorasTotales, Mes, Año, Frecuencia, PuestoEnMes, Estado, FechaInicio, FechaFin, Confirmada, FechaCreacion, EsTest, DriveFolderId, CodigoCursoBD, CalendarEventId, ClassroomId</td></tr>
+    <tr><td>Cursos</td><td>Código, Nombre, Tecnología, Provider, Nivel, Horas, PrecioBase, Frecuencia, Beneficios, Requisitos, URLImagen, FileId</td></tr>
+    <tr><td>Docentes</td><td>ID, Nombre, Email, Teléfono, País, Certificaciones, CursosQueDicta, TarifaHora, MétodoPago, EmailPayPal, Banco, NumeroCuenta, LinkedIn, Estado, Foto, FileId</td></tr>
+    <tr><td>Ventas</td><td>ID_Venta, ID_Alumno, Fecha, PrecioTotal, TipoPago, CantidadCursos, MedioPago, ID_Operacion, Secciones, EsTest</td></tr>
+    <tr><td>VentasSimulador</td><td>ID, AlumnoID, Cursos, Meses, PrecioTotal, MedioPago, IDOperacion, FechaVenta, FechaInicio, FechaFin, Password, EsTest</td></tr>
+    <tr><td>CuotasProgramadas</td><td>ID_Venta, NumeroCuota, MontoProgramado, FechaVencimiento, Estado</td></tr>
+    <tr><td>HistorialReprogramaciones</td><td>Seccion, CodigoAnterior, CodigoNuevo, FechaAnterior, FechaNueva, FechaDelCambio</td></tr>
+    <tr><td>Configuración</td><td>Clave, Valor</td></tr>
+    <tr><td>Logs</td><td>Fecha, Accion, Tabla, ID, Detalle, Usuario</td></tr>
+  </table>
+</div>
+
+<hr>
+<p style="text-align:center;color:#999;font-size:12px;">
+  Documentación del Sistema CRM - Educational CRM<br>
+  Desarrollado sobre Google Apps Script + Google Sheets<br>
+  Abril 2026
+</p>
+
+</body>
+</html>

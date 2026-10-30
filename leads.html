@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <?!= includeWithBaseUrl('config'); ?>
+  <?!= include('styles'); ?>
+  <style>
+    .kanban-container { display: flex; gap: 12px; overflow-x: auto; padding: 10px 0; min-height: 70vh; }
+    .kanban-column { min-width: 240px; max-width: 260px; background: #f3f4f6; border-radius: 8px; padding: 10px; flex-shrink: 0; }
+    .kanban-column.hidden-col { display: none; }
+    .kanban-header { font-weight: 700; font-size: 13px; padding: 8px; border-radius: 6px; color: white; text-align: center; margin-bottom: 10px; }
+    .kanban-cards { min-height: 50px; }
+    .kanban-card { background: white; border-radius: 6px; padding: 10px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); cursor: grab; font-size: 12px; border-left: 3px solid #263d86; transition: transform 0.1s; }
+    .kanban-card:hover { transform: scale(1.01); box-shadow: 0 3px 8px rgba(0,0,0,0.12); }
+    .kanban-card:active { cursor: grabbing; transform: scale(1.02); }
+    .kanban-card .card-top { display: flex; justify-content: space-between; align-items: center; }
+    .kanban-card .tel { font-weight: 700; color: #263d86; font-size: 13px; }
+    .kanban-card .curso { color: #059669; font-weight: 600; }
+    .kanban-card .asesor { color: #7c3aed; font-size: 11px; }
+    .kanban-card .fecha { color: #9ca3af; font-size: 11px; }
+    .kanban-card .estado-bot { background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 3px; font-size: 10px; display: inline-block; }
+    .kanban-card .warn-badge { background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 3px; font-size: 10px; display: inline-block; margin-left: 4px; }
+    .contacto-btn { padding: 2px 6px; border-radius: 3px; font-size: 10px; border: none; cursor: pointer; font-weight: 600; }
+    .contacto-btn.no { background: #fee2e2; color: #dc2626; }
+    .contacto-btn.si { background: #d4edda; color: #22c55e; }
+    .drag-over { background: #dbeafe; border: 2px dashed #2563eb; }
+    .filters { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+    .filters select, .filters input { padding: 8px; border: 2px solid #e5e7eb; border-radius: 4px; font-size: 13px; }
+    .count-badge { background: white; color: #333; padding: 2px 8px; border-radius: 10px; font-size: 12px; margin-left: 5px; }
+    .col-toggle { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; cursor: pointer; padding: 3px 8px; background: #e5e7eb; border-radius: 4px; }
+    .col-toggle input { margin: 0; }
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+    .modal-content { background: white; border-radius: 8px; padding: 20px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; }
+    .modal-content h3 { margin-top: 0; color: #263d86; }
+    .modal-content .field { margin: 8px 0; }
+    .modal-content .field label { font-weight: 600; font-size: 12px; color: #666; }
+    .modal-content .field p { margin: 2px 0; font-size: 13px; }
+    .ctx-menu { position: fixed; background: white; border: 1px solid #e5e7eb; border-radius: 6px; box-shadow: 0 4px 16px rgba(0,0,0,0.15); z-index: 2000; min-width: 180px; padding: 4px 0; font-size: 13px; }
+    .ctx-menu div { padding: 8px 14px; cursor: pointer; }
+    .ctx-menu div:hover { background: #f0f4ff; }
+    .ctx-menu .ctx-sep { border-top: 1px solid #e5e7eb; margin: 4px 0; padding: 0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <?!= includeWithCurrentPage('nav', currentPage); ?>
+    <main class="main leads-page" data-page="leads">
+      <h1 class="form-title">📋 Gestión de Leads</h1>
+      <div class="filters">
+        <div>
+          <label style="font-weight:600;font-size:13px;">Asesor:</label>
+          <select id="filtroAsesor" onchange="cargarLeads()">
+            <option value="Todos">Todos</option>
+            <option value="Advisor 1">Advisor 1</option>
+            <option value="Advisor 2">Advisor 2</option>
+            <option value="">Sin asignar</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-weight:600;font-size:13px;">Periodo:</label>
+          <select id="filtroPeriodo" onchange="filtrarYRender()">
+            <option value="todos">Todos</option>
+            <option value="hoy" selected>Hoy</option>
+            <option value="ayer">Ayer</option>
+            <option value="7dias">Últimos 7 días</option>
+            <option value="semana">Esta semana</option>
+            <option value="30dias">Últimos 30 días</option>
+            <option value="mes">Este mes</option>
+            <option value="rango">📅 Elegir fechas</option>
+          </select>
+        </div>
+        <div id="rangoFechas" style="display:none;align-items:center;gap:6px;">
+          <input type="date" id="fechaDesde" onchange="filtrarYRender()" style="padding:6px;"> 
+          <span style="font-size:13px;">a</span>
+          <input type="date" id="fechaHasta" onchange="filtrarYRender()" style="padding:6px;">
+        </div>
+        <button class="btn-submit" onclick="cargarLeads()" style="padding:8px 16px;">🔄 Actualizar</button>
+        <span id="totalLeads" style="font-size:13px;color:#666;"></span>
+      </div>
+      <div style="margin-bottom:10px;display:flex;gap:6px;flex-wrap:wrap;" id="colToggles"></div>
+      <div class="kanban-container" id="kanbanContainer"><p>Cargando leads...</p></div>
+    </main>
+    <?!= include('footer'); ?>
+  </div>
+  <div class="modal-overlay" id="modalDetalleLead" onclick="if(event.target===this)this.style.display='none'">
+    <div class="modal-content" id="modalDetalleLeadBody"></div>
+  </div>
+  <div id="toast" class="toast"></div>
+  <script>
+    var allLeads = [];
+    // Orden de columnas: índice = prioridad (mayor = más avanzado)
+    var columnas = [
+      { id: 'NO_E_NUBE', label: '☁️ NO_E_NUBE', color: '#6b7280', estados: ['INICIO', 'NUBE_ELEGIDA', 'NO_E_NUBE'], hidden: true, prio: 0 },
+      { id: 'NO_E_CERT', label: '📋 NO_E_CERT', color: '#2563eb', estados: ['CERT_ELEGIDA', 'NO_E_CERT'], hidden: true, prio: 1 },
+      { id: 'NO_E_URGENCIA', label: '⏱️ NO_E_URGENCIA', color: '#d97706', estados: ['TIEMPO_CURSO', 'NO_E_URGENCIA'], hidden: true, prio: 2 },
+      { id: 'MAS_DE_60_DIAS', label: '📆 MAS_DE_60_DIAS', color: '#92400e', estados: ['MAS_DE_60_DIAS'], hidden: true, prio: 3 },
+      { id: 'NO_CONFIRMO_MEET', label: '🤔 NO_CONFIRMO_MEET', color: '#7c3aed', estados: ['ESPERANDO_DECISION', 'NO_CONFIRMO_MEET', 'MODALIDAD_ELEGIDA'], hidden: false, prio: 4 },
+      { id: 'CONFIRMO_MEET', label: '✅ CONFIRMO_MEET', color: '#22c55e', estados: ['CONFIRMO_MEET'], hidden: false, prio: 5 },
+      { id: 'RECONFIRMO_MEET', label: '🔄 RECONFIRMO_MEET', color: '#0891b2', estados: ['FINALIZADO', 'RECONFIRMO_MEET'], hidden: false, prio: 6 },
+      { id: 'ASISTIO_MEET_PC', label: '🎯 ASISTIO_MEET (PC)', color: '#16a34a', estados: [], hidden: false, prio: 7 },
+      { id: 'ASISTIO_MEET_CP', label: '💰 ASISTIO_MEET (CP)', color: '#ea580c', estados: [], hidden: false, prio: 8 },
+      { id: 'CONVERTIDO', label: '🎉 CONVERTIDO (Alumno)', color: '#059669', estados: [], hidden: false, prio: 9 },
+      { id: 'REMARKETING', label: '📢 REMARKETING', color: '#b45309', estados: ['REMARKETING_FALLIDO'], hidden: true, prio: 10 }
+    ];
+
+    // Columnas manuales (operador) — el bot no las sobreescribe
+    var columnasManual = ['ASISTIO_MEET_PC', 'ASISTIO_MEET_CP', 'CONVERTIDO'];
+
+    function getColPrio(colId) {
+      var c = columnas.find(function(x) { return x.id === colId; });
+      return c ? c.prio : -1;
+    }
+
+    function getColumnaByEstadoBot(estadoBot) {
+      var bot = (estadoBot || '').toUpperCase();
+      for (var c = 0; c < columnas.length; c++) {
+        for (var e = 0; e < columnas[c].estados.length; e++) {
+          if (bot === columnas[c].estados[e]) return columnas[c].id;
+        }
+      }
+      return 'NO_E_NUBE';
+    }
+
+    // Calcula horas hábiles (excluyendo domingos) entre timestamp y ahora
+    function horasHabilesDesde(timestampStr) {
+      var ts = new Date(timestampStr);
+      if (isNaN(ts.getTime())) return 0;
+      var ahora = new Date();
+      var horas = 0;
+      var cursor = new Date(ts);
+      while (cursor < ahora) {
+        if (cursor.getDay() !== 0) { // 0 = domingo
+          var siguiente = new Date(cursor.getTime() + 3600000);
+          if (siguiente > ahora) siguiente = ahora;
+          horas += (siguiente - cursor) / 3600000;
+          cursor = siguiente;
+        } else {
+          // Saltar al lunes
+          cursor.setDate(cursor.getDate() + 1);
+          cursor.setHours(0, 0, 0, 0);
+        }
+      }
+      return horas;
+    }
+
+    // Opción A afinada: proteger retroceso solo desde NO_CONFIRMO_MEET en adelante.
+    // Si el bot está en NO_E_NUBE, NO_E_CERT o NO_E_URGENCIA, siempre usar el bot (no proteger).
+    function getColumnaParaLead(lead) {
+      var colActual = (lead.columna || '').trim();
+      var esValida = colActual && columnas.some(function(c) { return c.id === colActual; });
+      var colBot = getColumnaByEstadoBot(lead.estadoBot);
+
+      // Si col N no tiene valor válido, usar el bot
+      if (!esValida) return colBot;
+
+      // Si col N tiene valor válido, SIEMPRE respetarlo.
+      // Solo sobreescribir si el bot AVANZÓ (prio mayor) Y estamos en columnas tempranas
+      var columnasTempranas = ['NO_E_NUBE', 'NO_E_CERT', 'NO_E_URGENCIA', 'MAS_DE_60_DIAS'];
+      if (columnasTempranas.indexOf(colBot) !== -1 && columnasTempranas.indexOf(colActual) !== -1) {
+        // Ambos son tempranos: seguir al bot
+        return colBot;
+      }
+
+      // Si el bot avanzó más allá de NO_CONFIRMO_MEET y col N está en una temprana, avanzar
+      var prioActual = getColPrio(colActual);
+      var prioBot = getColPrio(colBot);
+      if (prioBot > prioActual && columnasTempranas.indexOf(colActual) !== -1) {
+        return colBot;
+      }
+
+      // En todos los demás casos: respetar col N
+      return colActual;
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      renderColToggles();
+      cargarLeads();
+      setInterval(function() {
+        var filtro = document.getElementById('filtroAsesor').value;
+        google.script.run.withSuccessHandler(function(leads) { allLeads = leads || []; syncColumnas(); renderKanban(); }).getLeads(filtro);
+      }, 15000);
+      document.getElementById('filtroPeriodo').addEventListener('change', function() {
+        document.getElementById('rangoFechas').style.display = this.value === 'rango' ? 'flex' : 'none';
+      });
+    });
+
+    // Sincroniza col N si el bot avanzó (batch para evitar too many scripts)
+    function syncColumnas() {
+      var cambios = [];
+      allLeads.forEach(function(l) {
+        if (movidosManualmente.has(l.fila)) return;
+        var colCalculada = getColumnaParaLead(l);
+        var colActual = (l.columna || '').trim();
+        if (colCalculada !== colActual) {
+          l.columna = colCalculada;
+          cambios.push({ fila: l.fila, columna: colCalculada });
+        }
+      });
+      if (cambios.length > 0) {
+        google.script.run
+          .withSuccessHandler(function(r) { console.log('✅ Sync: ' + cambios.length + ' actualizados'); })
+          .withFailureHandler(function(e) { console.error('❌ Sync error: ' + e); })
+          .actualizarColumnasLeadsBatch(cambios);
+      }
+    }
+
+    function renderColToggles() {
+      var html = '<span style="font-size:12px;font-weight:600;color:#666;">Columnas:</span> ';
+      columnas.forEach(function(col, i) {
+        html += '<label class="col-toggle"><input type="checkbox" ' + (col.hidden ? '' : 'checked') + ' onchange="toggleColumna(' + i + ',this.checked)">' + col.id + '</label>';
+      });
+      document.getElementById('colToggles').innerHTML = html;
+    }
+    function toggleColumna(index, visible) { columnas[index].hidden = !visible; renderKanban(); }
+
+    function cargarLeads() {
+      var filtro = document.getElementById('filtroAsesor').value;
+      document.getElementById('kanbanContainer').innerHTML = '<p>Cargando...</p>';
+      google.script.run
+        .withSuccessHandler(function(leads) { allLeads = leads || []; syncColumnas(); renderKanban(); })
+        .withFailureHandler(function(e) { document.getElementById('kanbanContainer').innerHTML = '<p style="color:red;">Error: ' + e.message + '</p>'; })
+        .getLeads(filtro);
+    }
+    function filtrarYRender() { renderKanban(); }
+
+    function getLeadsFiltrados() {
+      var periodo = document.getElementById('filtroPeriodo').value;
+      if (periodo === 'todos') return allLeads;
+      var ahora = new Date(); var hoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate()); var desde, hasta;
+      if (periodo === 'rango') {
+        var dVal = document.getElementById('fechaDesde').value; var hVal = document.getElementById('fechaHasta').value;
+        if (!dVal) return allLeads; desde = new Date(dVal); hasta = hVal ? new Date(new Date(hVal).getTime()+86400000) : new Date(ahora.getTime()+86400000);
+        return allLeads.filter(function(l) { var d = new Date(l.timestamp); return d >= desde && d < hasta; });
+      } else if (periodo === 'hoy') { desde = hoy;
+      } else if (periodo === 'ayer') { desde = new Date(hoy); desde.setDate(desde.getDate()-1); hasta = new Date(hoy); return allLeads.filter(function(l) { var d = new Date(l.timestamp); return d >= desde && d < hasta; });
+      } else if (periodo === '7dias') { desde = new Date(hoy); desde.setDate(desde.getDate()-7);
+      } else if (periodo === 'semana') { desde = new Date(hoy); desde.setDate(desde.getDate()-desde.getDay());
+      } else if (periodo === '30dias') { desde = new Date(hoy); desde.setDate(desde.getDate()-30);
+      } else if (periodo === 'mes') { desde = new Date(ahora.getFullYear(), ahora.getMonth(), 1); }
+      return allLeads.filter(function(l) { return new Date(l.timestamp) >= desde; });
+    }
+
+    function renderKanban() {
+      var leadsFiltrados = getLeadsFiltrados();
+      document.getElementById('totalLeads').textContent = leadsFiltrados.length + ' leads' + (leadsFiltrados.length !== allLeads.length ? ' (de ' + allLeads.length + ')' : '');
+      var html = '';
+      columnas.forEach(function(col) {
+        var leadsCol = leadsFiltrados.filter(function(l) { return getColumnaParaLead(l) === col.id; });
+        leadsCol.sort(function(a, b) { return new Date(b.timestamp) - new Date(a.timestamp); });
+        html += '<div class="kanban-column' + (col.hidden ? ' hidden-col' : '') + '" ondragover="event.preventDefault();this.classList.add(\'drag-over\')" ondragleave="this.classList.remove(\'drag-over\')" ondrop="dropLead(event,\'' + col.id + '\')">';
+        html += '<div class="kanban-header" style="background:' + col.color + '">' + col.label + '<span class="count-badge">' + leadsCol.length + '</span></div>';
+        html += '<div class="kanban-cards">';
+        leadsCol.forEach(function(l) {
+          var contactoClass = (l.mensaje === 'CONTACTADO') ? 'si' : 'no';
+          var contactoText = (l.mensaje === 'CONTACTADO') ? 'CONTACTADO' : 'NO CONTACTO';
+          var colActual = getColumnaParaLead(l);
+          var colBot = getColumnaByEstadoBot(l.estadoBot);
+          var discrepancia = colBot !== colActual && l.estadoBot;
+          html += '<div class="kanban-card" draggable="true" ondragstart="dragLead(event,' + l.fila + ')" onclick="verDetalleLead(' + l.fila + ')" oncontextmenu="showCtxMenu(event,' + l.fila + ')" data-fila="' + l.fila + '">';
+          html += '<div class="card-top"><div class="tel" onclick="event.stopPropagation();copiarTel(\'' + l.telefono + '\',this)" style="cursor:copy;" title="Click para copiar">📱 ' + l.telefono + '</div>';
+          html += '<button class="contacto-btn ' + contactoClass + '" onclick="event.stopPropagation();toggleContacto(' + l.fila + ',this)">' + contactoText + '</button></div>';
+          if (l.curso) html += '<div class="curso">' + (l.provider ? l.provider + ' ' : '') + l.curso + '</div>';
+          if (l.asesor) html += '<div class="asesor">👤 ' + l.asesor + '</div>';
+          html += '<div class="fecha">' + l.timestamp + '</div>';
+          if (l.estadoBot) {
+            var botColor = l.estadoBot === 'FINALIZADO' ? 'background:#d4edda;color:#22c55e;' : 'background:#e0f2fe;color:#0369a1;';
+            html += '<span class="estado-bot" style="' + botColor + '">' + l.estadoBot + '</span>';
+          }
+          if (discrepancia) {
+            html += '<span class="warn-badge">⚠️ Bot: ' + colBot + '</span>';
+          }
+          html += '</div>';
+        });
+        html += '</div></div>';
+      });
+      document.getElementById('kanbanContainer').innerHTML = html;
+    }
+
+    var draggedFila = null;
+    var movidosManualmente = new Set(); // Leads movidos por el operador en esta sesión
+    function dragLead(event, fila) { draggedFila = fila; event.dataTransfer.setData('text/plain', fila); }
+    function dropLead(event, nuevaColumna) {
+      event.preventDefault(); event.currentTarget.classList.remove('drag-over');
+      if (!draggedFila) return;
+      var lead = allLeads.find(function(l) { return l.fila === draggedFila; });
+      if (lead) {
+        lead.columna = nuevaColumna;
+        movidosManualmente.add(draggedFila);
+        // Auto-marcar CONTACTADO al mover a ASISTIO_MEET_CP
+        if (nuevaColumna === 'ASISTIO_MEET_CP' && lead.mensaje !== 'CONTACTADO') {
+          lead.mensaje = 'CONTACTADO';
+          google.script.run.actualizarMensajeLead(draggedFila, 'CONTACTADO');
+        }
+      }
+      renderKanban();
+      google.script.run.withSuccessHandler(function(r) { if (!r.success) showToast('Error guardando', 'error'); }).actualizarColumnaLead(draggedFila, nuevaColumna);
+      draggedFila = null;
+    }
+    function toggleContacto(fila, btn) {
+      var lead = allLeads.find(function(l) { return l.fila === fila; }); if (!lead) return;
+      var nv = (lead.mensaje === 'CONTACTADO') ? '' : 'CONTACTADO'; lead.mensaje = nv;
+      btn.textContent = nv === 'CONTACTADO' ? 'CONTACTADO' : 'NO CONTACTO';
+      btn.className = 'contacto-btn ' + (nv === 'CONTACTADO' ? 'si' : 'no');
+      google.script.run.actualizarMensajeLead(fila, nv);
+    }
+    function verDetalleLead(fila) {
+      var lead = allLeads.find(function(l) { return l.fila === fila; }); if (!lead) return;
+      var html = '<h3>📱 ' + lead.telefono + '</h3>';
+      html += '<div class="field"><label>Fecha</label><p>' + lead.timestamp + '</p></div>';
+      html += '<div class="field"><label>Provider / Curso</label><p>' + (lead.provider||'-') + ' / ' + (lead.curso||'-') + '</p></div>';
+      html += '<div class="field"><label>CTA</label><p>' + (lead.cta||'-') + '</p></div>';
+      html += '<div class="field"><label>Estado Bot</label><p>' + (lead.estadoBot||'-') + '</p></div>';
+      html += '<div class="field"><label>Acciones del Lead</label><p style="font-size:11px;word-break:break-all;">' + (lead.accion||'-') + '</p></div>';
+      html += '<div class="field"><label>Mensajes del Cliente</label><p style="font-size:11px;">' + (lead.mensajesCliente||'-') + '</p></div>';
+      html += '<div class="field"><label>Último Mensaje Bot</label><p style="font-size:11px;">' + (lead.ultimoMsgBot||'-') + '</p></div>';
+      html += '<div class="field"><label>Llamada</label><p>' + (lead.llamada||'-') + '</p></div>';
+      html += '<div class="field" style="margin-top:15px;"><label>Asesor Asignado</label>';
+      html += '<select id="asesorSelect" style="padding:6px;border:1px solid #ccc;border-radius:4px;width:100%;">';
+      html += '<option value="">Sin asignar</option>';
+      html += '<option value="Advisor 1"' + (lead.asesor==='Advisor 1'?' selected':'') + '>Advisor 1</option>';
+      html += '<option value="Advisor 2"' + (lead.asesor==='Advisor 2'?' selected':'') + '>Advisor 2</option>';
+      html += '</select>';
+      html += '<button class="btn-submit" style="margin-top:8px;padding:6px 12px;font-size:12px;" onclick="guardarAsesor(' + fila + ')">Guardar Asesor</button></div>';
+      html += '<button style="margin-top:15px;padding:8px 16px;background:#e5e7eb;border:none;border-radius:4px;cursor:pointer;" onclick="document.getElementById(\'modalDetalleLead\').style.display=\'none\'">Cerrar</button>';
+      document.getElementById('modalDetalleLeadBody').innerHTML = html;
+      document.getElementById('modalDetalleLead').style.display = 'flex';
+    }
+    function guardarAsesor(fila) {
+      var asesor = document.getElementById('asesorSelect').value;
+      google.script.run.withSuccessHandler(function(r) {
+        if (r.success) { var lead = allLeads.find(function(l) { return l.fila === fila; }); if (lead) lead.asesor = asesor; showToast('Asesor actualizado','success'); document.getElementById('modalDetalleLead').style.display='none'; }
+      }).actualizarAsesorLead(fila, asesor);
+    }
+    function copiarTel(tel, el) {
+      navigator.clipboard.writeText(tel).then(function() { var o=el.innerHTML; el.innerHTML='✅ Copiado!'; setTimeout(function(){el.innerHTML=o;},1000); }).catch(function(){prompt('Copiar:',tel);});
+    }
+    function showToast(msg, type) { var t=document.getElementById('toast'); t.textContent=msg; t.className='toast '+type+' show'; setTimeout(function(){t.classList.remove('show');},3000); }
+
+    // Debug: llamar desde consola con debugLead(fila)
+    function debugLead(fila) {
+      var lead = allLeads.find(function(l) { return l.fila === fila; });
+      if (!lead) { console.log('Lead no encontrado'); return; }
+      lead._debug = true;
+      console.log('=== DEBUG Lead fila ' + fila + ' ===');
+      console.log('  telefono: ' + lead.telefono);
+      console.log('  estadoBot: "' + lead.estadoBot + '"');
+      console.log('  columna (col N): "' + lead.columna + '"');
+      console.log('  movidoManualmente: ' + movidosManualmente.has(fila));
+      console.log('  colBot calculada: ' + getColumnaByEstadoBot(lead.estadoBot));
+      var resultado = getColumnaParaLead(lead);
+      console.log('  getColumnaParaLead retorna: "' + resultado + '"');
+      lead._debug = false;
+    }
+
+    // === CONTEXT MENU ===
+    var ctxMenuFila = null;
+    document.addEventListener('click', function() { closeCtxMenu(); });
+    function closeCtxMenu() { var m=document.getElementById('ctxMenu'); if(m)m.remove(); }
+    function showCtxMenu(event, fila) {
+      event.preventDefault(); event.stopPropagation(); closeCtxMenu(); ctxMenuFila = fila;
+      var lead = allLeads.find(function(l){return l.fila===fila;}); if(!lead) return;
+      var html = '<div id="ctxMenu" class="ctx-menu" style="left:'+event.clientX+'px;top:'+event.clientY+'px;">';
+      html += '<div onclick="ctxCopiarTel()">📱 Copiar teléfono</div>';
+      html += '<div onclick="ctxToggleContacto()">' + (lead.mensaje==='CONTACTADO'?'❌ Marcar NO CONTACTO':'✅ Marcar CONTACTADO') + '</div>';
+      html += '<div class="ctx-sep"></div>';
+      columnas.forEach(function(col) { html += '<div onclick="ctxMoverA(\''+col.id+'\')">➡️ '+col.id+'</div>'; });
+      html += '</div>'; document.body.insertAdjacentHTML('beforeend', html);
+    }
+    function ctxCopiarTel() { var l=allLeads.find(function(x){return x.fila===ctxMenuFila;}); if(l)navigator.clipboard.writeText(l.telefono).then(function(){showToast('Copiado','success');}); closeCtxMenu(); }
+    function ctxToggleContacto() { var l=allLeads.find(function(x){return x.fila===ctxMenuFila;}); if(!l)return; var nv=(l.mensaje==='CONTACTADO')?'':'CONTACTADO'; l.mensaje=nv; renderKanban(); google.script.run.actualizarMensajeLead(ctxMenuFila,nv); closeCtxMenu(); }
+    function ctxMoverA(colId) {
+      var l = allLeads.find(function(x){return x.fila===ctxMenuFila;});
+      if (l) {
+        l.columna = colId;
+        movidosManualmente.add(ctxMenuFila);
+        if (colId === 'ASISTIO_MEET_CP' && l.mensaje !== 'CONTACTADO') {
+          l.mensaje = 'CONTACTADO';
+          google.script.run.actualizarMensajeLead(ctxMenuFila, 'CONTACTADO');
+        }
+      }
+      renderKanban();
+      google.script.run.actualizarColumnaLead(ctxMenuFila, colId);
+      closeCtxMenu();
+    }
+  </script>
+</body>
+</html>

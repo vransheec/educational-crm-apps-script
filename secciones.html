@@ -1,0 +1,1433 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="frame-ancestors 'self' https://*.googleusercontent.com https://*.google.com">
+  <?!= includeWithBaseUrl('config'); ?>
+  <?!= include('styles'); ?>
+  <style>
+    .editable { cursor: pointer; border-bottom: 1px dashed #ccc; }
+    .editable:hover { background: #f0f0f0; }
+    .edit-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .edit-modal.show { display: flex; }
+    .edit-modal-content {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      max-width: 500px;
+      width: 90%;
+    }
+    .edit-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid var(--primary);
+    }
+    .edit-modal-header h3 {
+      margin: 0;
+      color: var(--primary);
+      font-size: 20px;
+    }
+    .edit-modal-close {
+      background: none;
+      border: none;
+      font-size: 28px;
+      cursor: pointer;
+      color: #666;
+      padding: 0;
+      width: 30px;
+      height: 30px;
+      line-height: 1;
+    }
+    .edit-modal-close:hover { color: var(--danger); }
+    .edit-modal-body {
+      margin-bottom: 20px;
+    }
+    .edit-modal-body label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #333;
+    }
+    .edit-modal-body input,
+    .edit-modal-body select {
+      width: 100%;
+      padding: 10px;
+      border: 2px solid #e5e7eb;
+      border-radius: 6px;
+      font-size: 14px;
+      transition: border-color 0.2s;
+      box-sizing: border-box;
+    }
+    .edit-modal-body input:focus,
+    .edit-modal-body select:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    .edit-modal-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+    .edit-modal-actions button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .btn-cancel {
+      background: #e5e7eb;
+      color: #374151;
+    }
+    .btn-cancel:hover { background: #d1d5db; }
+    .btn-save {
+      background: var(--primary);
+      color: white;
+    }
+    .btn-save:hover { background: #1e3a8a; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <?!= includeWithCurrentPage('nav', currentPage); ?>
+    <main class="main secciones-page" data-page="secciones">
+      <div class="form-card">
+        <h1 class="form-title">🎓 Gestión de Secciones</h1>
+        <div class="tabs">
+          <button class="tab active" onclick="showTab('gestion')">Gestión de Secciones</button>
+          <button class="tab" onclick="showTab('nueva')">Nueva Sección</button>
+        </div>
+        <div id="tab-gestion" class="tab-content active">
+          <div class="section">
+            <h2 class="section-title">Buscar Sección</h2>
+            <div class="form-grid">
+              <div class="form-group">
+                <label>Buscar por Código</label>
+                <input type="text" id="buscarCodigo" placeholder="CLF0326-B" oninput="buscarPorCodigo()">
+              </div>
+            </div>
+            <h2 class="section-title" style="margin-top: 20px;">O Filtrar por Curso</h2>
+            <div class="form-grid">
+              <div class="form-group">
+                <label>Tecnología</label>
+                <select id="gestionTecnologia" onchange="gestionCargarProviders()">
+                  <option value="">Todas</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Provider</label>
+                <select id="gestionProvider" onchange="gestionCargarNiveles()" disabled>
+                  <option value="">Todos</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Nivel</label>
+                <select id="gestionNivel" onchange="gestionCargarCursos()" disabled>
+                  <option value="">Todos</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Curso</label>
+                <input type="text" id="gestionCurso" list="cursosList" placeholder="Escribe para buscar..." onchange="filtrarSecciones()" disabled>
+                <datalist id="cursosList"></datalist>
+              </div>
+            </div>
+          </div>
+          <div class="table-container">
+            <div style="display: flex; justify-content: flex-end; margin-bottom: 10px;">
+              <button onclick="confirmarLimpiarTests()" class="btn-submit" style="background: #dc2626; font-size: 13px; padding: 8px 16px;">🧹 Limpiar Todos los Tests de Secciones</button>
+            </div>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Código</th>
+                  <th>Curso</th>
+                  <th>Docente</th>
+                  <th>Mes/Año</th>
+                  <th>Fecha Inicio</th>
+                  <th>Frecuencia</th>
+                  <th>Estado</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="seccionesBody">
+                <tr><td colspan="8">Cargando...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div id="tab-nueva" class="tab-content">
+          <form id="seccionForm" onsubmit="handleSubmitSeccion(event)">
+            <div class="section">
+              <h2 class="section-title">Seleccionar Curso</h2>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label>Tecnología *</label>
+                  <select id="nuevaTecnologia" onchange="nuevaCargarProviders()" required>
+                    <option value="">Seleccionar...</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Provider *</label>
+                  <select id="nuevoProvider" onchange="nuevaCargarNiveles()" disabled required>
+                    <option value="">Seleccionar...</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Nivel</label>
+                  <select id="nuevoNivel" onchange="nuevaCargarCursos()">
+                    <option value="">Todos los niveles</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Curso *</label>
+                  <input type="text" id="nuevoCurso" list="nuevosCursosList" placeholder="Escribe para buscar..." onchange="seleccionarCurso()" disabled required>
+                  <datalist id="nuevosCursosList"></datalist>
+                  <input type="hidden" id="codigoCursoSeleccionado">
+                </div>
+              </div>
+            </div>
+            <div class="section">
+              <h2 class="section-title">Docente</h2>
+              <div class="form-grid">
+                <div class="form-group full-width">
+                  <label>Asignar Docente</label>
+                  <select id="docenteSeccion">
+                    <option value="">Sin asignar</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div class="section">
+              <h2 class="section-title">Programación</h2>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label>Mes de Apertura *</label>
+                  <select name="mes" required>
+                    <option value="">Seleccionar...</option>
+                    <option value="1">Enero</option>
+                    <option value="2">Febrero</option>
+                    <option value="3">Marzo</option>
+                    <option value="4">Abril</option>
+                    <option value="5">Mayo</option>
+                    <option value="6">Junio</option>
+                    <option value="7">Julio</option>
+                    <option value="8">Agosto</option>
+                    <option value="9">Septiembre</option>
+                    <option value="10">Octubre</option>
+                    <option value="11">Noviembre</option>
+                    <option value="12">Diciembre</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Año *</label>
+                  <input type="number" name="año" required min="2024" max="2030" value="2026">
+                </div>
+                <div class="form-group">
+                  <label>Frecuencia Horaria *</label>
+                  <select name="frecuencia" required onchange="actualizarHorasTotales()">
+                    <option value="">Seleccionar...</option>
+                    <option value="L-M-V">Lunes-Miércoles-Viernes (3h/clase)</option>
+                    <option value="M-J-S">Martes-Jueves-Sábado (3h/clase)</option>
+                    <option value="Solo-Sabados">Sólo Sábados (5h/clase)</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>¿Qué puesto ocupa en el mes? *</label>
+                  <input type="number" name="puestoEnMes" required min="1" max="26" value="1">
+                  <span class="hint">1=A, 2=B, 3=C...</span>
+                </div>
+                <div class="form-group">
+                  <label>Horas Totales *</label>
+                  <input type="number" id="horasTotales" name="horasTotales" min="0" step="0.5" readonly style="background: #f0f0f0;">
+                  <span class="hint">Se calcula automáticamente según el curso</span>
+                </div>
+                <div class="form-group">
+                  <label>Fecha de Inicio *</label>
+                  <input type="date" id="fechaInicio" name="fechaInicio" required onchange="validarDiaInicio(); calcularFechaFin()">
+                  <span class="hint" id="hintFechaInicio" style="color: #dc2626; display: none;">Debe ser un día válido según la frecuencia</span>
+                </div>
+                <div class="form-group">
+                  <label>Fecha de Fin</label>
+                  <input type="date" id="fechaFin" name="fechaFin" readonly style="background: #f0f0f0;">
+                  <span class="hint">Se calcula automáticamente</span>
+                </div>
+                <div class="form-group">
+                  <label>Estado</label>
+                  <select name="estado">
+                    <option value="Programada">Programada</option>
+                    <option value="En Curso">En Curso</option>
+                    <option value="Finalizada">Finalizada</option>
+                    <option value="Cancelada">Cancelada</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" name="confirmada" value="Si" style="width: auto;">
+                    <span>Sección Confirmada</span>
+                  </label>
+                </div>
+                <div class="form-group">
+                  <label style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" name="esTest" value="Si" style="width: auto;">
+                    <span>Sección de Prueba (Test)</span>
+                  </label>
+                  <span class="hint">Las secciones test se pueden eliminar completamente</span>
+                </div>
+              </div>
+            </div>
+            <div class="section" id="codigoGenerado" style="display:none;">
+              <h2 class="section-title">✅ Código de Sección Generado</h2>
+              <p style="font-size: 24px; color: var(--primary); text-align: center; font-weight: bold;" id="codigoMostrado"></p>
+              <div style="text-align: center; margin-top: 10px;">
+                <button type="button" onclick="ocultarPreview()" class="btn-submit" style="background: #6b7280;">✕ Ocultar</button>
+              </div>
+            </div>
+            <div class="form-actions">
+              <button type="button" onclick="previsualizarCodigo()" class="btn-submit" style="background: #6b7280;">👁️ Previsualizar Código</button>
+              <button type="submit" class="btn-submit">💾 Crear Sección</button>
+            </div>
+          </form>
+        </div>
+      </div>
+      <div id="docenteModal" class="modal" style="display:none;">
+        <div class="modal-content modal-small">
+          <div class="modal-header">
+            <h2>👨‍🪧 Asignar Docente</h2>
+            <button onclick="closeDocenteModal()" class="btn-close">✕</button>
+          </div>
+          <div class="modal-body">
+            <p>Sección: <strong id="modalDocenteSeccion"></strong></p>
+            <div class="form-group">
+              <label>Seleccionar Docente</label>
+              <select id="selectDocente">
+                <option value="">Sin asignar</option>
+              </select>
+            </div>
+            <div class="form-actions">
+              <button onclick="confirmarAsignacion()" class="btn-submit">Asignar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+    <?!= include('footer'); ?>
+  </div>
+  <div id="toast" class="toast"></div>
+  
+  <script>
+    var todosCursos = [];
+    var todasSecciones = [];
+    var todosDocentes = [];
+    var cursoSeleccionado = null;
+    var currentSeccion = null;
+    var currentEditData = null;
+
+    document.addEventListener('DOMContentLoaded', function() {
+      cargarDatos();
+    });
+
+    function cargarDatos() {
+      console.log('Cargando datos de secciones...');
+      google.script.run
+        .withSuccessHandler(function(cursos) {
+          console.log('✅ [secciones] Cursos recibidos:', cursos ? 'array' : 'null', 'length:', cursos ? cursos.length : 'N/A');
+          if (!cursos || !Array.isArray(cursos)) {
+            console.error('❌ [secciones] Cursos no es un array válido:', cursos);
+            todosCursos = [];
+            return;
+          }
+          todosCursos = cursos;
+          intentarPoblarFiltros();
+        })
+        .withFailureHandler(function(error) {
+          console.error('❌ [secciones] Error cargando cursos:', error);
+        })
+        .getCursos();
+      
+      google.script.run
+        .withSuccessHandler(function(secciones) {
+          console.log('✅ [secciones] Secciones recibidas:', secciones ? 'array' : 'null', 'length:', secciones ? secciones.length : 'N/A');
+          if (!secciones || !Array.isArray(secciones)) {
+            console.error('❌ [secciones] Secciones no es un array válido:', secciones);
+            todasSecciones = [];
+            document.getElementById('seccionesBody').innerHTML = '<tr><td colspan="7">Error: Datos de secciones inválidos (null)</td></tr>';
+            return;
+          }
+          todasSecciones = secciones;
+          renderSecciones(secciones);
+          intentarPoblarFiltros();
+        })
+        .withFailureHandler(function(error) {
+          console.error('❌ [secciones] Error cargando secciones:', error);
+          document.getElementById('seccionesBody').innerHTML = '<tr><td colspan="7">Error: ' + error.message + '</td></tr>';
+        })
+        .getSecciones();
+      
+      google.script.run
+        .withSuccessHandler(function(docentes) {
+          console.log('✅ [secciones] Docentes recibidos:', docentes ? 'array' : 'null', 'length:', docentes ? docentes.length : 'N/A');
+          if (!docentes || !Array.isArray(docentes)) {
+            console.error('❌ [secciones] Docentes no es un array válido:', docentes);
+            todosDocentes = [];
+            return;
+          }
+          todosDocentes = docentes;
+          poblarDocentes();
+        })
+        .withFailureHandler(function(error) {
+          console.error('❌ [secciones] Error cargando docentes:', error);
+        })
+        .getDocentes();
+    }
+
+    var filtrosPoblados = false;
+    function intentarPoblarFiltros() {
+      // Solo poblar filtros cuando AMBOS datos estén disponibles
+      if (todosCursos.length > 0 && todasSecciones.length > 0 && !filtrosPoblados) {
+        filtrosPoblados = true;
+        poblarTecnologias();
+      }
+    }
+
+    function poblarTecnologias() {
+      // Poblar filtros de gestión desde las SECCIONES (no desde cursos)
+      // para que los valores coincidan exactamente al filtrar
+      var tecnologiasSecciones = [...new Set(todasSecciones.map(s => s.Tecnologia).filter(t => t && t.trim() !== ''))];
+      var select1 = document.getElementById('gestionTecnologia');
+      select1.innerHTML = '<option value="">Todas</option>';
+      tecnologiasSecciones.forEach(function(t) {
+        select1.add(new Option(t, t));
+      });
+      
+      // Poblar filtros de nueva sección desde CURSOS
+      var tecnologiasCursos = [...new Set(todosCursos.map(c => c.Tecnologia).filter(t => t && t.trim() !== ''))];
+      var select2 = document.getElementById('nuevaTecnologia');
+      select2.innerHTML = '<option value="">Seleccionar...</option>';
+      tecnologiasCursos.forEach(function(t) {
+        select2.add(new Option(t, t));
+      });
+    }
+
+    function poblarDocentes() {
+      var select1 = document.getElementById('docenteSeccion');
+      var select2 = document.getElementById('selectDocente');
+      todosDocentes.forEach(function(d) {
+        select1.add(new Option(d.Nombre, d.ID));
+        select2.add(new Option(d.Nombre, d.ID));
+      });
+    }
+
+    function gestionCargarProviders() {
+      var tec = document.getElementById('gestionTecnologia').value;
+      var select = document.getElementById('gestionProvider');
+      select.innerHTML = '<option value="">Todos</option>';
+      select.disabled = !tec;
+      if (tec) {
+        var providers = [...new Set(todasSecciones.filter(s => s.Tecnologia === tec).map(s => s.Provider).filter(p => p && p.trim() !== ''))];
+        providers.forEach(function(p) { select.add(new Option(p, p)); });
+      }
+      document.getElementById('gestionNivel').innerHTML = '<option value="">Todos</option>';
+      document.getElementById('gestionNivel').disabled = true;
+      document.getElementById('gestionCurso').disabled = true;
+      filtrarSecciones();
+    }
+
+    function gestionCargarNiveles() {
+      var tec = document.getElementById('gestionTecnologia').value;
+      var prov = document.getElementById('gestionProvider').value;
+      var select = document.getElementById('gestionNivel');
+      select.innerHTML = '<option value="">Todos</option>';
+      select.disabled = !prov;
+      if (prov) {
+        var niveles = [...new Set(todasSecciones.filter(s => s.Tecnologia === tec && s.Provider === prov).map(s => s.Nivel).filter(n => n && n.trim() !== ''))];
+        niveles.forEach(function(n) { select.add(new Option(n, n)); });
+      }
+      document.getElementById('gestionCurso').disabled = true;
+      filtrarSecciones();
+    }
+
+    function gestionCargarCursos() {
+      var tec = document.getElementById('gestionTecnologia').value;
+      var prov = document.getElementById('gestionProvider').value;
+      var niv = document.getElementById('gestionNivel').value;
+      var input = document.getElementById('gestionCurso');
+      var datalist = document.getElementById('cursosList');
+      datalist.innerHTML = '';
+      input.disabled = false;
+      // Obtener nombres de cursos únicos de las secciones filtradas
+      var nombresCursos = [...new Set(todasSecciones.filter(s => s.Tecnologia === tec && s.Provider === prov && (!niv || s.Nivel === niv)).map(s => s.NombreCurso).filter(n => n && n.trim() !== ''))];
+      nombresCursos.forEach(function(c) {
+        var option = document.createElement('option');
+        option.value = c;
+        datalist.appendChild(option);
+      });
+      filtrarSecciones();
+    }
+
+    function buscarPorCodigo() {
+      if (!todasSecciones || todasSecciones.length === 0) {
+        renderSecciones([]);
+        return;
+      }
+      var codigo = document.getElementById('buscarCodigo').value.toUpperCase();
+      if (!codigo) {
+        renderSecciones(todasSecciones);
+        return;
+      }
+      var filtradas = todasSecciones.filter(s => s.Codigo.includes(codigo));
+      renderSecciones(filtradas);
+    }
+
+    function filtrarSecciones() {
+      if (!todasSecciones || todasSecciones.length === 0) {
+        renderSecciones([]);
+        return;
+      }
+      var tec = document.getElementById('gestionTecnologia').value;
+      var prov = document.getElementById('gestionProvider').value;
+      var niv = document.getElementById('gestionNivel').value;
+      var curso = document.getElementById('gestionCurso').value;
+      var filtradas = todasSecciones.filter(function(s) {
+        return (!tec || s.Tecnologia === tec) &&
+               (!prov || s.Provider === prov) &&
+               (!niv || s.Nivel === niv) &&
+               (!curso || s.NombreCurso === curso);
+      });
+      renderSecciones(filtradas);
+    }
+
+    function parseFechaSeccion(fechaStr, año, mes) {
+      // Intenta parsear DD/MM/YYYY
+      if (fechaStr && fechaStr.indexOf('/') !== -1) {
+        var partes = fechaStr.split('/');
+        if (partes.length === 3) {
+          return new Date(parseInt(partes[2]), parseInt(partes[1]) - 1, parseInt(partes[0]));
+        }
+      }
+      // Fallback: usar Año y Mes
+      var y = parseInt(año) || 2020;
+      var m = parseInt(mes) || 1;
+      return new Date(y, m - 1, 1);
+    }
+
+    function renderSecciones(secciones) {
+      var tbody = document.getElementById('seccionesBody');
+      if (!secciones || secciones.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7">No hay secciones</td></tr>';
+        return;
+      }
+      
+      // Ordenar secciones: más futuras arriba, más antiguas abajo
+      var seccionesOrdenadas = secciones.filter(function(s) {
+        return s.Codigo && s.Codigo.trim() !== '';
+      }).sort(function(a, b) {
+        // Parsear FechaInicio (formato DD/MM/YYYY) para ordenar por fecha exacta
+        var fechaA = parseFechaSeccion(a.FechaInicio, a.Año, a.Mes);
+        var fechaB = parseFechaSeccion(b.FechaInicio, b.Año, b.Mes);
+        return fechaB - fechaA; // Descendente: futuras arriba, antiguas abajo
+      });
+      
+      var html = '';
+      seccionesOrdenadas.forEach(function(s) {
+        var esTest = (s.EsTest === 'Sí' || s.EsTest === 'Si');
+        var tieneCarpeta = s.DriveFolderId && s.DriveFolderId.trim() !== '';
+        var testBadge = esTest ? ' <span style="background:#fbbf24;color:#92400e;padding:2px 6px;border-radius:4px;font-size:11px;font-weight:600;">TEST</span>' : '';
+        
+        html += '<tr' + (esTest ? ' style="background:#fef3c7;"' : '') + '>';
+        html += '<td><strong>' + s.Codigo + '</strong>' + testBadge + '</td>';
+        html += '<td>' + s.NombreCurso + '</td>';
+        html += '<td>' + (s.DocenteNombre || '<em>Sin asignar</em>') + '</td>';
+        html += '<td>' + s.Mes + '/' + s.Año + '</td>';
+        html += '<td>' + (s.FechaInicio || '<em>Sin fecha</em>') + '</td>';
+        html += '<td class="editable" onclick="editarCampoSeccion(\'' + s.Codigo + '\', \'Frecuencia\', this)">' + s.Frecuencia + '</td>';
+        html += '<td class="editable" onclick="editarCampoSeccion(\'' + s.Codigo + '\', \'Estado\', this)">' + s.Estado + '</td>';
+        html += '<td>';
+        var tieneDocente = s.DocenteNombre && s.DocenteNombre.trim() !== '' && s.DocenteNombre !== 'Sin asignar';
+        html += '<button class="btn-small" onclick="asignarDocente(\'' + s.Codigo + '\')" style="background:' + (tieneDocente ? '#22c55e' : '#9ca3af') + ';" title="' + (tieneDocente ? s.DocenteNombre : 'Asignar docente') + '">👨‍🏫</button> ';
+        html += '<button class="btn-small" onclick="mostrarAlumnosSeccion(\'' + s.Codigo + '\')" style="background:' + (s.AlumnosInscritos > 0 ? '#22c55e' : '#9ca3af') + ';" title="' + s.AlumnosInscritos + ' alumno(s)">👥</button> ';
+        html += '<button class="btn-small" onclick="abrirReprogramar(\'' + s.Codigo + '\', ' + s.Mes + ', ' + s.Año + ', \'' + s.PuestoEnMes + '\', \'' + s.Frecuencia + '\')" style="background: #7c3aed;" title="Reprogramar">🕐</button> ';
+        html += '<button class="btn-small" onclick="abrirFusionar(\'' + s.Codigo + '\')" style="background: #be185d;" title="Fusionar">🔀</button> ';
+        if (s.AlumnosInscritos > 0) {
+          html += '<button class="btn-small" disabled style="background: #9ca3af; cursor: not-allowed; opacity: 0.5;" title="No se puede eliminar: tiene ' + s.AlumnosInscritos + ' alumno(s)">🗑️</button> ';
+        } else {
+          html += '<button class="btn-small" onclick="confirmarEliminarSeccion(\'' + s.Codigo + '\')" style="background: #dc2626;" title="Eliminar sección">🗑️</button> ';
+        }
+        if (tieneCarpeta) {
+          html += '<button class="btn-small" onclick="abrirCarpetaDrive(\'' + s.DriveFolderId + '\')" style="background: #22c55e;" title="Abrir carpeta en Drive">📂</button> ';
+        } else {
+          html += '<button class="btn-small" onclick="crearCarpetaDrive(\'' + s.Codigo + '\')" style="background: #9ca3af;" title="Crear carpeta en Drive">📁</button> ';
+        }
+        var tieneCalendar = s.CalendarEventId && s.CalendarEventId.trim() !== '';
+        if (tieneCalendar) {
+          html += '<button class="btn-small" onclick="window.open(\'https://calendar.google.com/calendar/r/search?q=' + encodeURIComponent('Clase ' + s.Codigo) + '\',\'_blank\')" style="background: #22c55e;" title="Ver eventos en Calendar">📆</button>';
+        } else {
+          html += '<button class="btn-small" onclick="buscarOCrearCalendar(\'' + s.Codigo + '\', this)" style="background: #9ca3af;" title="Crear eventos en Calendar">📆</button>';
+        }
+        var tieneClassroom = s.ClassroomId && s.ClassroomId.trim() !== '';
+        if (tieneClassroom) {
+          // Si el ID es numérico, convertir a base64 para la URL; si ya es base64, usar directo
+          var classId = s.ClassroomId.trim();
+          var classUrlId = /^\d+$/.test(classId) ? btoa(classId) : classId;
+          html += ' <button class="btn-small" onclick="window.open(\'https://classroom.google.com/c/' + classUrlId + '\',\'_blank\')" style="background: #22c55e;" title="Abrir Classroom">🪧</button>';
+        } else {
+          html += ' <button class="btn-small" onclick="crearClassroomBtn(\'' + s.Codigo + '\', this)" style="background: #9ca3af;" title="Crear Classroom">🪧</button>';
+        }
+        html += '</td>';
+        html += '</tr>';
+      });
+      tbody.innerHTML = html;
+    }
+
+    function nuevaCargarProviders() {
+      var tec = document.getElementById('nuevaTecnologia').value;
+      var select = document.getElementById('nuevoProvider');
+      select.innerHTML = '<option value="">Seleccionar...</option>';
+      select.disabled = !tec;
+      if (tec) {
+        var providers = [...new Set(todosCursos.filter(c => c.Tecnologia === tec).map(c => c.Provider))];
+        providers.forEach(function(p) { select.add(new Option(p, p)); });
+      }
+      document.getElementById('nuevoNivel').disabled = true;
+      document.getElementById('nuevoCurso').disabled = true;
+    }
+
+    function nuevaCargarNiveles() {
+      var tec = document.getElementById('nuevaTecnologia').value;
+      var prov = document.getElementById('nuevoProvider').value;
+      var select = document.getElementById('nuevoNivel');
+      select.innerHTML = '<option value="">Todos los niveles</option>';
+      select.disabled = !prov;
+      if (prov) {
+        var niveles = [...new Set(todosCursos.filter(c => c.Tecnologia === tec && c.Provider === prov).map(c => c.Nivel))];
+        niveles.forEach(function(n) { select.add(new Option(n, n)); });
+      }
+      document.getElementById('nuevoCurso').disabled = !prov;
+      if (prov) nuevaCargarCursos();
+    }
+
+    function nuevaCargarCursos() {
+      var tec = document.getElementById('nuevaTecnologia').value;
+      var prov = document.getElementById('nuevoProvider').value;
+      var niv = document.getElementById('nuevoNivel').value;
+      var input = document.getElementById('nuevoCurso');
+      var datalist = document.getElementById('nuevosCursosList');
+      datalist.innerHTML = '';
+      input.disabled = !prov;
+      input.value = '';
+      document.getElementById('codigoCursoSeleccionado').value = '';
+      cursoSeleccionado = null;
+      if (prov) {
+        var cursos = niv 
+          ? todosCursos.filter(c => c.Tecnologia === tec && c.Provider === prov && c.Nivel === niv)
+          : todosCursos.filter(c => c.Tecnologia === tec && c.Provider === prov);
+        cursos.forEach(function(c) {
+          var option = document.createElement('option');
+          option.value = c.Nombre;
+          datalist.appendChild(option);
+        });
+      }
+    }
+
+    function seleccionarCurso() {
+      var nombreCurso = document.getElementById('nuevoCurso').value;
+      var curso = todosCursos.find(c => c.Nombre === nombreCurso);
+      if (curso) {
+        cursoSeleccionado = curso;
+        document.getElementById('codigoCursoSeleccionado').value = curso.Codigo;
+        document.getElementById('horasTotales').value = curso.Horas || 0;
+        calcularFechaFin();
+        cargarDocentesPorCurso(curso.Codigo);
+      }
+    }
+    
+    function cargarDocentesPorCurso(codigoCurso) {
+      google.script.run
+        .withSuccessHandler(function(docentes) {
+          var select = document.getElementById('docenteSeccion');
+          select.innerHTML = '<option value="">Sin asignar</option>';
+          if (docentes.length === 0) {
+            showToast('No hay docentes habilitados para dictar el curso ' + codigoCurso, 'warning');
+          }
+          docentes.forEach(function(d) {
+            var option = document.createElement('option');
+            option.value = d.ID;
+            option.textContent = d.Nombre + ' (' + (d.TarifaHora || 0) + '/h)';
+            select.appendChild(option);
+          });
+        })
+        .withFailureHandler(function(error) {
+          console.error('Error cargando docentes:', error);
+          showToast('Error al cargar docentes', 'error');
+        })
+        .getDocentesPorCurso(codigoCurso);
+    }
+    
+    function actualizarHorasTotales() {
+      validarDiaInicio();
+      calcularFechaFin();
+    }
+    
+    function calcularFechaFin() {
+      var fechaInicio = document.getElementById('fechaInicio').value;
+      var frecuencia = document.querySelector('select[name="frecuencia"]').value;
+      var horasTotales = parseFloat(document.getElementById('horasTotales').value) || 0;
+      if (!fechaInicio || !frecuencia || horasTotales === 0) {
+        document.getElementById('fechaFin').value = '';
+        return;
+      }
+      var fecha = new Date(fechaInicio + 'T00:00:00');
+      var horasPorClase = 0;
+      var diasSemana = [];
+      if (frecuencia === 'L-M-V') {
+        horasPorClase = 3;
+        diasSemana = [1, 3, 5];
+      } else if (frecuencia === 'M-J-S') {
+        horasPorClase = 3;
+        diasSemana = [2, 4, 6];
+      } else if (frecuencia === 'Solo-Sabados') {
+        horasPorClase = 5;
+        diasSemana = [6];
+      }
+      var clasesNecesarias = Math.ceil(horasTotales / horasPorClase);
+      var clasesContadas = 0;
+      while (clasesContadas < clasesNecesarias) {
+        var diaSemana = fecha.getDay();
+        if (diasSemana.includes(diaSemana)) {
+          clasesContadas++;
+        }
+        if (clasesContadas < clasesNecesarias) {
+          fecha.setDate(fecha.getDate() + 1);
+        }
+      }
+      var año = fecha.getFullYear();
+      var mes = String(fecha.getMonth() + 1).padStart(2, '0');
+      var dia = String(fecha.getDate()).padStart(2, '0');
+      document.getElementById('fechaFin').value = año + '-' + mes + '-' + dia;
+    }
+
+    function previsualizarCodigo() {
+      var form = document.getElementById('seccionForm');
+      var codigo = document.getElementById('codigoCursoSeleccionado').value;
+      var mes = form.mes.value;
+      var año = form.año.value;
+      var puesto = form.puestoEnMes.value;
+      if (!codigo || !mes || !año || !puesto) {
+        showToast('Completa todos los campos requeridos', 'warning');
+        return;
+      }
+      var letras = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+      var letra = letras[parseInt(puesto) - 1] || 'A';
+      var mesStr = String(mes).padStart(2, '0');
+      var añoStr = String(año).slice(-2);
+      var codigoGenerado = codigo + mesStr + añoStr + '-' + letra;
+      document.getElementById('codigoMostrado').textContent = codigoGenerado;
+      document.getElementById('codigoGenerado').style.display = 'block';
+    }
+    
+    function ocultarPreview() {
+      document.getElementById('codigoGenerado').style.display = 'none';
+    }
+    
+    function validarDiaInicio() {
+      var fechaInicio = document.getElementById('fechaInicio').value;
+      var frecuencia = document.querySelector('select[name="frecuencia"]').value;
+      var hint = document.getElementById('hintFechaInicio');
+      if (!fechaInicio || !frecuencia) {
+        hint.style.display = 'none';
+        return true;
+      }
+      var fecha = new Date(fechaInicio + 'T00:00:00');
+      var diaSemana = fecha.getDay();
+      var esValido = false;
+      var diasPermitidos = '';
+      if (frecuencia === 'L-M-V') {
+        esValido = (diaSemana === 1 || diaSemana === 3 || diaSemana === 5);
+        diasPermitidos = 'lunes, miércoles o viernes';
+      } else if (frecuencia === 'M-J-S') {
+        esValido = (diaSemana === 2 || diaSemana === 4 || diaSemana === 6);
+        diasPermitidos = 'martes, jueves o sábado';
+      } else if (frecuencia === 'Solo-Sabados') {
+        esValido = (diaSemana === 6);
+        diasPermitidos = 'sábado';
+      }
+      if (!esValido) {
+        hint.textContent = 'Para frecuencia ' + frecuencia + ' debe iniciar en ' + diasPermitidos;
+        hint.style.display = 'block';
+        return false;
+      } else {
+        hint.style.display = 'none';
+        return true;
+      }
+    }
+
+    function handleSubmitSeccion(event) {
+      event.preventDefault();
+      var form = event.target;
+      if (!cursoSeleccionado) {
+        showToast('Selecciona un curso válido', 'error');
+        return;
+      }
+      if (!validarDiaInicio()) {
+        showToast('La fecha de inicio no es válida para la frecuencia seleccionada', 'error');
+        return;
+      }
+      var docenteId = document.getElementById('docenteSeccion').value;
+      var docente = todosDocentes.find(d => d.ID === docenteId);
+      var mes = parseInt(form.mes.value);
+      var año = parseInt(form.año.value);
+      var frecuencia = form.frecuencia.value;
+      if (año >= 2025 && mes >= 11) {
+        frecuencia = 'L-M-V';
+      }
+      var data = {
+        codigoCurso: cursoSeleccionado.Codigo,
+        nombreCurso: cursoSeleccionado.Nombre,
+        tecnologia: cursoSeleccionado.Tecnologia,
+        provider: cursoSeleccionado.Provider,
+        nivel: cursoSeleccionado.Nivel,
+        mes: mes,
+        año: año,
+        frecuencia: frecuencia,
+        puestoEnMes: parseInt(form.puestoEnMes.value),
+        horasTotales: form.horasTotales.value || 0,
+        fechaInicio: form.fechaInicio.value,
+        fechaFin: form.fechaFin.value,
+        confirmada: form.confirmada.checked ? 'Si' : 'No',
+        esTest: form.esTest.checked ? true : false,
+        estado: form.estado.value,
+        docenteId: docenteId,
+        docenteNombre: docente ? docente.Nombre : ''
+      };
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            showToast('Sección creada: ' + result.codigo, 'success');
+            form.reset();
+            cursoSeleccionado = null;
+            document.getElementById('horasTotales').value = '';
+            document.getElementById('fechaFin').value = '';
+            cargarDatos();
+            showTab('gestion');
+          } else {
+            showToast(result.message, 'error');
+          }
+        })
+        .saveSeccion(data);
+    }
+
+    function asignarDocente(codigoSeccion) {
+      currentSeccion = codigoSeccion;
+      document.getElementById('modalDocenteSeccion').textContent = codigoSeccion;
+      // Obtener CodigoCursoBD de la sección
+      var seccionData = todasSecciones.find(function(s) { return s.Codigo === codigoSeccion; });
+      var codigoCurso = (seccionData && seccionData.CodigoCursoBD) ? seccionData.CodigoCursoBD : '';
+      // Fallback: extraer del código de sección
+      if (!codigoCurso) {
+        var codigoCursoMatch = codigoSeccion.match(/^([A-Z]+\d*)/);
+        codigoCurso = codigoCursoMatch ? codigoCursoMatch[1] : '';
+      }
+      var docentesCalificados = todosDocentes.filter(function(d) {
+        var cursosQueDicta = (d.CursosQueDicta || '').split(',').map(function(c) { return c.trim(); });
+        return cursosQueDicta.includes(codigoCurso);
+      });
+      var select = document.getElementById('selectDocente');
+      select.innerHTML = '<option value="">Sin asignar</option>';
+      if (docentesCalificados.length === 0) {
+        showToast('No hay docentes habilitados para dictar el curso ' + codigoCurso, 'warning');
+      }
+      docentesCalificados.forEach(function(d) {
+        var option = document.createElement('option');
+        option.value = d.ID;
+        option.textContent = d.Nombre + ' (' + (d.TarifaHora || 0) + '/h)';
+        select.appendChild(option);
+      });
+      document.getElementById('docenteModal').style.display = 'flex';
+    }
+
+    function closeDocenteModal() {
+      document.getElementById('docenteModal').style.display = 'none';
+      currentSeccion = null;
+    }
+
+    function confirmarAsignacion() {
+      var docenteId = document.getElementById('selectDocente').value;
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            showToast(result.message, 'success');
+            closeDocenteModal();
+            cargarDatos();
+          } else {
+            showToast(result.message, 'error');
+          }
+        })
+        .asignarDocenteSeccion(currentSeccion, docenteId);
+    }
+
+    function editarCampoSeccion(codigo, campo, celda) {
+      var valorActual = celda.textContent.trim();
+      currentEditData = {
+        codigo: codigo,
+        campo: campo,
+        celda: celda,
+        valorActual: valorActual
+      };
+      document.getElementById('editLabel').textContent = 'Editar ' + campo;
+      var inputEl = document.getElementById('editInput');
+      var selectEl = document.getElementById('editSelect');
+      var dateEl = document.getElementById('editDate');
+      inputEl.style.display = 'none';
+      selectEl.style.display = 'none';
+      dateEl.style.display = 'none';
+      if (campo === 'Estado') {
+        selectEl.innerHTML = '<option value="Programada">Programada</option><option value="En Curso">En Curso</option><option value="Finalizada">Finalizada</option><option value="Cancelada">Cancelada</option>';
+        selectEl.value = valorActual;
+        selectEl.style.display = 'block';
+      } else if (campo === 'Frecuencia') {
+        selectEl.innerHTML = '<option value="L-M-V">L-M-V</option><option value="M-J-S">M-J-S</option><option value="Solo-Sabados">Solo-Sabados</option>';
+        selectEl.value = valorActual;
+        selectEl.style.display = 'block';
+      } else {
+        inputEl.value = valorActual;
+        inputEl.style.display = 'block';
+      }
+      document.getElementById('editModal').classList.add('show');
+    }
+    
+    function editarFechaSeccion(codigo, celda) {
+      var valorActual = celda.textContent.trim();
+      var partes = valorActual.split('/');
+      var mes = partes[0];
+      var año = partes[1];
+      var fechaActual = año + '-' + mes.padStart(2, '0');
+      currentEditData = {
+        codigo: codigo,
+        campo: 'FechaInicio',
+        celda: celda,
+        valorActual: fechaActual,
+        esFecha: true
+      };
+      document.getElementById('editLabel').textContent = 'Seleccionar Mes/Año';
+      var inputEl = document.getElementById('editInput');
+      var selectEl = document.getElementById('editSelect');
+      var dateEl = document.getElementById('editDate');
+      inputEl.style.display = 'none';
+      selectEl.style.display = 'none';
+      dateEl.type = 'month';
+      dateEl.value = fechaActual;
+      dateEl.style.display = 'block';
+      document.getElementById('editModal').classList.add('show');
+    }
+    
+    function closeEditModal() {
+      document.getElementById('editModal').classList.remove('show');
+      currentEditData = null;
+    }
+    
+    function saveEdit() {
+      if (!currentEditData) return;
+      var inputEl = document.getElementById('editInput');
+      var selectEl = document.getElementById('editSelect');
+      var dateEl = document.getElementById('editDate');
+      var nuevoValor;
+      if (dateEl.style.display !== 'none') {
+        nuevoValor = dateEl.value;
+        if (currentEditData.esFecha) {
+          var partes = nuevoValor.split('-');
+          var año = partes[0];
+          var mes = parseInt(partes[1]);
+          currentEditData.celda.textContent = mes + '/' + año;
+          google.script.run
+            .withSuccessHandler(function(result) {
+              if (result.success) {
+                showToast('Fecha actualizada', 'success');
+                closeEditModal();
+                cargarDatos();
+              } else {
+                showToast('Error al actualizar', 'error');
+              }
+            })
+            .updateSeccion(currentEditData.codigo, 'FechaInicio', nuevoValor);
+          return;
+        }
+      } else if (selectEl.style.display !== 'none') {
+        nuevoValor = selectEl.value;
+      } else {
+        nuevoValor = inputEl.value.trim();
+      }
+      if (nuevoValor === currentEditData.valorActual) {
+        closeEditModal();
+        return;
+      }
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            currentEditData.celda.textContent = nuevoValor || 'Sin asignar';
+            showToast('Campo actualizado', 'success');
+            closeEditModal();
+            cargarDatos();
+          } else {
+            showToast('Error al actualizar', 'error');
+          }
+        })
+        .updateSeccion(currentEditData.codigo, currentEditData.campo, nuevoValor);
+    }
+
+    function mostrarAlumnosSeccion(codigoSeccion) {
+      google.script.run
+        .withSuccessHandler(function(alumnos) {
+          if (!alumnos || alumnos.length === 0) {
+            var modalVacio = document.createElement('div');
+            modalVacio.className = 'edit-modal show';
+            modalVacio.innerHTML = '<div class="edit-modal-content" style="max-width:400px;">' +
+              '<div class="edit-modal-header"><h3>👥 Alumnos de ' + codigoSeccion + '</h3>' +
+              '<button class="edit-modal-close" onclick="this.closest(\'.edit-modal\').remove()">×</button></div>' +
+              '<div class="edit-modal-body" style="text-align:center;padding:30px;">' +
+              '<p style="font-size:16px;color:#6b7280;">No hay alumnos matriculados en esta sección</p></div></div>';
+            document.body.appendChild(modalVacio);
+            return;
+          }
+          var html = '<div style="margin-bottom:10px;"><button class="btn-small" style="background:#6366f1;font-size:11px;" onclick="var cols=this.closest(\'.edit-modal-body\').querySelectorAll(\'.col-extra\');var show=cols[0]&&cols[0].style.display===\'none\';cols.forEach(function(c){c.style.display=show?\'table-cell\':\'none\';});this.textContent=show?\'👁️ Ocultar columnas extra\':\'👁️ Más columnas\';">👁️ Más columnas</button></div>';
+          html += '<table class="data-table" style="font-size: 13px;">';
+          html += '<thead><tr><th>ID</th><th>Nombre</th><th>Modalidad</th><th>Email</th><th>Teléfono</th><th>País</th><th>Estado Pago</th><th>Saldo</th><th>Acción</th><th>F. Comprometida</th><th class="col-extra" style="display:none;">Fecha Venta</th><th class="col-extra" style="display:none;">Reprog.</th></tr></thead>';
+          html += '<tbody>';
+          alumnos.forEach(function(a) {
+            var mod = a.Modalidad || 'Pro';
+            var modBadge = mod === 'Basic' ? '🟢 Basic' : (mod === 'Certify' ? '🟣 Certify' : (mod === 'Retake' ? '🔄 Retake' : '🔵 Pro'));
+            var reprogNum = a.Reprogramaciones || 0;
+            var reprogStyle = reprogNum >= 4 ? 'color:#dc2626;font-weight:bold;' : (reprogNum >= 2 ? 'color:#d97706;font-weight:bold;' : '');
+            html += '<tr>';
+            html += '<td>' + a.ID + '</td>';
+            html += '<td>' + a.Nombre + '</td>';
+            html += '<td><span style="font-size:12px;background:#f0f0ff;padding:2px 6px;border-radius:4px;white-space:nowrap;">' + modBadge + '</span></td>';
+            html += '<td>' + a.Email + '</td>';
+            html += '<td>' + a.Telefono + '</td>';
+            html += '<td>' + a.Pais + '</td>';
+            html += '<td>' + a.EstadoPago + '</td>';
+            html += '<td>' + (a.SaldoPendiente || 0).toFixed(2) + '</td>';
+            html += '<td><button class="btn-small" style="background:#7c3aed;font-size:11px;" onclick="abrirMoverAlumno(\'' + a.MatriculaId + '\', \'' + codigoSeccion + '\', \'' + (a.Nombre || '').replace(/'/g, '') + '\')">Mover</button></td>';
+            html += '<td>' + (a.FechaComprometida || '-') + '</td>';
+            html += '<td class="col-extra" style="display:none;">' + (a.FechaMatricula || '-') + '</td>';
+            html += '<td class="col-extra" style="display:none;' + reprogStyle + '">' + reprogNum + '</td>';
+            html += '</tr>';
+          });
+          html += '</tbody></table>';
+          var modal = document.createElement('div');
+          modal.className = 'edit-modal show';
+          modal.innerHTML = '<div class="edit-modal-content" style="max-width: 1100px; max-height: 80vh; overflow-y: auto;">' +
+            '<div class="edit-modal-header">' +
+            '<h3>👥 Alumnos de ' + codigoSeccion + '</h3>' +
+            '<button class="edit-modal-close" onclick="this.closest(\'.edit-modal\').remove()">×</button>' +
+            '</div>' +
+            '<div class="edit-modal-body">' + html + '</div>' +
+            '</div>';
+          document.body.appendChild(modal);
+          showToast('Tabla copiable a Excel', 'success');
+        })
+        .withFailureHandler(function(error) {
+          showToast('Error: ' + error.message, 'error');
+        })
+        .getAlumnosPorSeccion(codigoSeccion);
+    }
+
+    // === REPROGRAMAR SECCIÓN ===
+    function abrirReprogramar(codigo, mes, ano, puesto, frecuencia) {
+      var puestoNum = 1;
+      if (puesto && puesto.length === 1 && puesto >= 'A' && puesto <= 'Z') {
+        puestoNum = puesto.charCodeAt(0) - 64;
+      } else {
+        puestoNum = parseInt(puesto) || 1;
+      }
+      var fechaDefault = String(ano).padStart(4, '20') + '-' + String(mes).padStart(2, '0') + '-01';
+      
+      var html = '<div class="edit-modal-body">' +
+        '<p>Sección actual: <strong>' + codigo + '</strong> (Frecuencia: ' + (frecuencia || '') + ')</p>' +
+        '<input type="hidden" id="reprogFrecuencia" value="' + (frecuencia || '') + '">' +
+        '<label>Nueva Fecha de Inicio</label>' +
+        '<input type="date" id="reprogFecha" value="' + fechaDefault + '" onchange="validarFrecuenciaReprog()">' +
+        '<div id="reprogFrecWarning" style="margin-top:5px;"></div>' +
+        '<label style="margin-top:10px;">Puesto en Mes</label>' +
+        '<input type="number" id="reprogPuesto" value="' + puestoNum + '" min="1" max="26">' +
+        '</div>';
+      var modal = document.createElement('div');
+      modal.className = 'edit-modal show';
+      modal.id = 'reprogModal';
+      modal.innerHTML = '<div class="edit-modal-content">' +
+        '<div class="edit-modal-header"><h3>🕐 Reprogramar Sección</h3><button class="edit-modal-close" onclick="document.getElementById(\'reprogModal\').remove()">×</button></div>' +
+        html +
+        '<div class="edit-modal-actions"><button class="btn-cancel" onclick="document.getElementById(\'reprogModal\').remove()">Cancelar</button>' +
+        '<button class="btn-save" onclick="ejecutarReprogramar(\'' + codigo + '\')">Reprogramar</button></div></div>';
+      document.body.appendChild(modal);
+    }
+
+    function validarFrecuenciaReprog() {
+      var fecha = document.getElementById('reprogFecha').value;
+      var frecuencia = document.getElementById('reprogFrecuencia').value;
+      var warning = document.getElementById('reprogFrecWarning');
+      if (!fecha || !frecuencia) { warning.innerHTML = ''; return; }
+      
+      var d = new Date(fecha + 'T12:00:00');
+      var dia = d.getDay(); // 0=Dom, 1=Lun, 2=Mar, 3=Mié, 4=Jue, 5=Vie, 6=Sáb
+      var diasNombres = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+      
+      var diasValidos = {};
+      if (frecuencia === 'L-M-V') diasValidos = {1:true, 3:true, 5:true};
+      else if (frecuencia === 'M-J-S') diasValidos = {2:true, 4:true, 6:true};
+      else if (frecuencia === 'Solo-Sabados' || frecuencia === 'Sólo sábados') diasValidos = {6:true};
+      
+      if (diasValidos[dia]) {
+        warning.innerHTML = '<span style="color:#22c55e;">✅ ' + diasNombres[dia] + ' es compatible con ' + frecuencia + '</span>';
+      } else {
+        var nuevaFrec = '';
+        if (dia === 1 || dia === 3 || dia === 5) nuevaFrec = 'L-M-V';
+        else if (dia === 2 || dia === 4 || dia === 6) nuevaFrec = 'M-J-S';
+        else nuevaFrec = 'No estándar';
+        warning.innerHTML = '<span style="color:#ef4444;">⚠️ ' + diasNombres[dia] + ' NO coincide con la frecuencia actual (' + frecuencia + '). Elegir esta fecha cambiará la frecuencia a <strong>' + nuevaFrec + '</strong>.</span>';
+      }
+    }
+    
+    function ejecutarReprogramar(codigoActual) {
+      var fecha = document.getElementById('reprogFecha').value;
+      if (!fecha) { showToast('Selecciona una fecha', 'error'); return; }
+      var partes = fecha.split('-');
+      var ano = parseInt(partes[0]);
+      var mes = parseInt(partes[1]);
+      var dia = parseInt(partes[2]);
+      var puesto = parseInt(document.getElementById('reprogPuesto').value);
+      showToast('Reprogramando sección...', 'info');
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            showToast(result.message, 'success');
+            document.getElementById('reprogModal').remove();
+            cargarDatos();
+          } else if (result.conflicto) {
+            if (confirm('Ya existe ' + result.codigoConflicto + '. ¿Desea fusionar los alumnos de ' + codigoActual + ' en ' + result.codigoConflicto + '?')) {
+              document.getElementById('reprogModal').remove();
+              ejecutarFusionar(codigoActual, result.codigoConflicto);
+            }
+          } else {
+            showToast('Error: ' + result.message, 'error');
+          }
+        })
+        .withFailureHandler(function(e) { showToast('Error: ' + e.message, 'error'); })
+        .reprogramarSeccion(codigoActual, mes, ano, puesto, fecha);
+    }
+
+    // === CALENDAR - Crear eventos ===
+    function buscarOCrearCalendar(codigo, btn) {
+      btn.disabled = true;
+      btn.textContent = '⏳';
+      btn.style.background = '#9ca3af';
+      showToast('Buscando/creando eventos en Calendar...', 'info');
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            btn.textContent = '📆';
+            btn.style.background = '#22c55e';
+            btn.style.cursor = 'pointer';
+            btn.disabled = false;
+            btn.onclick = function() { window.open('https://calendar.google.com/calendar/r/search?q=' + encodeURIComponent('Clase ' + codigo), '_blank'); };
+            showToast(result.message, 'success');
+          } else {
+            btn.disabled = false;
+            btn.textContent = '📆';
+            btn.style.background = '#d97706';
+            showToast(result.message, 'error');
+          }
+        })
+        .withFailureHandler(function(error) {
+          btn.disabled = false;
+          btn.textContent = '📆';
+          btn.style.background = '#0d9488';
+          showToast('Error: ' + error.message, 'error');
+        })
+        .buscarOCrearEventosCalendar(codigo);
+    }
+
+    // === CLASSROOM ===
+    function crearClassroomBtn(codigo, btn) {
+      btn.disabled = true; btn.textContent = '⏳'; btn.style.background = '#9ca3af';
+      showToast('Creando Classroom...', 'info');
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            btn.textContent = '🪧'; btn.style.background = '#22c55e'; btn.disabled = false;
+            btn.onclick = function() { var cid = String(result.classroomId); var urlId = /^\d+$/.test(cid) ? btoa(cid) : cid; window.open('https://classroom.google.com/c/' + urlId, '_blank'); };
+            showToast(result.message, 'success');
+          } else {
+            btn.disabled = false; btn.textContent = '🪧'; btn.style.background = '#d97706';
+            showToast(result.message, 'error');
+          }
+        })
+        .withFailureHandler(function(error) {
+          btn.disabled = false; btn.textContent = '🪧'; btn.style.background = '#d97706';
+          showToast('Error: ' + error.message, 'error');
+        })
+        .buscarOCrearClassroom(codigo);
+    }
+
+    // === ELIMINAR SECCIÓN ===
+    function confirmarEliminarSeccion(codigo) {
+      if (!confirm('¿Estás seguro de eliminar la sección ' + codigo + '?\n\nSolo se puede eliminar si no tiene alumnos matriculados.\nSi tiene carpeta Drive, se enviará a la papelera.')) return;
+      showToast('Eliminando sección...', 'info');
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            showToast(result.message, 'success');
+            cargarDatos();
+          } else {
+            showToast(result.message, 'error');
+          }
+        })
+        .withFailureHandler(function(error) {
+          showToast('Error: ' + error.message, 'error');
+        })
+        .eliminarSeccion(codigo);
+    }
+
+    // === FUSIONAR SECCIONES ===
+    function abrirFusionar(codigoOrigen) {
+      showToast('Buscando secciones del mismo curso...', 'info');
+      google.script.run
+        .withSuccessHandler(function(secciones) {
+          if (!secciones || secciones.length === 0) {
+            showToast('No hay otras secciones del mismo curso para fusionar', 'warning');
+            return;
+          }
+          var html = '<div class="edit-modal-body">' +
+            '<p>Sección origen (se eliminará): <strong style="color:#dc2626;">' + codigoOrigen + '</strong></p>' +
+            '<label>Sección destino (quedará):</label>' +
+            '<select id="fusionDestino">';
+          secciones.forEach(function(s) {
+            html += '<option value="' + s.Codigo + '">' + s.Codigo + ' - ' + s.NombreCurso + ' (' + s.Mes + '/' + s.Ano + ') ' + s.Estado + '</option>';
+          });
+          html += '</select>' +
+            '<p style="margin-top:15px;color:#dc2626;font-size:13px;">⚠️ Las matrículas se moverán a la sección destino. La sección origen y su carpeta Drive se eliminarán.</p>' +
+            '</div>';
+          var modal = document.createElement('div');
+          modal.className = 'edit-modal show';
+          modal.id = 'fusionModal';
+          modal.innerHTML = '<div class="edit-modal-content">' +
+            '<div class="edit-modal-header"><h3>🔀 Fusionar Secciones</h3><button class="edit-modal-close" onclick="document.getElementById(\'fusionModal\').remove()">×</button></div>' +
+            html +
+            '<div class="edit-modal-actions"><button class="btn-cancel" onclick="document.getElementById(\'fusionModal\').remove()">Cancelar</button>' +
+            '<button class="btn-save" style="background:#dc2626;" onclick="ejecutarFusionar(\'' + codigoOrigen + '\')">Fusionar</button></div></div>';
+          document.body.appendChild(modal);
+        })
+        .withFailureHandler(function(e) { showToast('Error: ' + e.message, 'error'); })
+        .getSeccionesDelMismoCurso(codigoOrigen);
+    }
+
+    function ejecutarFusionar(codigoOrigen, codigoDestinoDirecto) {
+      var destino = codigoDestinoDirecto || document.getElementById('fusionDestino').value;
+      if (!confirm('¿Confirma fusionar ' + codigoOrigen + ' en ' + destino + '? Esta acción no se puede deshacer.')) return;
+      showToast('Fusionando secciones...', 'info');
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            showToast(result.message, 'success');
+            var modal = document.getElementById('fusionModal');
+            if (modal) modal.remove();
+            cargarDatos();
+          } else {
+            showToast('Error: ' + result.message, 'error');
+          }
+        })
+        .withFailureHandler(function(e) { showToast('Error: ' + e.message, 'error'); })
+        .fusionarSecciones(codigoOrigen, destino);
+    }
+
+    // === MOVER ALUMNO INDIVIDUAL ===
+    function abrirMoverAlumno(matriculaId, codigoSeccionActual, nombreAlumno) {
+      // Cerrar modal de alumnos si existe
+      var alumnosModal = document.querySelector('.edit-modal.show');
+      
+      google.script.run
+        .withSuccessHandler(function(secciones) {
+          if (!secciones || secciones.length === 0) {
+            showToast('No hay otras secciones del mismo curso', 'warning');
+            return;
+          }
+          var html = '<div class="edit-modal-body">' +
+            '<p>Alumno: <strong>' + nombreAlumno + '</strong></p>' +
+            '<p>Sección actual: <strong>' + codigoSeccionActual + '</strong></p>' +
+            '<label>Mover a sección:</label>' +
+            '<select id="moverDestino">';
+          secciones.forEach(function(s) {
+            html += '<option value="' + s.Codigo + '">' + s.Codigo + ' (' + s.Mes + '/' + s.Ano + ') ' + s.Estado + '</option>';
+          });
+          html += '</select></div>';
+          var modal = document.createElement('div');
+          modal.className = 'edit-modal show';
+          modal.id = 'moverModal';
+          modal.style.zIndex = '1100';
+          modal.innerHTML = '<div class="edit-modal-content">' +
+            '<div class="edit-modal-header"><h3>🔄 Mover Alumno</h3><button class="edit-modal-close" onclick="document.getElementById(\'moverModal\').remove()">×</button></div>' +
+            html +
+            '<div class="edit-modal-actions"><button class="btn-cancel" onclick="document.getElementById(\'moverModal\').remove()">Cancelar</button>' +
+            '<button class="btn-save" onclick="ejecutarMoverAlumno(\'' + matriculaId + '\')">Mover</button></div></div>';
+          document.body.appendChild(modal);
+        })
+        .withFailureHandler(function(e) { showToast('Error: ' + e.message, 'error'); })
+        .getSeccionesDelMismoCurso(codigoSeccionActual);
+    }
+
+    function ejecutarMoverAlumno(matriculaId) {
+      var destino = document.getElementById('moverDestino').value;
+      showToast('Moviendo alumno...', 'info');
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            showToast(result.message, 'success');
+            document.getElementById('moverModal').remove();
+            cargarDatos();
+          } else {
+            showToast('Error: ' + result.message, 'error');
+          }
+        })
+        .withFailureHandler(function(e) { showToast('Error: ' + e.message, 'error'); })
+        .moverAlumnoDeSeccion(matriculaId, destino);
+    }
+
+    function crearCarpetaDrive(codigoSeccion) {
+      // Cambiar botón a estado "en progreso"
+      var btns = document.querySelectorAll('button');
+      var btnOriginal = null;
+      btns.forEach(function(b) {
+        if (b.onclick && b.getAttribute('onclick') && b.getAttribute('onclick').indexOf(codigoSeccion) !== -1 && b.textContent.trim() === '📁') {
+          btnOriginal = b;
+        }
+      });
+      if (btnOriginal) {
+        btnOriginal.textContent = '⏳';
+        btnOriginal.style.background = '#9ca3af';
+        btnOriginal.disabled = true;
+        btnOriginal.title = 'Creando carpeta y copiando contenido...';
+      }
+      showToast('Creando carpeta y copiando contenido para ' + codigoSeccion + '... esto puede tardar unos minutos', 'info');
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            var msg = result.yaExistia ? 'Carpeta existente vinculada' : 'Carpeta creada con contenido copiado';
+            showToast(msg, 'success');
+            cargarDatos();
+          } else {
+            showToast('Error: ' + result.message, 'error');
+            if (btnOriginal) {
+              btnOriginal.textContent = '📁';
+              btnOriginal.style.background = '#d97706';
+              btnOriginal.disabled = false;
+            }
+          }
+        })
+        .withFailureHandler(function(error) {
+          showToast('Error: ' + error.message, 'error');
+          if (btnOriginal) {
+            btnOriginal.textContent = '📁';
+            btnOriginal.style.background = '#d97706';
+            btnOriginal.disabled = false;
+          }
+        })
+        .crearCarpetaDriveParaSeccion(codigoSeccion);
+    }
+
+    function abrirCarpetaDrive(folderId) {
+      window.open('https://drive.google.com/drive/folders/' + folderId, '_blank');
+    }
+
+    function confirmarLimpiarTests() {
+      // Contar cuántas secciones test hay
+      var testCount = todasSecciones.filter(function(s) {
+        return s.EsTest === 'Sí' || s.EsTest === 'Si';
+      }).length;
+      
+      if (testCount === 0) {
+        showToast('No hay secciones de test para limpiar', 'info');
+        return;
+      }
+      
+      var confirmMsg = '⚠️ ATENCIÓN: Se eliminarán ' + testCount + ' sección(es) de TEST junto con:\n\n' +
+        '• Sus carpetas en Google Drive (a papelera)\n' +
+        '• Sus matrículas asociadas\n\n' +
+        'Solo se eliminarán secciones marcadas como TEST.\n\n' +
+        '¿Desea continuar?';
+      
+      if (confirm(confirmMsg)) {
+        showToast('Limpiando secciones test...', 'info');
+        google.script.run
+          .withSuccessHandler(function(result) {
+            if (result.success) {
+              showToast(result.message, 'success');
+              cargarDatos();
+            } else {
+              showToast('Error: ' + result.message, 'error');
+            }
+          })
+          .withFailureHandler(function(error) {
+            showToast('Error: ' + error.message, 'error');
+          })
+          .limpiarSeccionesTest();
+      }
+    }
+
+    function showTab(tabName) {
+      document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+      document.querySelectorAll('.tab-content').forEach(function(t) { t.classList.remove('active'); });
+      document.getElementById('tab-' + tabName).classList.add('active');
+      // Activar el botón de tab correcto
+      var tabs = document.querySelectorAll('.tab');
+      tabs.forEach(function(t) {
+        if (t.textContent.toLowerCase().indexOf(tabName === 'gestion' ? 'gestión' : 'nueva') !== -1) {
+          t.classList.add('active');
+        }
+      });
+    }
+
+    function showToast(message, type) {
+      var toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = 'toast ' + type + ' show';
+      setTimeout(function() { toast.classList.remove('show'); }, 4000);
+    }
+  </script>
+  
+  <div id="editModal" class="edit-modal">
+    <div class="edit-modal-content">
+      <div class="edit-modal-header">
+        <h3>✏️ Editar Campo</h3>
+        <button class="edit-modal-close" onclick="closeEditModal()">×</button>
+      </div>
+      <div class="edit-modal-body">
+        <label id="editLabel">Campo</label>
+        <input type="text" id="editInput" style="display:none;">
+        <input type="date" id="editDate" style="display:none;">
+        <select id="editSelect" style="display:none;"></select>
+      </div>
+      <div class="edit-modal-actions">
+        <button class="btn-cancel" onclick="closeEditModal()">Cancelar</button>
+        <button class="btn-save" onclick="saveEdit()">Guardar</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

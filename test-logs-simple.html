@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TEST LOGS SIMPLE</title>
+  <style>
+    body { 
+      font-family: monospace; 
+      margin: 20px; 
+      background: #000; 
+      color: #0f0; 
+    }
+    .container { 
+      max-width: 1200px; 
+      margin: 0 auto; 
+    }
+    .btn { 
+      padding: 15px 30px; 
+      margin: 10px; 
+      background: #ff0000; 
+      color: white; 
+      border: none; 
+      border-radius: 5px; 
+      cursor: pointer; 
+      font-size: 16px;
+      font-weight: bold;
+    }
+    .btn:hover { 
+      background: #cc0000; 
+    }
+    .logs { 
+      margin-top: 20px; 
+      padding: 20px; 
+      background: #111; 
+      border: 2px solid #0f0; 
+      border-radius: 5px; 
+      white-space: pre-wrap; 
+      font-family: monospace; 
+      max-height: 600px; 
+      overflow-y: auto; 
+      font-size: 14px;
+      line-height: 1.4;
+    }
+    .error { 
+      color: #ff0000; 
+      font-weight: bold;
+    }
+    .success { 
+      color: #00ff00; 
+      font-weight: bold;
+    }
+    .warning { 
+      color: #ffff00; 
+      font-weight: bold;
+    }
+    h1 {
+      color: #ff0000;
+      text-align: center;
+      font-size: 24px;
+      margin-bottom: 30px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🚨 TEST LOGS DOCENTES - ULTRA SIMPLE 🚨</h1>
+    
+    <div style="text-align: center;">
+      <button class="btn" onclick="testearTodo()">🔥 TESTEAR TODO AHORA</button>
+      <button class="btn" onclick="limpiarLogs()">🗑️ LIMPIAR</button>
+    </div>
+    
+    <div id="logs" class="logs">
+Esperando test...
+    </div>
+  </div>
+
+  <script>
+    let logContainer = document.getElementById('logs');
+    
+    function addLog(mensaje, tipo = 'normal') {
+      const timestamp = new Date().toLocaleTimeString();
+      let className = '';
+      
+      if (tipo === 'error') className = 'error';
+      else if (tipo === 'success') className = 'success';
+      else if (tipo === 'warning') className = 'warning';
+      
+      const logLine = `[${timestamp}] ${mensaje}\n`;
+      
+      if (className) {
+        logContainer.innerHTML += `<span class="${className}">${logLine}</span>`;
+      } else {
+        logContainer.innerHTML += logLine;
+      }
+      
+      logContainer.scrollTop = logContainer.scrollHeight;
+      console.log(`[${timestamp}] ${mensaje}`);
+    }
+    
+    function limpiarLogs() {
+      logContainer.innerHTML = 'Logs limpiados...\n';
+    }
+    
+    function testearTodo() {
+      addLog('🚨🚨🚨 INICIANDO TEST COMPLETO 🚨🚨🚨', 'warning');
+      addLog('');
+      
+      // Test 1: Verificar google.script.run
+      addLog('TEST 1: Verificando google.script.run...', 'warning');
+      
+      if (typeof google === 'undefined') {
+        addLog('❌ ERROR: Variable "google" no existe', 'error');
+        return;
+      }
+      addLog('✅ Variable "google" existe');
+      
+      if (!google.script) {
+        addLog('❌ ERROR: google.script no existe', 'error');
+        return;
+      }
+      addLog('✅ google.script existe');
+      
+      if (!google.script.run) {
+        addLog('❌ ERROR: google.script.run no existe', 'error');
+        return;
+      }
+      addLog('✅ google.script.run existe', 'success');
+      addLog('');
+      
+      // Test 2: Probar función simple
+      addLog('TEST 2: Probando función simple del backend...', 'warning');
+      
+      try {
+        google.script.run
+          .withSuccessHandler(function(resultado) {
+            addLog('✅ SUCCESS HANDLER EJECUTADO', 'success');
+            addLog('Resultado recibido: ' + JSON.stringify(resultado));
+            addLog('');
+            
+            // Test 3: Probar getDocentes
+            probarGetDocentes();
+          })
+          .withFailureHandler(function(error) {
+            addLog('❌ FAILURE HANDLER EJECUTADO', 'error');
+            addLog('Error: ' + error.toString(), 'error');
+          })
+          .testBackendDocentesConLogs();
+          
+        addLog('✅ Llamada a testBackendDocentesConLogs() enviada');
+        
+      } catch (error) {
+        addLog('❌ ERROR al llamar función: ' + error.toString(), 'error');
+      }
+    }
+    
+    function probarGetDocentes() {
+      addLog('TEST 3: Probando getDocentes() directamente...', 'warning');
+      
+      try {
+        google.script.run
+          .withSuccessHandler(function(docentes) {
+            addLog('✅ getDocentes() SUCCESS HANDLER', 'success');
+            addLog('Tipo de respuesta: ' + typeof docentes);
+            addLog('Es array: ' + Array.isArray(docentes));
+            
+            if (docentes && Array.isArray(docentes)) {
+              addLog('📊 DOCENTES RECIBIDOS: ' + docentes.length, 'success');
+              
+              if (docentes.length > 0) {
+                addLog('');
+                addLog('🔍 PRIMER DOCENTE:', 'success');
+                const primer = docentes[0];
+                addLog('  - ID: "' + primer.ID + '"');
+                addLog('  - Nombre: "' + primer.Nombre + '"');
+                addLog('  - Email: "' + primer.Email + '"');
+                addLog('  - Certificaciones: "' + primer.Certificaciones + '"');
+                addLog('  - CursosQueDicta: "' + primer.CursosQueDicta + '"');
+                addLog('  - TarifaHora: ' + primer.TarifaHora);
+                addLog('  - Foto: ' + (primer.Foto ? 'SÍ (' + primer.Foto.substring(0, 30) + '...)' : 'NO'));
+                
+                addLog('');
+                addLog('📋 RESUMEN DE TODOS LOS DOCENTES:', 'success');
+                docentes.forEach((d, i) => {
+                  if (i < 10) { // Solo mostrar primeros 10
+                    addLog(`  ${i + 1}. ${d.Nombre} - Cert:"${d.Certificaciones}" - Cursos:"${d.CursosQueDicta}" - $${d.TarifaHora}`);
+                  }
+                });
+                
+                if (docentes.length > 10) {
+                  addLog(`  ... y ${docentes.length - 10} más`);
+                }
+                
+                addLog('');
+                addLog('🎉 CONCLUSIÓN: EL BACKEND FUNCIONA CORRECTAMENTE', 'success');
+                addLog('🎉 PROBLEMA ESTÁ EN EL FRONTEND ORIGINAL', 'success');
+                
+              } else {
+                addLog('⚠️ Array de docentes está VACÍO', 'warning');
+                addLog('🔍 PROBLEMA: Backend retorna array vacío', 'error');
+              }
+            } else {
+              addLog('❌ Respuesta no es un array válido', 'error');
+              addLog('Respuesta recibida: ' + JSON.stringify(docentes));
+            }
+          })
+          .withFailureHandler(function(error) {
+            addLog('❌ getDocentes() FAILURE HANDLER', 'error');
+            addLog('Error: ' + error.toString(), 'error');
+            addLog('🔍 PROBLEMA: Error en el backend', 'error');
+          })
+          .getDocentes();
+          
+        addLog('✅ Llamada a getDocentes() enviada');
+        
+      } catch (error) {
+        addLog('❌ ERROR al llamar getDocentes(): ' + error.toString(), 'error');
+      }
+    }
+    
+    // Auto-ejecutar al cargar
+    window.onload = function() {
+      addLog('🔥 Página cargada - Lista para test', 'success');
+      addLog('👆 Haz click en "TESTEAR TODO AHORA" para empezar');
+      addLog('');
+    };
+  </script>
+</body>
+</html>

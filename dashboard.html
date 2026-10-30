@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <?!= includeWithBaseUrl('config'); ?>
+  <?!= include('styles'); ?>
+</head>
+<body>
+  <div class="container">
+    <?!= includeWithCurrentPage('nav', currentPage); ?>
+
+    <main class="main dashboard-page" data-page="dashboard">
+      <h1 class="form-title">📊 Dashboard de Ventas</h1>
+      
+      <div class="dashboard-grid">
+        <div class="stat-card">
+          <div class="icon">📝</div>
+          <div class="value" id="totalVentas">-</div>
+          <div class="label">Total Matrículas</div>
+        </div>
+        
+        <div class="stat-card">
+          <div class="icon">💰</div>
+          <div class="value" id="totalIngresos">-</div>
+          <div class="label">Ingresos Totales</div>
+        </div>
+        
+        <div class="stat-card">
+          <div class="icon">✅</div>
+          <div class="value" id="totalPagado">-</div>
+          <div class="label">Total Cobrado</div>
+        </div>
+        
+        <div class="stat-card" style="border-left: 4px solid #ef4444;">
+          <div class="icon">⏳</div>
+          <div class="value" id="totalPendiente" style="color: #ef4444;">-</div>
+          <div class="label">Por Cobrar</div>
+        </div>
+      </div>
+
+      <!-- Margen por Sección -->
+      <div class="form-card" style="margin-bottom: 25px;">
+        <h2 class="section-title">📚 Margen por Sección</h2>
+        
+        <div style="display:flex;gap:15px;align-items:center;margin-bottom:15px;flex-wrap:wrap;">
+          <div>
+            <label style="font-weight:600;font-size:13px;">Filtrar sección:</label>
+            <select id="filtroSeccion" style="padding:8px;border:2px solid #e5e7eb;border-radius:4px;font-size:13px;min-width:250px;max-height:200px;overflow-y:auto;" size="1">
+              <option value="">Todas las secciones</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Sección</th>
+                <th>Curso</th>
+                <th>Alumnos</th>
+                <th>Ingresos</th>
+                <th>Cobrado</th>
+                <th>Pendiente</th>
+                <th>Costo Docente</th>
+                <th>Margen</th>
+                <th>%</th>
+              </tr>
+            </thead>
+            <tbody id="margenBody">
+              <tr><td colspan="9">Cargando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        
+        <!-- Simulador -->
+        <div id="simuladorContainer" style="display:none;margin-top:20px;padding:20px;background:#f0f7ff;border:2px solid #2563eb;border-radius:8px;">
+          <h3 style="margin-top:0;color:#2563eb;">🧮 Simulador de Margen</h3>
+          <p style="font-size:13px;color:#666;" id="simuladorInfo"></p>
+          <div style="display:flex;gap:15px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
+            <div>
+              <label style="font-weight:600;font-size:13px;">Simular con total de alumnos:</label>
+              <input type="number" id="simuladorAlumnos" min="0" max="100" style="padding:8px;border:2px solid #e5e7eb;border-radius:4px;width:80px;" onchange="simularMargen()">
+            </div>
+            <div>
+              <label style="font-weight:600;font-size:13px;">Simular con docente:</label>
+              <select id="simuladorDocente" style="padding:8px;border:2px solid #e5e7eb;border-radius:4px;min-width:220px;font-size:13px;" onchange="simularMargen()">
+              </select>
+            </div>
+          </div>
+          <div id="simuladorResultado" style="font-size:14px;font-weight:600;"></div>
+        </div>
+      </div>
+
+      <!-- Ventas Pendientes por Cobrar -->
+      <div class="form-card" style="margin-bottom: 25px;">
+        <h2 class="section-title">🔴 Pendientes por Cobrar (Top 20)</h2>
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Alumno</th>
+                <th>Email</th>
+                <th>Sección</th>
+                <th>Saldo Pendiente</th>
+                <th>Acción</th>
+              </tr>
+            </thead>
+            <tbody id="pendientesBody">
+              <tr><td colspan="5">Cargando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Estado de Pagos -->
+      <div class="form-card">
+        <h2 class="section-title">💳 Estado de Pagos</h2>
+        <div class="dashboard-grid" id="estadosContainer">
+          <p>Cargando...</p>
+        </div>
+      </div>
+    </main>
+
+    <?!= include('footer'); ?>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', loadDashboard);
+
+    function loadDashboard() {
+      console.log('🔍 [dashboard] Cargando datos...');
+      google.script.run
+        .withSuccessHandler(function(data) {
+          console.log('✅ [dashboard] Datos recibidos:', data ? 'objeto' : 'null', typeof data);
+          if (!data || typeof data !== 'object') {
+            console.error('❌ [dashboard] Datos inválidos:', data);
+            document.getElementById('totalVentas').textContent = 'Error';
+            document.getElementById('totalIngresos').textContent = 'Error';
+            document.getElementById('totalPagado').textContent = 'Error';
+            document.getElementById('totalPendiente').textContent = 'Error';
+            document.getElementById('pendientesBody').innerHTML = '<tr><td colspan="5">Error: datos del dashboard inválidos (null)</td></tr>';
+            document.getElementById('margenBody').innerHTML = '<tr><td colspan="7">Error: datos del dashboard inválidos (null)</td></tr>';
+            return;
+          }
+          renderDashboard(data);
+        })
+        .withFailureHandler(function(e) { 
+          console.error('❌ [dashboard] Error:', e); 
+          alert('Error cargando dashboard: ' + e); 
+        })
+        .getDashboardDataMejorado();
+    }
+
+    var allMargenData = [];
+    var allDocentesData = [];
+    
+    function renderDashboard(data) {
+      document.getElementById('totalVentas').textContent = data.totalVentas || 0;
+      document.getElementById('totalIngresos').textContent = '$' + data.totalIngresos.toFixed(2);
+      document.getElementById('totalPagado').textContent = '$' + data.totalPagado.toFixed(2);
+      document.getElementById('totalPendiente').textContent = '$' + data.totalPendiente.toFixed(2);
+
+      // Pendientes por cobrar
+      var pendientesBody = document.getElementById('pendientesBody');
+      if (data.ventasPendientes && data.ventasPendientes.length > 0) {
+        var html = '';
+        data.ventasPendientes.forEach(function(v) {
+          html += '<tr>';
+          html += '<td><strong>' + v.nombre + '</strong></td>';
+          html += '<td>' + v.gmail + '</td>';
+          html += '<td>' + v.seccion + '</td>';
+          html += '<td class="negative">$' + v.saldo.toFixed(2) + '</td>';
+          html += '<td><button class="btn-small" onclick="verVenta(\'' + v.id + '\')">Ver</button></td>';
+          html += '</tr>';
+        });
+        pendientesBody.innerHTML = html;
+      } else {
+        pendientesBody.innerHTML = '<tr><td colspan="5">🎉 No hay pagos pendientes</td></tr>';
+      }
+
+      // Margen por sección
+      allMargenData = data.margenPorSeccion || [];
+      allDocentesData = data.docentesLista || [];
+      
+      // Llenar selector - ordenar por más recientes primero (Año desc, Mes desc)
+      var select = document.getElementById('filtroSeccion');
+      select.innerHTML = '<option value="">Todas las secciones</option>';
+      var seccionesOrdenadas = allMargenData.slice().sort(function(a, b) {
+        var codA = a.seccion || '';
+        var codB = b.seccion || '';
+        // Extraer mes y año del código (ej: SAA0326-A → mes=03, año=26)
+        var matchA = codA.match(/(\d{2})(\d{2})-/);
+        var matchB = codB.match(/(\d{2})(\d{2})-/);
+        var fechaA = matchA ? parseInt(matchA[2]) * 100 + parseInt(matchA[1]) : 0;
+        var fechaB = matchB ? parseInt(matchB[2]) * 100 + parseInt(matchB[1]) : 0;
+        return fechaB - fechaA;
+      });
+      seccionesOrdenadas.forEach(function(s) {
+        select.innerHTML += '<option value="' + s.seccion + '">' + s.seccion + ' - ' + s.curso + '</option>';
+      });
+      select.size = 1;
+      select.onfocus = function() { this.size = Math.min(7, this.options.length); };
+      select.onblur = function() { this.size = 1; };
+      select.onchange = function() { this.size = 1; this.blur(); filtrarMargen(); };
+      
+      renderMargenTable(allMargenData);
+
+      // Estados de pago
+      var estadosContainer = document.getElementById('estadosContainer');
+      if (data.ventasPorEstado && data.ventasPorEstado.length > 0) {
+        var colors = {
+          'Pago Completo': '#22c55e',
+          'Pago Pendiente': '#f59e0b',
+          'Pendiente': '#ef4444',
+          'Se retiró': '#6b7280',
+          'Se cambió de sección': '#9ca3af'
+        };
+        var estadosHtml = '';
+        data.ventasPorEstado.forEach(function(e) {
+          var color = colors[e.estado] || '#6b7280';
+          estadosHtml += '<div class="stat-card" style="border-left: 4px solid ' + color + '">';
+          estadosHtml += '<div class="value" style="color: ' + color + '">' + e.count + '</div>';
+          estadosHtml += '<div class="label">' + e.estado + '</div>';
+          estadosHtml += '</div>';
+        });
+        estadosContainer.innerHTML = estadosHtml;
+      } else {
+        estadosContainer.innerHTML = '<p>No hay datos de estados</p>';
+      }
+    }
+    
+    function renderMargenTable(datos) {
+      var margenBody = document.getElementById('margenBody');
+      if (datos && datos.length > 0) {
+        var html = '';
+        datos.forEach(function(s) {
+          var margenClass = s.margen >= 0 ? 'positive' : 'negative';
+          html += '<tr style="cursor:pointer;" onclick="seleccionarSeccionMargen(\'' + s.seccion + '\')">';
+          html += '<td><strong>' + s.seccion + '</strong></td>';
+          html += '<td>' + s.curso + '</td>';
+          html += '<td>' + s.alumnos + '</td>';
+          html += '<td>$' + (s.ingresos || 0).toFixed(2) + '</td>';
+          html += '<td>$' + (s.cobrado || 0).toFixed(2) + '</td>';
+          html += '<td>$' + (s.pendiente || 0).toFixed(2) + '</td>';
+          html += '<td>$' + (s.costo || 0).toFixed(2) + '</td>';
+          html += '<td class="' + margenClass + '">$' + (s.margen || 0).toFixed(2) + '</td>';
+          html += '<td>' + (s.porcentaje || 0) + '%</td>';
+          html += '</tr>';
+        });
+        margenBody.innerHTML = html;
+      } else {
+        margenBody.innerHTML = '<tr><td colspan="9">No hay secciones registradas</td></tr>';
+      }
+    }
+    
+    function filtrarMargen() {
+      var filtro = document.getElementById('filtroSeccion').value;
+      if (!filtro) {
+        renderMargenTable(allMargenData);
+        document.getElementById('simuladorContainer').style.display = 'none';
+        return;
+      }
+      var filtrado = allMargenData.filter(function(s) { return s.seccion === filtro; });
+      renderMargenTable(filtrado);
+      if (filtrado.length > 0) mostrarSimulador(filtrado[0]);
+    }
+    
+    function seleccionarSeccionMargen(codigo) {
+      document.getElementById('filtroSeccion').value = codigo;
+      filtrarMargen();
+    }
+    
+    function mostrarSimulador(seccion) {
+      var container = document.getElementById('simuladorContainer');
+      container.style.display = 'block';
+      container.dataset.seccion = JSON.stringify(seccion);
+      
+      document.getElementById('simuladorInfo').textContent = 
+        seccion.seccion + ' - ' + seccion.curso + 
+        ' | Precio promedio por alumno: $' + (seccion.precioPromedio || 0).toFixed(2) + 
+        ' | Horas: ' + (seccion.horas || 0);
+      
+      document.getElementById('simuladorAlumnos').value = seccion.alumnos;
+      
+      // Llenar selector de docentes que pueden dictar este curso
+      var selectDocente = document.getElementById('simuladorDocente');
+      selectDocente.innerHTML = '<option value="actual">Docente actual ($' + ((seccion.costo || 0) / (seccion.horas || 1)).toFixed(2) + '/hr)</option>';
+      
+      var codigoCurso = seccion.codigoCurso || '';
+      var docentesAgregados = 0;
+      allDocentesData.forEach(function(d) {
+        // Si hay código de curso, filtrar por docentes que dictan ese curso
+        // Si no hay código, mostrar todos los docentes activos
+        var coincide = !codigoCurso || (d.cursos && d.cursos.toUpperCase().indexOf(codigoCurso.toUpperCase()) !== -1);
+        if (coincide) {
+          var esActual = d.id === seccion.docenteId ? ' ★' : '';
+          selectDocente.innerHTML += '<option value="' + d.tarifa + '">' + d.nombre + ' - $' + d.tarifa.toFixed(2) + '/hr' + esActual + '</option>';
+          docentesAgregados++;
+        }
+      });
+      
+      // Si no se encontraron docentes por código de curso, mostrar todos
+      if (docentesAgregados === 0) {
+        allDocentesData.forEach(function(d) {
+          var esActual = d.id === seccion.docenteId ? ' ★' : '';
+          selectDocente.innerHTML += '<option value="' + d.tarifa + '">' + d.nombre + ' - $' + d.tarifa.toFixed(2) + '/hr' + esActual + '</option>';
+        });
+      }
+      
+      simularMargen();
+    }
+    
+    function simularMargen() {
+      var container = document.getElementById('simuladorContainer');
+      var seccion = JSON.parse(container.dataset.seccion || '{}');
+      var numAlumnos = parseInt(document.getElementById('simuladorAlumnos').value) || 0;
+      var precioPromedio = seccion.precioPromedio || 0;
+      var horas = seccion.horas || 0;
+      
+      // Determinar costo según docente seleccionado
+      var selectDocente = document.getElementById('simuladorDocente');
+      var costo;
+      if (selectDocente.value === 'actual') {
+        costo = seccion.costo || 0;
+      } else {
+        var tarifaDocente = parseFloat(selectDocente.value) || 0;
+        costo = tarifaDocente * horas;
+      }
+      
+      var ingresosSimulados = numAlumnos * precioPromedio;
+      var margenSimulado = ingresosSimulados - costo;
+      var porcentajeSimulado = costo > 0 ? ((margenSimulado / costo) * 100).toFixed(1) : (ingresosSimulados > 0 ? 100 : 0);
+      var diferencia = margenSimulado - (seccion.margen || 0);
+      
+      var color = margenSimulado >= 0 ? '#22c55e' : '#ef4444';
+      var difColor = diferencia >= 0 ? '#22c55e' : '#ef4444';
+      var difTexto = diferencia >= 0 ? '+$' + diferencia.toFixed(2) : '-$' + Math.abs(diferencia).toFixed(2);
+      
+      document.getElementById('simuladorResultado').innerHTML = 
+        'Con <strong>' + numAlumnos + '</strong> alumnos: ' +
+        'Ingresos <strong>$' + ingresosSimulados.toFixed(2) + '</strong> - ' +
+        'Costo <strong>$' + costo.toFixed(2) + '</strong> = ' +
+        'Margen <strong style="color:' + color + '">$' + margenSimulado.toFixed(2) + '</strong> (' + porcentajeSimulado + '%) ' +
+        '<span style="color:' + difColor + '">(' + difTexto + ' vs actual)</span>';
+    }
+
+    function verVenta(id) {
+      // Redirigir a cobranza con el ID usando URL dinámica del servidor
+      window.top.location.href = window.APP_BASE_URL + '?page=cobranza&id=' + id;
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <?!= includeWithBaseUrl('config'); ?>
+  <?!= include('styles'); ?>
+  <style>
+    .matricula-card {
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 15px;
+      background: white;
+    }
+    .matricula-card.pendiente { border-left: 4px solid #f59e0b; }
+    .matricula-card.completo { border-left: 4px solid #10b981; }
+    .matricula-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .matricula-info {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .info-item {
+      display: flex;
+      flex-direction: column;
+    }
+    .info-label {
+      font-size: 12px;
+      color: #6b7280;
+      font-weight: 600;
+    }
+    .info-value {
+      font-size: 14px;
+      color: #111827;
+      font-weight: 500;
+    }
+    .badge-estado {
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .badge-pendiente { background: #fef3c7; color: #92400e; }
+    .badge-completo { background: #d1fae5; color: #065f46; }
+    .pagos-list {
+      background: #f9fafb;
+      padding: 10px;
+      border-radius: 6px;
+      margin-top: 10px;
+    }
+    .pago-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px;
+      background: white;
+      border-radius: 4px;
+      margin-bottom: 5px;
+      font-size: 13px;
+    }
+    .search-result {
+      padding: 12px;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .search-result:hover {
+      background: #f3f4f6;
+      border-color: var(--primary);
+    }
+    .search-result-name {
+      font-weight: 600;
+      color: #111827;
+    }
+    .search-result-email {
+      font-size: 13px;
+      color: #6b7280;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <?!= includeWithCurrentPage('nav', currentPage); ?>
+
+    <main class="main pagos-page" data-page="pagos">
+      <div class="form-card">
+        <h1 class="form-title">💰 Gestión de Pagos</h1>
+        
+        <div class="tabs">
+          <button class="tab active" onclick="showTab('buscar')">Buscar Alumno</button>
+          <button class="tab" onclick="showTab('registrar')">Registrar Pago</button>
+        </div>
+
+        <!-- Tab: Buscar Alumno -->
+        <div id="tab-buscar" class="tab-content active">
+          <div class="section">
+            <h2 class="section-title">🔍 Buscar Alumno</h2>
+            <div class="form-grid">
+              <div class="form-group full-width">
+                <label>Nombre, Email o Teléfono</label>
+                <input type="text" id="busquedaAlumno" placeholder="Escribe para buscar..." oninput="buscarAlumnoParaPago()">
+              </div>
+            </div>
+            
+            <div id="resultadosBusqueda" style="margin-top: 15px;"></div>
+          </div>
+
+          <div id="matriculasSection" style="display: none;">
+            <div class="section">
+              <h2 class="section-title">📋 Matrículas del Alumno</h2>
+              <div id="alumnoInfo" style="background: #f3f4f6; padding: 15px; border-radius: 8px; margin-bottom: 20px;"></div>
+              <div id="matriculasList"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab: Registrar Pago -->
+        <div id="tab-registrar" class="tab-content">
+          <form id="pagoForm" onsubmit="handleSubmitPago(event)">
+            <div class="section">
+              <h2 class="section-title">Información del Pago</h2>
+              <div class="form-grid">
+                <div class="form-group full-width">
+                  <label>ID de Matrícula *</label>
+                  <input type="text" id="matriculaIdPago" name="matriculaId" readonly required style="background: #f0f0f0;">
+                  <input type="hidden" name="saldoPendiente" id="saldoPendientePago" value="0">
+                  <span class="hint">Selecciona una matrícula desde la pestaña "Buscar Alumno"</span>
+                </div>
+                <div class="form-group">
+                  <label>Número de Cuota *</label>
+                  <input type="number" name="numeroCuota" min="1" required>
+                  <span class="hint">Se auto-completa al seleccionar una matrícula</span>
+                </div>
+                <div class="form-group">
+                  <label>Monto (USD) *</label>
+                  <input type="number" name="monto" step="0.01" min="0.01" required>
+                </div>
+                <div class="form-group">
+                  <label>Medio de Pago *</label>
+                  <select name="medioPago" required>
+                    <option value="">Seleccionar...</option>
+                    <option value="Openpay">Openpay</option>
+                    <option value="Stripe">Stripe</option>
+                    <option value="PayPal">PayPal</option>
+                    <option value="Transferencia">Transferencia Bancaria</option>
+                    <option value="Efectivo">Efectivo</option>
+                    <option value="Otro">Otro</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>ID de Operación</label>
+                  <input type="text" name="idOperacion" placeholder="Número de transacción">
+                </div>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button type="button" class="btn-small" onclick="cancelarRegistroPago()" style="background: #e5e7eb; color: #374151; padding: 14px 30px; font-size: 16px;">← Volver a Buscar</button>
+              <button type="submit" class="btn-submit">💾 Registrar Pago</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </main>
+
+    <?!= include('footer'); ?>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  
+  <script>
+    var alumnoSeleccionado = null;
+    var matriculasAlumno = [];
+
+    document.addEventListener('DOMContentLoaded', function() {
+      // Verificar si hay una matrícula pre-seleccionada en la URL
+      var urlParams = new URLSearchParams(window.location.search);
+      var matriculaId = urlParams.get('matriculaId');
+      if (matriculaId) {
+        document.getElementById('matriculaIdPago').value = matriculaId;
+        showTab('registrar');
+      }
+    });
+
+    function buscarAlumnoParaPago() {
+      var termino = document.getElementById('busquedaAlumno').value.trim();
+      var resultadosDiv = document.getElementById('resultadosBusqueda');
+      
+      console.log('🔍 Buscando alumno con término:', termino);
+      
+      if (termino.length < 2) {
+        resultadosDiv.innerHTML = '';
+        return;
+      }
+      
+      google.script.run
+        .withSuccessHandler(function(alumnos) {
+          console.log('✅ Respuesta de buscarAlumno:', alumnos);
+          console.log('   Tipo:', typeof alumnos, 'Es array?', Array.isArray(alumnos));
+          
+          // Validar que alumnos sea un array
+          if (!alumnos || !Array.isArray(alumnos)) {
+            console.error('❌ Error: buscarAlumno no retornó un array válido');
+            resultadosDiv.innerHTML = '<p style="color: red; text-align: center;">Error: Respuesta inválida del servidor</p>';
+            return;
+          }
+          
+          if (alumnos.length === 0) {
+            resultadosDiv.innerHTML = '<p style="color: #6b7280; text-align: center;">No se encontraron alumnos</p>';
+            return;
+          }
+          
+          var html = '<div style="max-height: 300px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 6px;">';
+          alumnos.forEach(function(a) {
+            if (!a) return;
+            html += '<div class="search-result" onclick="seleccionarAlumnoParaPago(\'' + a.ID + '\')">';
+            html += '<div class="search-result-name">' + (a.Nombre || 'Sin nombre') + '</div>';
+            html += '<div class="search-result-email">' + (a.Email || 'Sin email') + ' • ' + (a.Telefono || 'Sin teléfono') + '</div>';
+            html += '</div>';
+          });
+          html += '</div>';
+          
+          if (alumnos.length === 10) {
+            html += '<p style="text-align: center; color: #6b7280; font-size: 12px; margin-top: 8px;">Mostrando primeros 10 resultados. Refina tu búsqueda para ver más.</p>';
+          }
+          
+          console.log('✅ Renderizando', alumnos.length, 'resultados');
+          resultadosDiv.innerHTML = html;
+        })
+        .withFailureHandler(function(error) {
+          console.error('❌ Error buscando alumnos:', error);
+          showToast('Error al buscar alumnos: ' + error, 'error');
+        })
+        .buscarAlumno(termino);
+    }
+
+    function seleccionarAlumnoParaPago(alumnoId) {
+      console.log('🔍 [pagos] seleccionarAlumnoParaPago:', alumnoId);
+      
+      google.script.run
+        .withSuccessHandler(function(data) {
+          console.log('✅ [pagos] Respuesta recibida:', data ? 'objeto' : 'null');
+          
+          if (!data || !data.alumno) {
+            console.error('❌ [pagos] Datos inválidos:', data);
+            showToast('No se pudo cargar la información del alumno', 'error');
+            return;
+          }
+          
+          console.log('✅ [pagos] Alumno:', data.alumno.Nombre, 'Matrículas:', (data.matriculas || []).length);
+          alumnoSeleccionado = data.alumno;
+          matriculasAlumno = data.matriculas || [];
+          
+          mostrarMatriculasAlumno();
+        })
+        .withFailureHandler(function(error) {
+          console.error('❌ [pagos] Error:', error);
+          showToast('Error al cargar matrículas: ' + error.message, 'error');
+        })
+        .obtenerDatosAlumnoCompletos(alumnoId);
+    }
+
+    function mostrarMatriculasAlumno() {
+      document.getElementById('matriculasSection').style.display = 'block';
+      
+      // Mostrar info del alumno
+      var infoHtml = '<strong>' + alumnoSeleccionado.Nombre + '</strong><br>';
+      infoHtml += alumnoSeleccionado.Email + ' • ' + alumnoSeleccionado.Telefono;
+      document.getElementById('alumnoInfo').innerHTML = infoHtml;
+      
+      // Debug: mostrar matrículas en consola
+      console.log('Matrículas del alumno:', matriculasAlumno);
+      
+      // Mostrar matrículas
+      var html = '';
+      if (matriculasAlumno.length === 0) {
+        html = '<p style="text-align: center; color: #6b7280;">Este alumno no tiene matrículas registradas</p>';
+      } else {
+        matriculasAlumno.forEach(function(m) {
+          console.log('Matrícula:', m.ID, 'Saldo:', m.SaldoPendiente);
+          
+          var estadoClass = m.Estado === 'Pago Completo' ? 'completo' : 'pendiente';
+          var badgeClass = m.Estado === 'Pago Completo' ? 'badge-completo' : 'badge-pendiente';
+          
+          html += '<div class="matricula-card ' + estadoClass + '">';
+          html += '<div class="matricula-header">';
+          html += '<div><strong>' + m.ID + '</strong> - ' + m.Seccion + '</div>';
+          html += '<span class="badge-estado ' + badgeClass + '">' + m.Estado + '</span>';
+          html += '</div>';
+          
+          html += '<div class="matricula-info">';
+          html += '<div class="info-item"><span class="info-label">Precio Total</span><span class="info-value">$' + (m.PrecioTotal || 0).toFixed(2) + '</span></div>';
+          html += '<div class="info-item"><span class="info-label">Total Pagado</span><span class="info-value">$' + (m.TotalPagado || 0).toFixed(2) + '</span></div>';
+          html += '<div class="info-item"><span class="info-label">Saldo Pendiente</span><span class="info-value" style="color: #dc2626;">$' + (m.SaldoPendiente || 0).toFixed(2) + '</span></div>';
+          html += '</div>';
+          
+          if (m.Pagos && m.Pagos.length > 0) {
+            html += '<div class="pagos-list">';
+            html += '<strong style="font-size: 13px; color: #374151;">Historial de Pagos:</strong>';
+            m.Pagos.forEach(function(p) {
+              html += '<div class="pago-item">';
+              html += '<span>Cuota ' + p.NumeroCuota + ' - ' + p.MedioPago + '</span>';
+              html += '<span><strong>$' + (p.Monto || 0).toFixed(2) + '</strong> • ' + p.FechaPago + '</span>';
+              html += '</div>';
+            });
+            html += '</div>';
+          }
+          
+          // Mostrar botón de registrar pago si hay saldo pendiente
+          if (m.SaldoPendiente > 0) {
+            html += '<div style="margin-top: 10px;">';
+            html += '<button class="btn-small" onclick="prepararPagoConCuotas(\'' + m.ID + '\', ' + m.SaldoPendiente + ', ' + (m.Pagos ? m.Pagos.length + 1 : 1) + ')">➕ Registrar Pago</button>';
+            html += '</div>';
+          } else {
+            html += '<div style="margin-top: 10px; text-align: center; color: #10b981; font-weight: 600;">';
+            html += '✓ Pago completado';
+            html += '</div>';
+          }
+          
+          html += '</div>';
+        });
+      }
+      
+      document.getElementById('matriculasList').innerHTML = html;
+    }
+
+    function prepararPago(matriculaId, saldoPendiente, numeroCuota) {
+      document.getElementById('matriculaIdPago').value = matriculaId;
+      
+      // Auto-llenar el número de cuota (no permitir cambiarlo manualmente)
+      var inputCuota = document.querySelector('input[name="numeroCuota"]');
+      inputCuota.value = numeroCuota;
+      inputCuota.readOnly = true;
+      inputCuota.style.background = '#f0f0f0';
+      
+      document.querySelector('input[name="monto"]').value = saldoPendiente.toFixed(2);
+      showTab('registrar');
+      showToast('Matrícula ' + matriculaId + ' seleccionada - Cuota #' + numeroCuota, 'success');
+    }
+
+    function prepararPagoConCuotas(matriculaId, saldoPendiente, numeroCuota) {
+      google.script.run
+        .withSuccessHandler(function(cuotas) {
+          var montoSugerido = saldoPendiente;
+          if (cuotas && cuotas.length > 0) {
+            var cuotaProgramada = null;
+            for (var c = 0; c < cuotas.length; c++) {
+              if (cuotas[c].numero === numeroCuota) { cuotaProgramada = cuotas[c]; break; }
+            }
+            if (cuotaProgramada && cuotaProgramada.monto > 0) {
+              montoSugerido = cuotaProgramada.monto;
+            }
+          }
+          // Si el monto sugerido es mayor al saldo, usar el saldo
+          if (montoSugerido > saldoPendiente) montoSugerido = saldoPendiente;
+          prepararPago(matriculaId, montoSugerido, numeroCuota);
+        })
+        .withFailureHandler(function() {
+          prepararPago(matriculaId, saldoPendiente, numeroCuota);
+        })
+        .getCuotasProgramadas(matriculaId);
+    }
+
+    function cancelarRegistroPago() {
+      // Limpiar el formulario
+      document.getElementById('pagoForm').reset();
+      document.getElementById('matriculaIdPago').value = '';
+      
+      // Volver a la pestaña de búsqueda
+      showTab('buscar');
+      showToast('Registro de pago cancelado', 'info');
+    }
+
+    function handleSubmitPago(event) {
+      event.preventDefault();
+      var form = event.target;
+      
+      console.log('=== INICIO handleSubmitPago ===');
+      console.log('Timestamp: ' + new Date().toLocaleString('es-ES'));
+      
+      var matriculaId = form.matriculaId.value;
+      var monto = parseFloat(form.monto.value);
+      var saldoPendiente = parseFloat(form.saldoPendiente.value) || 0;
+      
+      console.log('Datos del formulario:');
+      console.log('  - Matrícula: ' + matriculaId);
+      console.log('  - Monto: ' + monto);
+      console.log('  - Saldo pendiente: ' + saldoPendiente);
+      console.log('  - Cuota: ' + form.numeroCuota.value);
+      console.log('  - Medio pago: ' + form.medioPago.value);
+      console.log('  - ID Operación: ' + form.idOperacion.value);
+      
+      // VALIDACIÓN: Si monto > saldo pendiente
+      if (monto > saldoPendiente && saldoPendiente > 0) {
+        var excedente = (monto - saldoPendiente).toFixed(2);
+        var mensaje = '⚠️ ADVERTENCIA\n\n' +
+                      'El pago ($' + monto.toFixed(2) + ') es mayor al saldo pendiente ($' + saldoPendiente.toFixed(2) + ')\n\n' +
+                      'Excedente: $' + excedente + '\n\n' +
+                      '¿Deseas continuar?\n' +
+                      '- Se completará el saldo de esta matrícula\n' +
+                      '- El excedente se aplicará a la siguiente cuota';
+        
+        console.log('⚠️ Advertencia de excedente mostrada al usuario');
+        if (!confirm(mensaje)) {
+          console.log('Usuario canceló el pago');
+          showToast('Pago cancelado', 'info');
+          return;
+        }
+        console.log('Usuario confirmó continuar con el pago');
+      }
+      
+      var data = {
+        matriculaId: matriculaId,
+        numeroCuota: parseInt(form.numeroCuota.value),
+        monto: monto,
+        medioPago: form.medioPago.value,
+        idOperacion: form.idOperacion.value || ''
+      };
+
+      console.log('Enviando datos a savePago...');
+      var btnPago = form.querySelector('button[type="submit"]');
+      if (btnPago) { btnPago.disabled = true; btnPago.textContent = '⏳ Procesando...'; }
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (btnPago) { btnPago.disabled = false; btnPago.textContent = '💾 Registrar Pago'; }
+          console.log('✓ Respuesta recibida de savePago:');
+          console.log('  - Success: ' + result.success);
+          console.log('  - Pago ID: ' + result.pagoId);
+          console.log('  - Excedente: ' + result.excedente);
+          console.log('  - Duplicado detectado: ' + result.duplicadoDetectado);
+          
+          if (result.success) {
+            var mensaje = 'Pago registrado exitosamente: ' + result.pagoId;
+            if (result.excedente && result.excedente > 0) {
+              mensaje += '\n\nExcedente de $' + result.excedente.toFixed(2) + ' aplicado a siguiente cuota';
+            }
+            if (result.duplicadoDetectado) {
+              mensaje += '\n\n⚠️ NOTA: Se detectó un pago similar reciente. Verifica que no sea un duplicado.';
+            }
+            showToast(mensaje, 'success');
+            form.reset();
+            
+            // Habilitar nuevamente el campo de número de cuota
+            var inputCuota = document.querySelector('input[name="numeroCuota"]');
+            inputCuota.readOnly = false;
+            inputCuota.style.background = '';
+            
+            // Recargar matrículas si hay un alumno seleccionado
+            if (alumnoSeleccionado) {
+              console.log('Recargando matrículas del alumno: ' + alumnoSeleccionado.ID);
+              seleccionarAlumnoParaPago(alumnoSeleccionado.ID);
+            }
+            
+            console.log('=== FIN handleSubmitPago - EXITOSO ===');
+            showTab('buscar');
+          } else {
+            console.log('❌ Error en savePago: ' + result.message);
+            showToast(result.message, 'error');
+          }
+        })
+        .withFailureHandler(function(error) {
+          if (btnPago) { btnPago.disabled = false; btnPago.textContent = '💾 Registrar Pago'; }
+          console.error('❌ Error registrando pago:', error);
+          console.log('=== FIN handleSubmitPago - ERROR ===');
+          showToast('Error al registrar pago', 'error');
+        })
+        .savePago(data);
+    }
+
+    function showTab(tabName) {
+      document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+      document.querySelectorAll('.tab-content').forEach(function(t) { t.classList.remove('active'); });
+      document.getElementById('tab-' + tabName).classList.add('active');
+      event.target.classList.add('active');
+      
+      // Si se cambia a la pestaña de registrar sin haber seleccionado una matrícula,
+      // limpiar y habilitar el campo de número de cuota
+      if (tabName === 'registrar') {
+        var matriculaId = document.getElementById('matriculaIdPago').value;
+        if (!matriculaId) {
+          var inputCuota = document.querySelector('input[name="numeroCuota"]');
+          inputCuota.readOnly = false;
+          inputCuota.style.background = '';
+          inputCuota.value = '';
+        }
+      }
+    }
+
+    function showToast(message, type) {
+      var toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = 'toast ' + type + ' show';
+      setTimeout(function() { toast.classList.remove('show'); }, 4000);
+    }
+
+  </script>
+</body>
+</html>

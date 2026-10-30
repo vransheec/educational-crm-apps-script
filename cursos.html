@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="frame-ancestors 'self' https://*.googleusercontent.com https://*.google.com">
+  <?!= includeWithBaseUrl('config'); ?>
+  <?!= include('styles'); ?>
+  <style>
+    .editable { cursor: pointer; border-bottom: 1px dashed #ccc; }
+    .editable:hover { background: #f0f0f0; }
+    
+    .edit-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .edit-modal.show { display: flex; }
+    .edit-modal-content {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      max-width: 500px;
+      width: 90%;
+    }
+    .edit-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid var(--primary);
+    }
+    .edit-modal-header h3 {
+      margin: 0;
+      color: var(--primary);
+      font-size: 20px;
+    }
+    .edit-modal-close {
+      background: none;
+      border: none;
+      font-size: 28px;
+      cursor: pointer;
+      color: #666;
+      padding: 0;
+      width: 30px;
+      height: 30px;
+      line-height: 1;
+    }
+    .edit-modal-close:hover { color: var(--danger); }
+    .edit-modal-body {
+      margin-bottom: 20px;
+    }
+    .edit-modal-body label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #333;
+    }
+    .edit-modal-body input,
+    .edit-modal-body select {
+      width: 100%;
+      padding: 10px;
+      border: 2px solid #e5e7eb;
+      border-radius: 6px;
+      font-size: 14px;
+      transition: border-color 0.2s;
+      box-sizing: border-box;
+    }
+    .edit-modal-body input:focus,
+    .edit-modal-body select:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    .edit-modal-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+    .edit-modal-actions button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .btn-cancel {
+      background: #e5e7eb;
+      color: #374151;
+    }
+    .btn-cancel:hover { background: #d1d5db; }
+    .btn-save {
+      background: var(--primary);
+      color: white;
+    }
+    .btn-save:hover { background: #1e3a8a; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <?!= includeWithCurrentPage('nav', currentPage); ?>
+
+    <main class="main cursos-page" data-page="cursos">
+      <div class="form-card">
+        <h1 class="form-title">📚 Gestión de Cursos</h1>
+        
+        <div class="tabs">
+          <button class="tab active" onclick="showTab('todos')">Todos los Cursos</button>
+          <button class="tab" onclick="showTab('agregar')">Agregar Curso</button>
+        </div>
+
+        <div id="tab-todos" class="tab-content active">
+          <div class="section">
+            <h2 class="section-title">Filtrar Cursos</h2>
+            <div class="form-grid">
+              <div class="form-group">
+                <label>Tecnología</label>
+                <select id="filtroTecnologia" onchange="filtrarCursos()">
+                  <option value="">Todas</option>
+                  <option value="Cloud">Cloud</option>
+                  <option value="Data">Data</option>
+                  <option value="DevOps">DevOps</option>
+                  <option value="Security">Security</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Provider</label>
+                <select id="filtroProvider" onchange="filtrarCursos()">
+                  <option value="">Todos</option>
+                  <option value="AWS">AWS</option>
+                  <option value="Azure">Azure</option>
+                  <option value="GCP">GCP</option>
+                  <option value="Terraform">Terraform</option>
+                  <option value="Kubernetes">Kubernetes</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Código</th>
+                  <th>Nombre</th>
+                  <th>Tecnología</th>
+                  <th>Provider</th>
+                  <th>Nivel</th>
+                  <th>Horas</th>
+                  <th>Precio Base</th>
+                  <th>Beneficios</th>
+                  <th>Requisitos</th>
+                  <th>Imagen</th>
+                </tr>
+              </thead>
+              <tbody id="cursosBody">
+                <tr><td colspan="9">Cargando...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="tab-agregar" class="tab-content">
+          <form id="cursoForm" onsubmit="handleSubmitCurso(event)">
+            <div class="section">
+              <h2 class="section-title">📚 Datos del Curso</h2>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label>Código del Curso *</label>
+                  <input type="text" name="codigo" required placeholder="CLF, SAA, DVA...">
+                </div>
+                <div class="form-group full-width">
+                  <label>Nombre del Curso *</label>
+                  <input type="text" name="nombre" required placeholder="AWS Certified Cloud Practitioner">
+                </div>
+                <div class="form-group">
+                  <label>Tecnología *</label>
+                  <select name="tecnologia" required>
+                    <option value="">Seleccionar...</option>
+                    <option value="Cloud">Cloud</option>
+                    <option value="Data">Data</option>
+                    <option value="DevOps">DevOps</option>
+                    <option value="Security">Security</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Provider *</label>
+                  <select name="provider" required>
+                    <option value="">Seleccionar...</option>
+                    <option value="AWS">AWS</option>
+                    <option value="Azure">Azure</option>
+                    <option value="GCP">GCP</option>
+                    <option value="Terraform">Terraform</option>
+                    <option value="Kubernetes">Kubernetes</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Nivel *</label>
+                  <select name="nivel" required>
+                    <option value="">Seleccionar...</option>
+                    <option value="Básico">Básico</option>
+                    <option value="Asociado">Asociado</option>
+                    <option value="Profesional">Profesional</option>
+                    <option value="Especialidad">Especialidad</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Horas de Dictado *</label>
+                  <input type="number" name="horas" required min="0" step="0.5">
+                </div>
+                <div class="form-group">
+                  <label>Precio Base (USD) *</label>
+                  <input type="number" name="precioBase" required min="0" step="0.01">
+                </div>
+              </div>
+            </div>
+
+            <div class="section">
+              <h2 class="section-title">📅 Frecuencia y Beneficios</h2>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label>Frecuencia del Curso</label>
+                  <select name="frecuencia">
+                    <option value="3 veces por semana">3 veces por semana</option>
+                    <option value="L-M-V">Lunes, Miércoles y Viernes</option>
+                    <option value="S-D">Sábados y Domingos</option>
+                    <option value="S">Solo Sábados</option>
+                    <option value="D">Solo Domingos</option>
+                    <option value="1 vez por semana">1 vez por semana</option>
+                  </select>
+                  <span class="hint">Días de la semana en que se dicta el curso</span>
+                </div>
+                <div class="form-group full-width">
+                  <label>Beneficios del Curso</label>
+                  <textarea name="beneficios" rows="4" placeholder="✅ Acceso a contenido exclusivo&#10;✅ Clases grabadas&#10;✅ Material de estudio&#10;✅ Certificado de participación"></textarea>
+                  <span class="hint">Un beneficio por línea. Se mostrarán en el correo de bienvenida.</span>
+                </div>
+                <div class="form-group full-width">
+                  <label>Requisitos de Clase</label>
+                  <textarea name="requisitos_clase" rows="4" placeholder="📋 Conocimientos básicos de informática&#10;📋 Acceso a internet estable&#10;📋 Computadora con navegador actualizado&#10;📋 Disponibilidad de tiempo para práctica"></textarea>
+                  <span class="hint">Un requisito por línea. Se mostrarán en la información del curso.</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="section">
+              <h2 class="section-title">🖼️ Imagen del Curso</h2>
+              <div class="form-group full-width">
+                <label>Imagen Actual</label>
+                <div id="cursoImagenActual" style="margin-bottom: 15px; padding: 15px; background: #f5f5f5; border-radius: 8px; text-align: center; display: none;">
+                  <img id="cursoImagenActualImg" src="" style="max-width: 300px; max-height: 200px; border-radius: 8px; margin-bottom: 10px;">
+                  <p style="margin: 5px 0; font-size: 12px; color: #666;">Imagen actual del curso</p>
+                </div>
+                <div id="cursoImagenNoActual" style="margin-bottom: 15px; padding: 15px; background: #f5f5f5; border-radius: 8px; text-align: center;">
+                  <p style="margin: 0; font-size: 12px; color: #999;">Sin imagen cargada</p>
+                </div>
+              </div>
+              <div class="form-group full-width">
+                <label>Cambiar Imagen (opcional)</label>
+                <input type="file" id="cursoImagen" accept="image/*" onchange="previewCursoImagen(this)">
+                <span class="hint">Formats: JPG, PNG. Max 5MB. Aparece en correos de bienvenida.</span>
+                <div id="cursoImagenPreview" style="margin-top: 10px; display: none;">
+                  <p style="font-size: 12px; color: #666; margin-bottom: 10px;">Nueva imagen (preview):</p>
+                  <img id="cursoImagenImg" src="" style="max-width: 300px; max-height: 200px; border-radius: 8px;">
+                  <button type="button" onclick="eliminarCursoImagen()" class="btn-small" style="margin-left: 10px; background: #dc3545; color: white;">🗑️ Cancelar cambio</button>
+                </div>
+                <input type="hidden" name="imagenBase64" id="imagenBase64">
+                <input type="hidden" name="imagenFileId" id="imagenFileId">
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" class="btn-submit">💾 Guardar Curso</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </main>
+
+    <?!= include('footer'); ?>
+  </div>
+
+  <div id="editModal" class="edit-modal">
+    <div class="edit-modal-content">
+      <div class="edit-modal-header">
+        <h3>✏️ Editar Campo</h3>
+        <button class="edit-modal-close" onclick="closeEditModal()">×</button>
+      </div>
+      <div class="edit-modal-body">
+        <label id="editLabel">Campo</label>
+        <input type="text" id="editInput" style="display:none;">
+        <select id="editSelect" style="display:none;"></select>
+      </div>
+      <div class="edit-modal-actions">
+        <button class="btn-cancel" onclick="closeEditModal()">Cancelar</button>
+        <button class="btn-save" onclick="saveEdit()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  
+  <script>
+    var todosCursos = [];
+    var currentEditData = null;
+
+    document.addEventListener('DOMContentLoaded', function() {
+      loadCursos();
+    });
+
+    function loadCursos() {
+      google.script.run
+        .withSuccessHandler(function(cursos) {
+          todosCursos = cursos;
+          renderCursos(cursos);
+        })
+        .getCursos();
+    }
+
+    function filtrarCursos() {
+      var tecnologia = document.getElementById('filtroTecnologia').value;
+      var provider = document.getElementById('filtroProvider').value;
+      
+      var filtrados = todosCursos.filter(function(c) {
+        return (!tecnologia || c.Tecnologia === tecnologia) &&
+               (!provider || c.Provider === provider);
+      });
+      
+      renderCursos(filtrados);
+    }
+
+    function renderCursos(cursos) {
+      var tbody = document.getElementById('cursosBody');
+      if (!cursos || cursos.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9">No hay cursos registrados</td></tr>';
+        return;
+      }
+
+      var html = '';
+      cursos.forEach(function(c) {
+        html += '<tr>';
+        html += '<td><strong>' + c.Codigo + '</strong></td>';
+        html += '<td class="editable" onclick="editarCampoCurso(\'' + c.Codigo + '\', \'Nombre\', this)">' + c.Nombre + '</td>';
+        html += '<td class="editable" onclick="editarCampoCurso(\'' + c.Codigo + '\', \'Tecnologia\', this)">' + c.Tecnologia + '</td>';
+        html += '<td class="editable" onclick="editarCampoCurso(\'' + c.Codigo + '\', \'Provider\', this)">' + c.Provider + '</td>';
+        html += '<td class="editable" onclick="editarCampoCurso(\'' + c.Codigo + '\', \'Nivel\', this)">' + c.Nivel + '</td>';
+        html += '<td class="editable" onclick="editarCampoCurso(\'' + c.Codigo + '\', \'Horas\', this)">' + c.Horas + 'h</td>';
+        html += '<td class="editable" onclick="editarCampoCurso(\'' + c.Codigo + '\', \'PrecioBase\', this)">$' + (c.PrecioBase || 0).toFixed(2) + '</td>';
+        html += '<td style="text-align: center; min-width: 100px;">';
+        html += '<button type="button" class="btn-small" onclick="abrirModalBeneficios(\'' + c.Codigo + '\', \'' + c.Nombre.replace(/'/g, "\\'") + '\')" style="background: #3b82f6; color: white; padding: 6px 12px; font-size: 12px;">✏️ Editar</button>';
+        html += '</td>';
+        html += '<td style="text-align: center; min-width: 100px;">';
+        html += '<button type="button" class="btn-small" onclick="abrirModalRequisitos(\'' + c.Codigo + '\', \'' + c.Nombre.replace(/'/g, "\\'") + '\')" style="background: #f59e0b; color: white; padding: 6px 12px; font-size: 12px;">✏️ Editar</button>';
+        html += '</td>';
+        html += '<td style="text-align: center; min-width: 120px;">';
+        if (c.URLImagen) {
+          html += '<img src="' + c.URLImagen + '" style="width: 40px; height: 40px; border-radius: 4px; object-fit: cover; cursor: pointer;" onclick="abrirModalImagenCurso(\'' + c.Codigo + '\', \'' + c.Nombre.replace(/'/g, "\\'") + '\', \'' + (c.URLImagen || '').replace(/'/g, "\\'") + '\')" title="Click para cambiar imagen">';
+        } else {
+          html += '<span style="cursor: pointer; font-size: 20px;" onclick="abrirModalImagenCurso(\'' + c.Codigo + '\', \'' + c.Nombre.replace(/'/g, "\\'") + '\', \'\')" title="Click para agregar imagen">📷</span>';
+        }
+        html += '</td>';
+        html += '</tr>';
+      });
+      tbody.innerHTML = html;
+    }
+
+    function subirImagenCurso(codigo, input) {
+      console.log('*** subirImagenCurso LLAMADA - Código: ' + codigo);
+      
+      if (input.files && input.files[0]) {
+        var file = input.files[0];
+        console.log('Archivo seleccionado: ' + file.name + ', tamaño: ' + file.size);
+        
+        if (file.size > 5 * 1024 * 1024) {
+          showToast('La imagen no puede superar 5MB', 'error');
+          input.value = '';
+          return;
+        }
+        
+        if (!file.type.match('image.*')) {
+          showToast('Solo se permiten imágenes (JPG, PNG)', 'error');
+          input.value = '';
+          return;
+        }
+        
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          var base64 = e.target.result.split(',')[1];
+          console.log('Base64 generado, length: ' + base64.length);
+          console.log('Llamando a google.script.run.subirImagenCursoBase64...');
+          
+          google.script.run
+            .withSuccessHandler(function(result) {
+              console.log('SUCCESS HANDLER EJECUTADO');
+              console.log('Result: ' + JSON.stringify(result));
+              
+              if (result.success) {
+                console.log('Éxito - URL: ' + result.url);
+                showToast('Imagen subida correctamente. Recarga la página para verla.', 'success');
+                input.value = '';
+              } else {
+                console.log('Error en resultado: ' + result.message);
+                showToast('Error: ' + result.message, 'error');
+                input.value = '';
+              }
+            })
+            .withFailureHandler(function(error) {
+              console.log('FAILURE HANDLER EJECUTADO');
+              console.log('Error: ' + error);
+              showToast('Error al subir: ' + error, 'error');
+              input.value = '';
+            })
+            .subirImagenCursoBase64(base64, codigo, file.name);
+            
+          console.log('google.script.run llamado');
+        };
+        reader.readAsDataURL(file);
+      } else {
+        console.log('No hay archivo seleccionado');
+      }
+    }
+
+    function editarCampoCurso(codigo, campo, celda) {
+      var valorActual = celda.textContent.replace('h', '').trim();
+      
+      currentEditData = {
+        codigo: codigo,
+        campo: campo,
+        celda: celda,
+        valorActual: valorActual
+      };
+      
+      document.getElementById('editLabel').textContent = 'Editar ' + campo;
+      
+      var inputEl = document.getElementById('editInput');
+      var selectEl = document.getElementById('editSelect');
+      
+      inputEl.style.display = 'none';
+      selectEl.style.display = 'none';
+      
+      if (campo === 'Tecnologia') {
+        selectEl.innerHTML = '<option value="Cloud">Cloud</option><option value="Data">Data</option><option value="DevOps">DevOps</option><option value="Security">Security</option>';
+        selectEl.value = valorActual;
+        selectEl.style.display = 'block';
+      } else if (campo === 'Provider') {
+        selectEl.innerHTML = '<option value="AWS">AWS</option><option value="Azure">Azure</option><option value="GCP">GCP</option><option value="Terraform">Terraform</option><option value="Kubernetes">Kubernetes</option>';
+        selectEl.value = valorActual;
+        selectEl.style.display = 'block';
+      } else if (campo === 'Nivel') {
+        selectEl.innerHTML = '<option value="Básico">Básico</option><option value="Asociado">Asociado</option><option value="Profesional">Profesional</option><option value="Especialidad">Especialidad</option>';
+        selectEl.value = valorActual;
+        selectEl.style.display = 'block';
+      } else {
+        inputEl.value = valorActual;
+        inputEl.type = (campo === 'Horas' || campo === 'PrecioBase') ? 'number' : 'text';
+        inputEl.step = (campo === 'PrecioBase') ? '0.01' : (campo === 'Horas') ? '0.5' : '1';
+        inputEl.style.display = 'block';
+      }
+      
+      document.getElementById('editModal').classList.add('show');
+    }
+
+    function closeEditModal() {
+      document.getElementById('editModal').classList.remove('show');
+      currentEditData = null;
+    }
+
+    function saveEdit() {
+      if (!currentEditData) return;
+      
+      var inputEl = document.getElementById('editInput');
+      var selectEl = document.getElementById('editSelect');
+      var nuevoValor = inputEl.style.display !== 'none' ? inputEl.value.trim() : selectEl.value;
+      
+      if (nuevoValor === currentEditData.valorActual) {
+        closeEditModal();
+        return;
+      }
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            if (currentEditData.campo === 'Horas') {
+              currentEditData.celda.textContent = nuevoValor + 'h';
+            } else if (currentEditData.campo === 'PrecioBase') {
+              currentEditData.celda.textContent = parseFloat(nuevoValor).toFixed(2);
+            } else {
+              currentEditData.celda.textContent = nuevoValor;
+            }
+            showToast('Campo actualizado', 'success');
+            closeEditModal();
+            loadCursos();
+          } else {
+            showToast('Error al actualizar', 'error');
+          }
+        })
+        .updateCurso(currentEditData.codigo, currentEditData.campo, nuevoValor);
+    }
+
+    function handleSubmitCurso(event) {
+      event.preventDefault();
+      var form = event.target;
+
+      var data = {
+        codigo: form.codigo.value,
+        nombre: form.nombre.value,
+        tecnologia: form.tecnologia.value,
+        provider: form.provider.value,
+        nivel: form.nivel.value,
+        horas: form.horas.value,
+        precioBase: form.precioBase.value,
+        frecuencia: form.frecuencia.value,
+        beneficios: form.beneficios.value,
+        requisitos_clase: form.requisitos_clase.value,
+        imagenBase64: form.imagenBase64 ? form.imagenBase64.value : '',
+        imagenFileId: form.imagenFileId ? form.imagenFileId.value : ''
+      };
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            showToast(result.message, 'success');
+            form.reset();
+            document.getElementById('cursoImagen').value = '';
+            document.getElementById('cursoImagenPreview').style.display = 'none';
+            document.getElementById('imagenBase64').value = '';
+            document.getElementById('imagenFileId').value = '';
+            loadCursos();
+            showTab('todos');
+          } else {
+            showToast(result.message, 'error');
+          }
+        })
+        .guardarCursoConImagen(data);
+    }
+
+    function showTab(tabName) {
+      document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+      document.querySelectorAll('.tab-content').forEach(function(t) { t.classList.remove('active'); });
+      document.getElementById('tab-' + tabName).classList.add('active');
+      event.target.classList.add('active');
+      
+      // Limpiar formulario cuando se abre la pestaña "Agregar"
+      if (tabName === 'agregar') {
+        document.getElementById('cursoForm').reset();
+        document.getElementById('cursoImagen').value = '';
+        document.getElementById('cursoImagenPreview').style.display = 'none';
+        document.getElementById('cursoImagenActual').style.display = 'none';
+        document.getElementById('cursoImagenNoActual').style.display = 'block';
+        document.getElementById('imagenBase64').value = '';
+        document.getElementById('imagenFileId').value = '';
+      }
+    }
+
+    function showToast(message, type) {
+      var toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = 'toast ' + type + ' show';
+      setTimeout(function() { toast.classList.remove('show'); }, 4000);
+    }
+
+    function previewCursoImagen(input) {
+      if (input.files && input.files[0]) {
+        var file = input.files[0];
+        
+        if (file.size > 5 * 1024 * 1024) {
+          showToast('La imagen no puede superar 5MB', 'error');
+          input.value = '';
+          return;
+        }
+        
+        if (!file.type.match('image.*')) {
+          showToast('Solo se permiten imágenes (JPG, PNG)', 'error');
+          input.value = '';
+          return;
+        }
+        
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          document.getElementById('cursoImagenImg').src = e.target.result;
+          document.getElementById('cursoImagenPreview').style.display = 'block';
+          document.getElementById('imagenBase64').value = e.target.result.split(',')[1];
+          document.getElementById('imagenFileId').value = '';
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+    
+    function eliminarCursoImagen() {
+      document.getElementById('cursoImagen').value = '';
+      document.getElementById('cursoImagenPreview').style.display = 'none';
+      document.getElementById('cursoImagenImg').src = '';
+      document.getElementById('imagenBase64').value = '';
+      document.getElementById('imagenFileId').value = 'ELIMINAR';
+    }
+
+    function mostrarImagenActualCurso(imagenUrl) {
+      if (imagenUrl && imagenUrl.trim()) {
+        document.getElementById('cursoImagenActualImg').src = imagenUrl;
+        document.getElementById('cursoImagenActual').style.display = 'block';
+        document.getElementById('cursoImagenNoActual').style.display = 'none';
+      } else {
+        document.getElementById('cursoImagenActual').style.display = 'none';
+        document.getElementById('cursoImagenNoActual').style.display = 'block';
+      }
+    }
+
+    function abrirModalImagenCurso(codigo, nombre, imagenUrl) {
+      window.imagenModalData = { codigo: codigo, nombre: nombre };
+      document.getElementById('imagenModalCursoNombre').textContent = nombre;
+      document.getElementById('imagenModalInput').value = '';
+      document.getElementById('imagenModalPreview').style.display = 'none';
+      document.getElementById('imagenModalPreviewImg').src = '';
+      
+      if (imagenUrl && imagenUrl.trim()) {
+        document.getElementById('imagenModalActualImg').src = imagenUrl;
+        document.getElementById('imagenModalActual').style.display = 'block';
+        document.getElementById('imagenModalNoActual').style.display = 'none';
+      } else {
+        document.getElementById('imagenModalActual').style.display = 'none';
+        document.getElementById('imagenModalNoActual').style.display = 'block';
+      }
+      
+      document.getElementById('imagenModalCurso').classList.add('show');
+    }
+
+    function cerrarModalImagenCurso() {
+      document.getElementById('imagenModalCurso').classList.remove('show');
+      window.imagenModalData = null;
+    }
+
+    function previewImagenModal(input) {
+      if (input.files && input.files[0]) {
+        var file = input.files[0];
+        
+        if (file.size > 5 * 1024 * 1024) {
+          showToast('La imagen no puede superar 5MB', 'error');
+          input.value = '';
+          return;
+        }
+        
+        if (!file.type.match('image.*')) {
+          showToast('Solo se permiten imágenes (JPG, PNG)', 'error');
+          input.value = '';
+          return;
+        }
+        
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          document.getElementById('imagenModalPreviewImg').src = e.target.result;
+          document.getElementById('imagenModalPreview').style.display = 'block';
+          window.imagenModalBase64 = e.target.result.split(',')[1];
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function guardarImagenCurso() {
+      if (!window.imagenModalData || !window.imagenModalBase64) {
+        showToast('Selecciona una imagen primero', 'error');
+        return;
+      }
+      
+      console.log('guardarImagenCurso - Código: ' + window.imagenModalData.codigo);
+      console.log('Base64 length: ' + window.imagenModalBase64.length);
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          console.log('SUCCESS - Result: ' + JSON.stringify(result));
+          if (result.success) {
+            showToast('Imagen actualizada', 'success');
+            cerrarModalImagenCurso();
+            loadCursos();
+          } else {
+            showToast(result.message, 'error');
+          }
+        })
+        .withFailureHandler(function(error) {
+          console.log('FAILURE - Error: ' + error);
+          showToast('Error: ' + error, 'error');
+        })
+        .subirImagenCursoBase64(window.imagenModalBase64, window.imagenModalData.codigo, window.imagenModalData.nombre);
+    }
+
+    // ============================================
+    // GESTIÓN DE BENEFICIOS
+    // ============================================
+    var beneficiosActuales = [];
+    var cursoActualBeneficios = null;
+
+    function abrirModalBeneficios(codigoCurso, nombreCurso) {
+      cursoActualBeneficios = codigoCurso;
+      beneficiosActuales = [];
+      
+      google.script.run
+        .withSuccessHandler(function(beneficios) {
+          beneficiosActuales = beneficios || [];
+          renderizarBeneficios();
+          document.getElementById('beneficiosModal').classList.add('show');
+        })
+        .withFailureHandler(function(error) {
+          console.error('Error cargando beneficios:', error);
+          showToast('Error al cargar beneficios', 'error');
+        })
+        .obtenerBeneficiosCurso(codigoCurso);
+    }
+
+    function cerrarModalBeneficios() {
+      document.getElementById('beneficiosModal').classList.remove('show');
+      beneficiosActuales = [];
+      cursoActualBeneficios = null;
+    }
+
+    function renderizarBeneficios() {
+      var html = '';
+      if (beneficiosActuales.length === 0) {
+        html = '<p style="text-align: center; color: #999; padding: 20px;">No hay beneficios agregados aún</p>';
+      } else {
+        beneficiosActuales.forEach(function(beneficio, index) {
+          html += '<div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #f9f9f9; border-radius: 4px; margin-bottom: 8px;">';
+          html += '<span>✓ ' + beneficio + '</span>';
+          html += '<button type="button" class="btn-small" onclick="eliminarBeneficio(' + index + ')" style="background: #dc3545; color: white; padding: 4px 8px; font-size: 11px;">🗑️</button>';
+          html += '</div>';
+        });
+      }
+      document.getElementById('beneficiosList').innerHTML = html;
+    }
+
+    function agregarBeneficio() {
+      var input = document.getElementById('nuevoBeneficio');
+      var beneficio = input.value.trim();
+      
+      if (!beneficio) {
+        showToast('Ingresa un beneficio', 'error');
+        return;
+      }
+      
+      if (beneficiosActuales.includes(beneficio)) {
+        showToast('Este beneficio ya existe', 'error');
+        return;
+      }
+      
+      beneficiosActuales.push(beneficio);
+      input.value = '';
+      renderizarBeneficios();
+    }
+
+    function eliminarBeneficio(index) {
+      beneficiosActuales.splice(index, 1);
+      renderizarBeneficios();
+    }
+
+    function guardarBeneficios() {
+      if (!cursoActualBeneficios) {
+        showToast('Error: Curso no identificado', 'error');
+        return;
+      }
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            showToast('Beneficios guardados', 'success');
+            cerrarModalBeneficios();
+            loadCursos();
+          } else {
+            showToast(result.message, 'error');
+          }
+        })
+        .withFailureHandler(function(error) {
+          console.error('Error guardando beneficios:', error);
+          showToast('Error al guardar beneficios', 'error');
+        })
+        .guardarBeneficiosCurso(cursoActualBeneficios, beneficiosActuales);
+    }
+
+    // ============================================
+    // GESTIÓN DE REQUISITOS DE CLASE
+    // ============================================
+    var requisitosActuales = [];
+    var cursoActualRequisitos = null;
+
+    function abrirModalRequisitos(codigoCurso, nombreCurso) {
+      cursoActualRequisitos = codigoCurso;
+      requisitosActuales = [];
+      
+      google.script.run
+        .withSuccessHandler(function(requisitos) {
+          requisitosActuales = requisitos || [];
+          renderizarRequisitos();
+          document.getElementById('requisitosModal').classList.add('show');
+        })
+        .withFailureHandler(function(error) {
+          console.error('Error cargando requisitos:', error);
+          showToast('Error al cargar requisitos', 'error');
+        })
+        .obtenerRequisitosCurso(codigoCurso);
+    }
+
+    function cerrarModalRequisitos() {
+      document.getElementById('requisitosModal').classList.remove('show');
+      requisitosActuales = [];
+      cursoActualRequisitos = null;
+    }
+
+    function renderizarRequisitos() {
+      var html = '';
+      if (requisitosActuales.length === 0) {
+        html = '<p style="text-align: center; color: #999; padding: 20px;">No hay requisitos agregados aún</p>';
+      } else {
+        requisitosActuales.forEach(function(requisito, index) {
+          html += '<div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #f9f9f9; border-radius: 4px; margin-bottom: 8px;">';
+          html += '<span>📋 ' + requisito + '</span>';
+          html += '<button type="button" onclick="eliminarRequisito(' + index + ')" style="background: #ef4444; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px;">🗑️</button>';
+          html += '</div>';
+        });
+      }
+      document.getElementById('requisitosList').innerHTML = html;
+    }
+
+    function agregarRequisito() {
+      var input = document.getElementById('nuevoRequisito');
+      var requisito = input.value.trim();
+      
+      if (!requisito) {
+        showToast('Por favor ingresa un requisito', 'error');
+        return;
+      }
+      
+      if (requisitosActuales.includes(requisito)) {
+        showToast('Este requisito ya existe', 'error');
+        return;
+      }
+      
+      requisitosActuales.push(requisito);
+      input.value = '';
+      renderizarRequisitos();
+    }
+
+    function eliminarRequisito(index) {
+      requisitosActuales.splice(index, 1);
+      renderizarRequisitos();
+    }
+
+    function guardarRequisitos() {
+      if (!cursoActualRequisitos) {
+        showToast('Error: Curso no identificado', 'error');
+        return;
+      }
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            showToast('Requisitos guardados', 'success');
+            cerrarModalRequisitos();
+            loadCursos();
+          } else {
+            showToast('Error: ' + result.message, 'error');
+          }
+        })
+        .withFailureHandler(function(error) {
+          console.error('Error guardando requisitos:', error);
+          showToast('Error al guardar requisitos', 'error');
+        })
+        .guardarRequisitosCurso(cursoActualRequisitos, requisitosActuales);
+    }
+  </script>
+
+  <div id="imagenModalCurso" class="edit-modal">
+    <div class="edit-modal-content">
+      <div class="edit-modal-header">
+        <h3>🖼️ Cambiar Imagen del Curso</h3>
+        <button class="edit-modal-close" onclick="cerrarModalImagenCurso()">×</button>
+      </div>
+      <div class="edit-modal-body">
+        <label>Curso: <span id="imagenModalCursoNombre"></span></label>
+        <div id="imagenModalActual" style="margin: 15px 0; padding: 15px; background: #f5f5f5; border-radius: 8px; text-align: center; display: none;">
+          <p style="margin: 0 0 10px 0; font-size: 12px; color: #666;">Imagen actual:</p>
+          <img id="imagenModalActualImg" src="" style="max-width: 300px; max-height: 200px; border-radius: 8px;">
+        </div>
+        <div id="imagenModalNoActual" style="margin: 15px 0; padding: 15px; background: #f5f5f5; border-radius: 8px; text-align: center;">
+          <p style="margin: 0; font-size: 12px; color: #999;">Sin imagen cargada</p>
+        </div>
+        <label style="margin-top: 15px;">Seleccionar nueva imagen:</label>
+        <input type="file" id="imagenModalInput" accept="image/*" onchange="previewImagenModal(this)">
+        <div id="imagenModalPreview" style="margin-top: 10px; display: none;">
+          <p style="font-size: 12px; color: #666; margin-bottom: 10px;">Nueva imagen (preview):</p>
+          <img id="imagenModalPreviewImg" src="" style="max-width: 300px; max-height: 200px; border-radius: 8px;">
+        </div>
+      </div>
+      <div class="edit-modal-actions">
+        <button class="btn-cancel" onclick="cerrarModalImagenCurso()">Cancelar</button>
+        <button class="btn-save" onclick="guardarImagenCurso()">Guardar Imagen</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <!-- Modal de Beneficios -->
+  <div id="beneficiosModal" class="edit-modal">
+    <div class="edit-modal-content" style="max-width: 600px;">
+      <div class="edit-modal-header">
+        <h3>✨ Beneficios del Curso</h3>
+        <button class="edit-modal-close" onclick="cerrarModalBeneficios()">×</button>
+      </div>
+      <div class="edit-modal-body">
+        <div id="beneficiosList" style="margin-bottom: 15px; max-height: 300px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px;">
+          <!-- Los beneficios se cargarán aquí -->
+        </div>
+        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+          <input type="text" id="nuevoBeneficio" placeholder="Ej: Acceso a recursos exclusivos" style="flex: 1; padding: 8px; border: 2px solid #e5e7eb; border-radius: 6px;">
+          <button type="button" class="btn-small" onclick="agregarBeneficio()" style="background: #10b981; color: white;">➕ Agregar</button>
+        </div>
+      </div>
+      <div class="edit-modal-actions">
+        <button class="btn-cancel" onclick="cerrarModalBeneficios()">Cancelar</button>
+        <button class="btn-save" onclick="guardarBeneficios()">Guardar Beneficios</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Requisitos -->
+  <div id="requisitosModal" class="edit-modal">
+    <div class="edit-modal-content" style="max-width: 600px;">
+      <div class="edit-modal-header">
+        <h3>📋 Requisitos de Clase</h3>
+        <button class="edit-modal-close" onclick="cerrarModalRequisitos()">×</button>
+      </div>
+      <div class="edit-modal-body">
+        <div id="requisitosList" style="margin-bottom: 15px; max-height: 300px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px;">
+          <!-- Los requisitos se cargarán aquí -->
+        </div>
+        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+          <input type="text" id="nuevoRequisito" placeholder="Ej: Conocimientos básicos de informática" style="flex: 1; padding: 8px; border: 2px solid #e5e7eb; border-radius: 6px;">
+          <button type="button" class="btn-small" onclick="agregarRequisito()" style="background: #f59e0b; color: white;">➕ Agregar</button>
+        </div>
+      </div>
+      <div class="edit-modal-actions">
+        <button class="btn-cancel" onclick="cerrarModalRequisitos()">Cancelar</button>
+        <button class="btn-save" onclick="guardarRequisitos()">Guardar Requisitos</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

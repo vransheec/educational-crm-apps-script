@@ -1,0 +1,10 @@
+node_modules/
+.clasp.json
+.clasprc.json
+.env
+.env.*
+.DS_Store
+BACKUP_*
+*.bak
+.kiro/
+.vscode/

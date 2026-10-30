@@ -1,0 +1,1574 @@
+<script>
+var todosCursos = [];
+var todasSecciones = [];
+var todosAlumnos = [];
+var seccionCounter = 1;
+var cursosSeleccionados = [];
+var alumnoSeleccionadoId = null;
+var busquedaTimeout = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+  cargarDatos();
+});
+
+function cargarDatos() {
+  google.script.run
+    .withSuccessHandler(function(cursos) {
+      todosCursos = cursos;
+      poblarTecnologiasInicial();
+    })
+    .getCursos();
+  
+  google.script.run
+    .withSuccessHandler(function(secciones) {
+      todasSecciones = secciones;
+    })
+    .getSecciones();
+  
+  google.script.run
+    .withSuccessHandler(function(alumnos) {
+      todosAlumnos = alumnos;
+    })
+    .getAlumnos();
+}
+
+function buscarAlumnoExistente() {
+  clearTimeout(busquedaTimeout);
+  var termino = document.getElementById('buscarAlumnoInput').value.trim();
+  
+  if (termino.length < 2) {
+    document.getElementById('resultadosAlumno').style.display = 'none';
+    return;
+  }
+  
+  busquedaTimeout = setTimeout(function() {
+    var busq = termino.toLowerCase();
+    var busqDigits = busq.replace(/[^\d]/g, '');
+    var resultados = todosAlumnos.filter(function(a) {
+      if ((String(a.Nombre || '')).toLowerCase().includes(busq)) return true;
+      if ((String(a.Email || '')).toLowerCase().includes(busq)) return true;
+      if ((String(a.Gmail || '')).toLowerCase().includes(busq)) return true;
+      if (busqDigits.length >= 4) {
+        var telDigits = String(a.Telefono || '').replace(/[^\d]/g, '');
+        if (telDigits.includes(busqDigits) || busqDigits.includes(telDigits)) return true;
+      } else {
+        if ((String(a.Telefono || '')).toLowerCase().includes(busq)) return true;
+      }
+      return false;
+    }).slice(0, 5);
+    
+    mostrarResultadosAlumno(resultados);
+  }, 300);
+}
+
+function mostrarResultadosAlumno(resultados) {
+  var container = document.getElementById('resultadosAlumno');
+  
+  if (resultados.length === 0) {
+    container.style.display = 'none';
+    return;
+  }
+  
+  var html = '';
+  resultados.forEach(function(alumno) {
+    html += '<div style="padding: 12px; border-bottom: 1px solid #e5e7eb; cursor: pointer; transition: background 0.2s;" ' +
+            'onmouseover="this.style.background=\'#f0f9ff\'" ' +
+            'onmouseout="this.style.background=\'white\'" ' +
+            'onclick="seleccionarAlumno(\'' + alumno.ID + '\')">' +
+            '<div style="font-weight: 600; color: #1e40af;">' + alumno.Nombre + '</div>' +
+            '<div style="font-size: 13px; color: #64748b;">' + (alumno.Email || alumno.Gmail) + ' • ' + (alumno.Telefono || '') + '</div>' +
+            '</div>';
+  });
+  
+  container.innerHTML = html;
+  container.style.display = 'block';
+}
+
+function seleccionarAlumno(alumnoId) {
+  var alumno = todosAlumnos.find(function(a) { return a.ID === alumnoId; });
+  if (!alumno) return;
+  
+  alumnoSeleccionadoId = alumnoId;
+  document.getElementById('alumnoNombre').value = alumno.Nombre || '';
+  document.getElementById('alumnoGmail').value = alumno.Gmail || alumno.Email || '';
+  document.getElementById('alumnoTelefono').value = alumno.Telefono || '';
+  document.getElementById('alumnoPais').value = alumno.Pais || '';
+  document.getElementById('buscarAlumnoInput').value = alumno.Nombre;
+  document.getElementById('resultadosAlumno').style.display = 'none';
+  
+  showToast('Alumno seleccionado: ' + alumno.Nombre, 'success');
+}
+
+function limpiarBusquedaAlumno() {
+  alumnoSeleccionadoId = null;
+  document.getElementById('buscarAlumnoInput').value = '';
+  document.getElementById('alumnoNombre').value = '';
+  document.getElementById('alumnoGmail').value = '';
+  document.getElementById('alumnoTelefono').value = '';
+  document.getElementById('alumnoPais').value = '';
+  document.getElementById('alumnoLinkedin').value = '';
+  document.getElementById('resultadosAlumno').style.display = 'none';
+}
+
+function poblarTecnologiasInicial() {
+  var tecnologias = [...new Set(todosCursos.map(c => c.Tecnologia))];
+  var select = document.querySelector('.tecnologia-select');
+  tecnologias.forEach(function(t) {
+    select.add(new Option(t, t));
+  });
+}
+
+function cargarProvidersVenta(index) {
+  var row = document.querySelector('[data-index="' + index + '"]');
+  var tec = row.querySelector('.tecnologia-select').value;
+  var providerSelect = row.querySelector('.provider-select');
+  providerSelect.innerHTML = '<option value="">Seleccionar...</option>';
+  providerSelect.disabled = !tec;
+  
+  if (tec) {
+    var providers = [...new Set(todosCursos.filter(c => c.Tecnologia === tec).map(c => c.Provider))];
+    providers.forEach(function(p) { providerSelect.add(new Option(p, p)); });
+  }
+  
+  row.querySelector('.curso-input').disabled = true;
+  row.querySelector('.seccion-select').disabled = true;
+}
+
+function cargarCursosVenta(index) {
+  var row = document.querySelector('[data-index="' + index + '"]');
+  var tec = row.querySelector('.tecnologia-select').value;
+  var prov = row.querySelector('.provider-select').value;
+  var cursoInput = row.querySelector('.curso-input');
+  var datalist = document.getElementById('cursosList' + index);
+  datalist.innerHTML = '';
+  cursoInput.disabled = !prov;
+  
+  if (prov) {
+    var cursos = todosCursos.filter(c => c.Tecnologia === tec && c.Provider === prov);
+    cursos.forEach(function(c) {
+      var option = document.createElement('option');
+      option.value = c.Nombre;
+      option.setAttribute('data-codigo', c.Codigo);
+      datalist.appendChild(option);
+    });
+  }
+  
+  row.querySelector('.seccion-select').disabled = true;
+}
+
+function cargarSeccionesVenta(index) {
+  var row = document.querySelector('[data-index="' + index + '"]');
+  var nombreCurso = row.querySelector('.curso-input').value;
+  var curso = todosCursos.find(c => c.Nombre === nombreCurso);
+  var seccionSelect = row.querySelector('.seccion-select');
+  seccionSelect.innerHTML = '<option value="">Seleccionar...</option>';
+  seccionSelect.disabled = !curso;
+  
+  if (curso) {
+    var secciones = todasSecciones.filter(s => s.NombreCurso === nombreCurso && s.Estado !== 'Finalizada' && s.Estado !== 'Cancelada');
+    secciones.forEach(function(s) {
+      seccionSelect.add(new Option(s.Codigo + ' - ' + s.DocenteNombre, s.Codigo));
+    });
+    
+    // Al seleccionar sección, auto-llenar fecha comprometida
+    seccionSelect.onchange = function() {
+      var secSel = todasSecciones.find(function(s) { return s.Codigo === seccionSelect.value; });
+      var fechaInput = row.querySelector('.fecha-comprometida');
+      if (fechaInput && secSel && secSel.FechaInicio) {
+        // Convertir DD/MM/YYYY a YYYY-MM-DD para input date
+        var partes = secSel.FechaInicio.split('/');
+        if (partes.length === 3) fechaInput.value = partes[2] + '-' + partes[1] + '-' + partes[0];
+      }
+    };
+    
+    cursosSeleccionados[index] = curso.Codigo;
+    calcularPrecioRecomendado();
+  }
+}
+
+function agregarSeccion() {
+  var container = document.getElementById('seccionesContainer');
+  var newRow = document.createElement('div');
+  newRow.className = 'seccion-row';
+  newRow.setAttribute('data-index', seccionCounter);
+  
+  var tecnologias = [...new Set(todosCursos.map(c => c.Tecnologia))];
+  var tecOptions = '<option value="">Seleccionar...</option>';
+  tecnologias.forEach(function(t) { tecOptions += '<option value="' + t + '">' + t + '</option>'; });
+  
+  newRow.innerHTML = '<div class="form-group" style="flex: 1;"><label>Tecnología *</label><select class="tecnologia-select" onchange="cargarProvidersVenta(' + seccionCounter + ')" required>' + tecOptions + '</select></div>' +
+    '<div class="form-group" style="flex: 1;"><label>Provider *</label><select class="provider-select" onchange="cargarCursosVenta(' + seccionCounter + ')" disabled required><option value="">Seleccionar...</option></select></div>' +
+    '<div class="form-group" style="flex: 1;"><label>Curso *</label><input type="text" class="curso-input" list="cursosList' + seccionCounter + '" onchange="cargarSeccionesVenta(' + seccionCounter + ')" onfocus="this.select()" disabled required><datalist id="cursosList' + seccionCounter + '"></datalist></div>' +
+    '<div class="form-group" style="flex: 1;"><label>Sección *</label><select class="seccion-select" disabled required><option value="">Seleccionar...</option></select></div>' +
+    '<div class="form-group" style="flex: 0.8;"><label>Fecha Comprometida</label><input type="date" class="fecha-comprometida"></div>' +
+    '<div class="form-group" style="flex: 0.7;"><label>Modalidad *</label><select class="modalidad-select" onchange="actualizarPrecioModalidad(' + seccionCounter + ')" required><option value="Basic">🟢 Basic</option><option value="Pro" selected>🔵 Pro</option><option value="Certify">🟣 Certify</option></select></div>' +
+    '<div class="form-group monto-examen-group" style="flex: 0.6; display:none;"><label>Monto Examen *</label><input type="number" class="monto-examen" step="0.01" min="0" placeholder="0.00"></div>' +
+    '<button type="button" class="btn-icon" onclick="eliminarSeccion(' + seccionCounter + ')" style="margin-top: 24px;">🗑️</button>';
+  
+  container.appendChild(newRow);
+  seccionCounter++;
+}
+
+function eliminarSeccion(index) {
+  var rows = document.querySelectorAll('.seccion-row');
+  if (rows.length <= 1) {
+    showToast('Debe haber al menos una sección', 'warning');
+    return;
+  }
+  
+  var row = document.querySelector('[data-index="' + index + '"]');
+  row.remove();
+  cursosSeleccionados[index] = null;
+  calcularPrecioRecomendado();
+}
+
+function calcularPrecioRecomendado() {
+  var codigos = cursosSeleccionados.filter(c => c);
+  
+  if (codigos.length === 0) {
+    document.getElementById('precioRecomendado').value = '';
+    document.getElementById('precioTotal').value = '';
+    document.getElementById('precioHint').textContent = 'Selecciona cursos para ver precio recomendado';
+    return;
+  }
+  
+  var precioTotal = 0;
+  var detalles = [];
+  var rows = document.querySelectorAll('.seccion-row');
+  
+  rows.forEach(function(row) {
+    var idx = parseInt(row.getAttribute('data-index'));
+    var codigo = cursosSeleccionados[idx];
+    if (!codigo) return;
+    
+    var modSelect = row.querySelector('.modalidad-select');
+    var modalidad = modSelect ? modSelect.value : 'Pro';
+    var curso = todosCursos.find(c => c.Codigo === codigo);
+    
+    var precio = 0;
+    if (modalidad === 'Basic') {
+      precio = 99;
+      detalles.push(codigo + ' (Basic) $99');
+    } else if (modalidad === 'Certify') {
+      precio = 300;
+      detalles.push(codigo + ' (Certify) $300');
+    } else {
+      // Pro: precio de la BD
+      if (curso && curso.PrecioBase) {
+        precio = parseFloat(curso.PrecioBase);
+        detalles.push(codigo + ' (Pro) $' + precio);
+      }
+    }
+    precioTotal += precio;
+  });
+  
+  document.getElementById('precioRecomendado').value = precioTotal.toFixed(2);
+  document.getElementById('precioTotal').value = precioTotal.toFixed(2);
+  document.getElementById('precioHint').textContent = 'Precio calculado: ' + detalles.join(' + ');
+  document.getElementById('montoCompleto').value = precioTotal.toFixed(2);
+  
+  var examenSelect = document.getElementById('examenIncluido');
+  examenSelect.innerHTML = '<option value="">Seleccionar...</option>';
+  codigos.forEach(function(codigo) {
+    var curso = todosCursos.find(c => c.Codigo === codigo);
+    if (curso) {
+      examenSelect.add(new Option('Examen ' + curso.Nombre, codigo));
+    }
+  });
+}
+
+function toggleExamen() {
+  var checked = document.getElementById('incluyeExamen').checked;
+  document.getElementById('examenGroup').style.display = checked ? 'block' : 'none';
+  document.getElementById('porcentajeExamenGroup').style.display = checked ? 'block' : 'none';
+  if (!checked) {
+    document.getElementById('porcentajeExamen').value = 0;
+  }
+}
+
+function actualizarMontoTotal() {
+  var precioFinal = document.getElementById('precioTotal').value;
+  document.getElementById('montoCompleto').value = precioFinal;
+}
+
+function seleccionarTipoPago(tipo) {
+  document.getElementById('tipoPago').value = tipo;
+  
+  var btnCompleto = document.getElementById('btnPagoCompleto');
+  var btnFraccionado = document.getElementById('btnFraccionamiento');
+  
+  if (tipo === 'completo') {
+    btnCompleto.style.background = 'var(--primary)';
+    btnCompleto.style.color = 'white';
+    btnFraccionado.style.background = '';
+    btnFraccionado.style.color = '';
+    document.getElementById('pagoCompletoSection').style.display = 'block';
+    document.getElementById('fraccionamientoSection').style.display = 'none';
+  } else {
+    btnFraccionado.style.background = 'var(--primary)';
+    btnFraccionado.style.color = 'white';
+    btnCompleto.style.background = '';
+    btnCompleto.style.color = '';
+    document.getElementById('pagoCompletoSection').style.display = 'none';
+    document.getElementById('fraccionamientoSection').style.display = 'block';
+  }
+}
+
+function generarCamposCuotas() {
+  var cantidad = parseInt(document.getElementById('cantidadCuotas').value) || 0;
+  var container = document.getElementById('cuotasDetalleContainer');
+  var validacion = document.getElementById('cuotasValidacion');
+  
+  if (cantidad < 2) {
+    container.innerHTML = '';
+    validacion.innerHTML = '';
+    return;
+  }
+  
+  var precioTotal = parseFloat(document.getElementById('precioTotal').value) || 0;
+  var montoPorCuota = precioTotal > 0 ? (precioTotal / cantidad) : 0;
+  
+  var html = '<div style="background:#f0f7ff;padding:15px;border-radius:8px;border:1px solid #2563eb;">';
+  html += '<h4 style="margin:0 0 10px 0;color:#2563eb;">Detalle de Cuotas</h4>';
+  html += '<div class="form-grid">';
+  
+  for (var i = 1; i <= cantidad; i++) {
+    html += '<div class="form-group">';
+    html += '<label>Cuota ' + i + ' (USD) *</label>';
+    html += '<input type="number" id="cuotaMonto_' + i + '" step="0.01" min="0" value="' + montoPorCuota.toFixed(2) + '" onchange="validarSumaCuotas()">';
+    if (i > 1) {
+      html += '<label style="margin-top:5px;">Vencimiento Cuota ' + i + '</label>';
+      // Para cuota 2: sugerir la fecha comprometida de la primera sección
+      var fechaSugerida = '';
+      if (i === 2) {
+        var fechaInput = document.querySelector('.fecha-comprometida');
+        if (fechaInput && fechaInput.value) fechaSugerida = fechaInput.value;
+      }
+      html += '<input type="date" id="cuotaFecha_' + i + '" value="' + fechaSugerida + '">';
+    } else {
+      html += '<small style="color:#666;">Se paga ahora</small>';
+    }
+    html += '</div>';
+  }
+  
+  html += '</div></div>';
+  container.innerHTML = html;
+  validarSumaCuotas();
+}
+
+function validarSumaCuotas() {
+  var cantidad = parseInt(document.getElementById('cantidadCuotas').value) || 0;
+  var precioTotal = parseFloat(document.getElementById('precioTotal').value) || 0;
+  var suma = 0;
+  
+  for (var i = 1; i <= cantidad; i++) {
+    var input = document.getElementById('cuotaMonto_' + i);
+    if (input) suma += parseFloat(input.value) || 0;
+  }
+  
+  var validacion = document.getElementById('cuotasValidacion');
+  var diferencia = Math.abs(suma - precioTotal);
+  
+  if (diferencia < 0.02) {
+    validacion.innerHTML = '<span style="color:#22c55e;">✅ Suma de cuotas: $' + suma.toFixed(2) + ' = Precio total: $' + precioTotal.toFixed(2) + '</span>';
+  } else {
+    validacion.innerHTML = '<span style="color:#ef4444;">⚠️ Suma de cuotas: $' + suma.toFixed(2) + ' ≠ Precio total: $' + precioTotal.toFixed(2) + ' (diferencia: $' + diferencia.toFixed(2) + ')</span>';
+  }
+}
+
+function handleSubmitVenta(event) {
+  event.preventDefault();
+  var form = event.target;
+  
+  // Validar email
+  var email = form.gmail.value;
+  if (!email.includes('@') || !email.includes('.')) {
+    showToast('El email debe contener @ y un dominio válido', 'error');
+    return;
+  }
+  
+  // Validar teléfono (solo números, espacios, guiones, paréntesis y +)
+  var telefono = form.telefono.value;
+  if (!/^[\d\s\-\+\(\)]+$/.test(telefono)) {
+    showToast('El teléfono solo puede contener números', 'error');
+    return;
+  }
+  
+  var secciones = [];
+  var fechasComprometidas = [];
+  document.querySelectorAll(".seccion-row").forEach(function(row) {
+    var select = row.querySelector(".seccion-select");
+    var fechaInput = row.querySelector(".fecha-comprometida");
+    if (select && select.value) { secciones.push(select.value); fechasComprometidas.push(fechaInput ? fechaInput.value : ""); }
+  });
+  var modalidades = [];
+  var montosExamen = [];
+  document.querySelectorAll(".seccion-row").forEach(function(row) {
+    var modSelect = row.querySelector(".modalidad-select");
+    var montoEx = row.querySelector(".monto-examen");
+    modalidades.push(modSelect ? modSelect.value : "Pro");
+    montosExamen.push(montoEx ? montoEx.value : "");
+  });
+
+  // Validar Certify: MontoExamen obligatorio
+  for (var cv = 0; cv < modalidades.length; cv++) {
+    if (modalidades[cv] === 'Certify' && (!montosExamen[cv] || parseFloat(montosExamen[cv]) <= 0)) {
+      showToast('La modalidad Certify requiere el Monto del Examen para la sección ' + secciones[cv], 'error');
+      return;
+    }
+  }
+  
+  if (secciones.length === 0) {
+    showToast('Selecciona al menos una sección', 'error');
+    return;
+  }
+  
+  var tipoPago = document.getElementById('tipoPago').value;
+  if (!tipoPago) {
+    showToast('Selecciona el tipo de pago', 'error');
+    return;
+  }
+  
+  var data = {
+    alumnoId: alumnoSeleccionadoId,
+    nombre: form.nombre.value,
+    gmail: form.gmail.value,
+    telefono: form.telefono.value,
+    pais: form.pais.value,
+    linkedin: form.linkedin.value,
+    secciones: secciones, fechasComprometidas: fechasComprometidas, modalidades: modalidades, montosExamen: montosExamen,
+    precioTotal: form.precioTotal.value,
+    incluyeExamen: form.incluyeExamen.checked,
+    examenIncluido: form.examenIncluido ? form.examenIncluido.value : '',
+    porcentajeExamen: form.porcentajeExamen ? form.porcentajeExamen.value : 0,
+    tipoPago: tipoPago,
+    observaciones: form.observaciones.value,
+    esTest: document.getElementById('modoTest').checked
+  };
+  
+  if (tipoPago === 'completo') {
+    data.medioPago = form.medioPagoCompleto.value;
+    data.idOperacion = form.idOperacionCompleto.value;
+  } else {
+    data.cantidadCuotas = form.cantidadCuotas.value;
+    var cantidad = parseInt(form.cantidadCuotas.value) || 0;
+    var cuotasDetalle = [];
+    var primeraCuota = 0;
+    for (var ci = 1; ci <= cantidad; ci++) {
+      var montoInput = document.getElementById('cuotaMonto_' + ci);
+      var fechaInput = document.getElementById('cuotaFecha_' + ci);
+      var monto = montoInput ? parseFloat(montoInput.value) || 0 : 0;
+      if (ci === 1) primeraCuota = monto;
+      cuotasDetalle.push({ numero: ci, monto: monto, fechaVencimiento: (fechaInput ? fechaInput.value : '') || '' });
+    }
+    data.montoPrimeraCuota = primeraCuota;
+    data.cuotasDetalle = cuotasDetalle;
+    data.medioPago = form.medioPagoFraccionado.value;
+    data.idOperacion = form.idOperacionFraccionado.value;
+    var sumaCuotas = cuotasDetalle.reduce(function(s, c) { return s + c.monto; }, 0);
+    var precioTotalNum = parseFloat(form.precioTotal.value) || 0;
+    if (Math.abs(sumaCuotas - precioTotalNum) > 0.02) {
+      showToast('La suma de cuotas ($' + sumaCuotas.toFixed(2) + ') no coincide con el precio total ($' + precioTotalNum.toFixed(2) + ')', 'error');
+      return;
+    }
+  }
+
+  // Mostrar indicador de procesamiento
+  var btn = form.querySelector('button[type="submit"]');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Procesando venta...'; }
+  
+  google.script.run
+    .withSuccessHandler(function(result) {
+      if (btn) { btn.disabled = false; btn.textContent = '💾 Registrar Venta'; }
+      if (result.success) {
+        showToast(result.message, 'success');
+        form.reset();
+        cursosSeleccionados = [];
+        alumnoSeleccionadoId = null;
+        document.getElementById('precioTotal').value = '';
+        document.getElementById('tipoPago').value = '';
+        document.getElementById('pagoCompletoSection').style.display = 'none';
+        document.getElementById('fraccionamientoSection').style.display = 'none';
+        document.getElementById('buscarAlumnoInput').value = '';
+        document.getElementById('cuotasDetalleContainer').innerHTML = '';
+        document.getElementById('cuotasValidacion').innerHTML = '';
+        // Limpiar secciones seleccionadas
+        var seccionesContainer = document.getElementById('seccionesContainer');
+        if (seccionesContainer) seccionesContainer.innerHTML = '';
+        // Resetear botones de tipo pago
+        var btnCompleto = document.getElementById('btnPagoCompleto');
+        var btnFraccionado = document.getElementById('btnFraccionamiento');
+        if (btnCompleto) { btnCompleto.style.background = ''; btnCompleto.style.color = ''; }
+        if (btnFraccionado) { btnFraccionado.style.background = ''; btnFraccionado.style.color = ''; }
+        // Limpiar campos de alumno
+        document.getElementById('alumnoNombre').value = '';
+        document.getElementById('alumnoGmail').value = '';
+        var telField = document.getElementById('alumnoTelefono');
+        if (telField) telField.value = '';
+        var paisField = document.getElementById('alumnoPais');
+        if (paisField) paisField.value = '';
+        var linkedinField = document.getElementById('alumnoLinkedin');
+        if (linkedinField) linkedinField.value = '';
+      } else {
+        showToast(result.message, 'error');
+      }
+    })
+    .withFailureHandler(function(error) {
+      if (btn) { btn.disabled = false; btn.textContent = '💾 Registrar Venta'; }
+      showToast('Error: ' + error.message, 'error');
+    })
+    .saveVenta(data);
+  
+  // Deshabilitar botón inmediatamente
+  var btnSubmit = form.querySelector('button[type="submit"]');
+  if (btnSubmit) { btnSubmit.disabled = true; btnSubmit.textContent = '⏳ Procesando...'; }
+}
+
+function showToast(message, type) {
+  var toast = document.getElementById('toast');
+  toast.textContent = message;
+  toast.className = 'toast ' + type + ' show';
+  setTimeout(function() { toast.classList.remove('show'); }, 4000);
+}
+
+// ============================================
+// MODO TEST
+// ============================================
+function toggleModoTest() {
+  var checkbox = document.getElementById('modoTest');
+  var indicador = document.getElementById('modoTestIndicador');
+  
+  if (checkbox.checked) {
+    indicador.style.display = 'inline-block';
+    showToast('🧪 Modo Test activado - Los registros serán marcados como prueba', 'warning');
+  } else {
+    indicador.style.display = 'none';
+    showToast('Modo Test desactivado - Los registros serán reales', 'info');
+  }
+}
+
+function confirmarLimpiarTests() {
+  if (!confirm('⚠️ ¿Estás seguro de que deseas eliminar TODOS los registros de prueba?\n\nEsto eliminará:\n- Alumnos de prueba\n- Matrículas de prueba\n- Pagos de prueba\n\nEsta acción NO se puede deshacer.')) {
+    return;
+  }
+  
+  showToast('Limpiando registros de prueba...', 'info');
+  
+  google.script.run
+    .withSuccessHandler(function(result) {
+      if (result.success) {
+        showToast(result.message, 'success');
+        // Recargar datos
+        cargarDatos();
+      } else {
+        showToast('Error: ' + result.message, 'error');
+      }
+    })
+    .withFailureHandler(function(error) {
+      showToast('Error al limpiar tests: ' + error.message, 'error');
+    })
+    .limpiarRegistrosTest();
+}
+
+// ============================================
+// NUEVAS FUNCIONES - VERSIÓN 101
+// ============================================
+
+// Variables globales para el resumen
+var ventaDataParaConfirmar = null;
+var formularioParaConfirmar = null;
+
+// Mostrar resumen antes de registrar venta
+function mostrarResumenVenta(event) {
+  event.preventDefault();
+  var form = event.target;
+  
+  // Validaciones básicas
+  var email = form.gmail.value;
+  if (!email.includes('@') || !email.includes('.')) {
+    showToast('El email debe contener @ y un dominio válido', 'error');
+    return;
+  }
+  
+  var telefono = form.telefono.value;
+  if (!/^[\d\s\-\+\(\)]+$/.test(telefono)) {
+    showToast('El teléfono solo puede contener números', 'error');
+    return;
+  }
+  
+  var secciones = [];
+  var fechasComprometidas = [];
+  var modalidades = [];
+  var montosExamen = [];
+  document.querySelectorAll(".seccion-row").forEach(function(row) {
+    var select = row.querySelector(".seccion-select");
+    var fechaInput = row.querySelector(".fecha-comprometida");
+    var modSelect = row.querySelector(".modalidad-select");
+    var montoEx = row.querySelector(".monto-examen");
+    if (select && select.value) {
+      secciones.push(select.value);
+      fechasComprometidas.push(fechaInput ? fechaInput.value : "");
+      modalidades.push(modSelect ? modSelect.value : "Pro");
+      montosExamen.push(montoEx ? montoEx.value : "");
+    }
+  });
+
+  // Validar Certify: MontoExamen obligatorio
+  for (var cv = 0; cv < modalidades.length; cv++) {
+    if (modalidades[cv] === 'Certify' && (!montosExamen[cv] || parseFloat(montosExamen[cv]) <= 0)) {
+      showToast('La modalidad Certify requiere el Monto del Examen para la sección ' + secciones[cv], 'error');
+      return;
+    }
+  }
+  
+  if (secciones.length === 0) {
+    showToast('Selecciona al menos una sección', 'error');
+    return;
+  }
+  
+  var tipoPago = document.getElementById('tipoPago').value;
+  if (!tipoPago) {
+    showToast('Selecciona el tipo de pago', 'error');
+    return;
+  }
+  
+  // Validar fraccionamiento
+  if (tipoPago === 'fraccionado') {
+    var numCursos = secciones.length;
+    var numCuotas = parseInt(form.cantidadCuotas.value) || 0;
+    // Si hay algún curso Certify, permitir 1 cuota extra
+    var tieneCertify = modalidades.some(function(m) { return m === 'Certify'; });
+    var maxCuotas = numCursos === 1 ? 2 : (numCursos === 2 ? 3 : 4);
+    if (tieneCertify) maxCuotas = maxCuotas + 1;
+    
+    if (numCuotas > maxCuotas) {
+      var mensaje = 'Fraccionamiento incumple reglas: ' + numCursos + ' curso(s) máximo ' + maxCuotas + ' cuota(s).\n\n¿Deseas continuar? Se enviará un email a admin@example.com con la justificación.';
+      var justificacion = prompt(mensaje + '\n\nJustificación:', '');
+      
+      if (!justificacion) {
+        showToast('Fraccionamiento cancelado', 'info');
+        return;
+      }
+      
+      // Guardar justificación para enviar después
+      ventaDataParaConfirmar = { justificacion: justificacion };
+    }
+  }
+  
+  // Construir datos de venta
+  var data = {
+    alumnoId: alumnoSeleccionadoId,
+    nombre: form.nombre.value,
+    gmail: form.gmail.value,
+    telefono: form.telefono.value,
+    pais: form.pais.value,
+    linkedin: form.linkedin.value,
+    secciones: secciones, fechasComprometidas: fechasComprometidas, modalidades: modalidades, montosExamen: montosExamen,
+    precioTotal: form.precioTotal.value,
+    incluyeExamen: form.incluyeExamen.checked,
+    examenIncluido: form.examenIncluido ? form.examenIncluido.value : '',
+    porcentajeExamen: form.porcentajeExamen ? form.porcentajeExamen.value : 0,
+    tipoPago: tipoPago,
+    observaciones: form.observaciones.value,
+    esTest: document.getElementById('modoTest').checked
+  };
+  
+  if (tipoPago === 'completo') {
+    data.medioPago = form.medioPagoCompleto.value;
+    data.idOperacion = form.idOperacionCompleto.value;
+  } else {
+    data.cantidadCuotas = form.cantidadCuotas.value;
+    var cant2 = parseInt(form.cantidadCuotas.value) || 0;
+    var cuotasDet2 = [];
+    var primeraCuota2 = 0;
+    for (var ci2 = 1; ci2 <= cant2; ci2++) {
+      var mi2 = document.getElementById('cuotaMonto_' + ci2);
+      var fi2 = document.getElementById('cuotaFecha_' + ci2);
+      var mt2 = mi2 ? parseFloat(mi2.value) || 0 : 0;
+      if (ci2 === 1) primeraCuota2 = mt2;
+      cuotasDet2.push({ numero: ci2, monto: mt2, fechaVencimiento: (fi2 ? fi2.value : '') || '' });
+    }
+    data.montoPrimeraCuota = primeraCuota2;
+    data.cuotasDetalle = cuotasDet2;
+    data.medioPago = form.medioPagoFraccionado.value;
+    data.idOperacion = form.idOperacionFraccionado.value;
+  }
+  
+  // Guardar datos y formulario
+  ventaDataParaConfirmar = data;
+  formularioParaConfirmar = form;
+  
+  // Mostrar resumen
+  mostrarModalResumen(data);
+}
+
+function mostrarModalResumen(data) {
+  var html = '<strong>Alumno:</strong> ' + data.nombre + '<br>';
+  html += '<strong>Email:</strong> ' + data.gmail + '<br>';
+  html += '<strong>Teléfono:</strong> ' + data.telefono + '<br>';
+  html += '<strong>País:</strong> ' + data.pais + '<br><br>';
+  
+  html += '<strong>Cursos/Secciones:</strong><br>';
+  data.secciones.forEach(function(seccion, index) {
+    var mod = (data.modalidades && data.modalidades[index]) ? data.modalidades[index] : 'Pro';
+    var modBadge = mod === 'Basic' ? '🟢 Basic' : (mod === 'Certify' ? '🟣 Certify' : '🔵 Pro');
+    html += '&nbsp;&nbsp;' + (index + 1) + '. ' + seccion + ' <span style="background:#e0e7ff;padding:2px 8px;border-radius:4px;font-size:12px;">' + modBadge + '</span>';
+    if (mod === 'Certify' && data.montosExamen && data.montosExamen[index]) {
+      html += ' (Examen: $' + parseFloat(data.montosExamen[index]).toFixed(2) + ')';
+    }
+    html += '<br>';
+  });
+  
+  html += '<br><strong>Precio Total:</strong> $' + parseFloat(data.precioTotal).toFixed(2) + '<br>';
+  
+  if (data.incluyeExamen) {
+    html += '<strong>Incluye Examen:</strong> Sí<br>';
+  }
+  
+  html += '<br><strong>Tipo de Pago:</strong> ' + (data.tipoPago === 'completo' ? 'Pago Completo' : 'Fraccionado') + '<br>';
+  
+  if (data.tipoPago === 'fraccionado') {
+    html += '<strong>Cuotas:</strong> ' + data.cantidadCuotas + '<br>';
+    if (data.cuotasDetalle) {
+      data.cuotasDetalle.forEach(function(c) {
+        html += '&nbsp;&nbsp;Cuota ' + c.numero + ': $' + c.monto.toFixed(2) + (c.fechaVencimiento ? ' (vence: ' + c.fechaVencimiento + ')' : ' (pago inmediato)') + '<br>';
+      });
+    }
+  }
+  
+  html += '<strong>Medio de Pago:</strong> ' + data.medioPago + '<br>';
+  
+  if (data.observaciones) {
+    html += '<br><strong>Observaciones:</strong> ' + data.observaciones + '<br>';
+  }
+  
+  if (data.esTest) {
+    html += '<br><span style="background: #ffc107; padding: 8px; border-radius: 4px; color: #000; font-weight: bold;">🧪 MODO TEST ACTIVO</span>';
+  }
+  
+  document.getElementById('resumenContenido').innerHTML = html;
+  document.getElementById('resumenModal').style.display = 'flex';
+}
+
+function cerrarResumen() {
+  document.getElementById('resumenModal').style.display = 'none';
+  ventaDataParaConfirmar = null;
+  formularioParaConfirmar = null;
+}
+
+function confirmarVenta() {
+  if (!ventaDataParaConfirmar) return;
+  
+  var data = ventaDataParaConfirmar;
+  var btnConfirmar = document.querySelector('#resumenModal .btn-save');
+  if (btnConfirmar) { btnConfirmar.disabled = true; btnConfirmar.textContent = '⏳ Procesando...'; }
+  
+  google.script.run
+    .withSuccessHandler(function(result) {
+      if (btnConfirmar) { btnConfirmar.disabled = false; btnConfirmar.textContent = 'Confirmar'; }
+      if (result.success) {
+        showToast(result.message, 'success');
+        cerrarResumen();
+        limpiarFormularioVenta();
+      } else {
+        showToast(result.message, 'error');
+      }
+    })
+    .withFailureHandler(function(error) {
+      if (btnConfirmar) { btnConfirmar.disabled = false; btnConfirmar.textContent = 'Confirmar'; }
+      showToast('Error: ' + error.message, 'error');
+    })
+    .saveVenta(data);
+}
+
+function limpiarFormularioVenta() {
+  var form = document.getElementById('ventaForm');
+  if (form) form.reset();
+  
+  cursosSeleccionados = [];
+  alumnoSeleccionadoId = null;
+  
+  // Campos de alumno
+  document.getElementById('buscarAlumnoInput').value = '';
+  document.getElementById('alumnoNombre').value = '';
+  document.getElementById('alumnoGmail').value = '';
+  document.getElementById('alumnoTelefono').value = '';
+  document.getElementById('alumnoPais').value = '';
+  document.getElementById('alumnoLinkedin').value = '';
+  
+  // Precio
+  document.getElementById('precioTotal').value = '';
+  
+  // Tipo de pago
+  document.getElementById('tipoPago').value = '';
+  document.getElementById('pagoCompletoSection').style.display = 'none';
+  document.getElementById('fraccionamientoSection').style.display = 'none';
+  var btnC = document.getElementById('btnPagoCompleto');
+  var btnF = document.getElementById('btnFraccionamiento');
+  if (btnC) { btnC.style.background = ''; btnC.style.color = ''; }
+  if (btnF) { btnF.style.background = ''; btnF.style.color = ''; }
+  
+  // Cuotas
+  document.getElementById('cuotasDetalleContainer').innerHTML = '';
+  document.getElementById('cuotasValidacion').innerHTML = '';
+  document.getElementById('cantidadCuotas').value = '';
+  
+  // Secciones - restaurar a estado inicial con una fila vacía
+  var container = document.getElementById('seccionesContainer');
+  if (container) {
+    var rows = container.querySelectorAll('.seccion-row');
+    // Resetear la primera fila
+    if (rows.length > 0) {
+      var selects = rows[0].querySelectorAll('select');
+      selects.forEach(function(s) { s.value = s.classList.contains('modalidad-select') ? 'Pro' : ''; s.disabled = s.classList.contains('tecnologia-select') || s.classList.contains('modalidad-select') ? false : true; });
+      var inputs = rows[0].querySelectorAll('input');
+      inputs.forEach(function(inp) { inp.value = ''; inp.disabled = true; });
+      // Reset monto-examen visibility
+      var montoExGroup = rows[0].querySelector('.monto-examen-group');
+      if (montoExGroup) montoExGroup.style.display = 'none';
+    }
+    // Eliminar filas extra
+    for (var r = rows.length - 1; r > 0; r--) {
+      rows[r].remove();
+    }
+  }
+  
+  // Modo test - no resetear (mantener el estado actual)
+}
+
+// Actualizar precio según modalidad seleccionada
+function actualizarPrecioModalidad(index) {
+  var row = document.querySelector('[data-index="' + index + '"]');
+  if (!row) return;
+  var modSelect = row.querySelector('.modalidad-select');
+  var montoExGroup = row.querySelector('.monto-examen-group');
+  var montoExInput = row.querySelector('.monto-examen');
+  var modalidad = modSelect ? modSelect.value : 'Pro';
+  
+  // Mostrar/ocultar MontoExamen según modalidad
+  if (montoExGroup) {
+    montoExGroup.style.display = (modalidad === 'Certify') ? 'block' : 'none';
+  }
+  if (montoExInput && modalidad !== 'Certify') {
+    montoExInput.value = '';
+  }
+  
+  // Mostrar/ocultar checkbox "Incluye costo de examen" según modalidad
+  // Basic: ocultar (no aplica). Certify: ocultar (ya tiene MontoExamen). Pro: mostrar.
+  var allModalidades = [];
+  document.querySelectorAll('.modalidad-select').forEach(function(s) { allModalidades.push(s.value); });
+  var tieneBasicOCertify = allModalidades.some(function(m) { return m === 'Basic' || m === 'Certify'; });
+  var todosProOBasic = allModalidades.every(function(m) { return m === 'Pro'; });
+  
+  var incluyeExamenGroup = document.getElementById('incluyeExamenGroup');
+  var examenGroup = document.getElementById('examenGroup');
+  var porcentajeExamenGroup = document.getElementById('porcentajeExamenGroup');
+  
+  if (incluyeExamenGroup) {
+    // Mostrar solo si hay al menos un curso Pro y ninguno es Certify
+    var tienePro = allModalidades.some(function(m) { return m === 'Pro'; });
+    var tieneCertify = allModalidades.some(function(m) { return m === 'Certify'; });
+    incluyeExamenGroup.style.display = (tienePro && !tieneCertify) ? 'block' : 'none';
+    
+    // Si se oculta, desmarcar y ocultar campos relacionados
+    if (incluyeExamenGroup.style.display === 'none') {
+      var checkbox = document.getElementById('incluyeExamen');
+      if (checkbox) checkbox.checked = false;
+      if (examenGroup) examenGroup.style.display = 'none';
+      if (porcentajeExamenGroup) porcentajeExamenGroup.style.display = 'none';
+    }
+  }
+  
+  // Recalcular precio recomendado considerando modalidades
+  calcularPrecioRecomendado();
+}
+
+// Warning de orden de cursos
+function agregarSeccionConWarning() {
+  var numSecciones = document.querySelectorAll('.seccion-row').length;
+  
+  if (numSecciones === 1) {
+    showToast('⚠️ Importante: Los cursos se registrarán en el orden en que los seleccione. Asegúrese de que el orden corresponda al orden en que se van a dictar.', 'warning');
+  }
+  
+  agregarSeccion();
+}
+
+// Reemplazar handleSubmitVenta con mostrarResumenVenta
+document.addEventListener('DOMContentLoaded', function() {
+  var form = document.getElementById('ventaForm');
+  if (form) {
+    form.onsubmit = mostrarResumenVenta;
+  }
+  // Cargar cursos para simulador
+  google.script.run
+    .withSuccessHandler(function(cursos) {
+      var select = document.getElementById('simCursos');
+      if (select && cursos) {
+        cursos.forEach(function(c) {
+          var opt = document.createElement('option');
+          opt.value = c.Codigo || c.Nombre;
+          opt.textContent = c.Nombre || c.Codigo;
+          select.appendChild(opt);
+        });
+      }
+    })
+    .getCursos();
+});
+
+// === SIMULADOR ===
+var simAlumnoSeleccionadoId = null;
+
+function toggleTipoVenta(tipo) {
+  var btnCurso = document.getElementById('btnToggleCurso');
+  var btnSim = document.getElementById('btnToggleSimulador');
+  var btnCustom = document.getElementById('btnToggleCustom');
+  var btnRetake = document.getElementById('btnToggleRetake');
+  var formCurso = document.getElementById('formCursoContainer');
+  var formSim = document.getElementById('formSimuladorContainer');
+  var formCustom = document.getElementById('formCustomContainer');
+  var formRetake = document.getElementById('formRetakeContainer');
+  
+  var inactive = '#e5e7eb';
+  var inactiveColor = '#374151';
+  btnCurso.style.background = inactive; btnCurso.style.color = inactiveColor;
+  btnSim.style.background = inactive; btnSim.style.color = inactiveColor;
+  btnCustom.style.background = inactive; btnCustom.style.color = inactiveColor;
+  btnRetake.style.background = inactive; btnRetake.style.color = inactiveColor;
+  formCurso.style.display = 'none'; formSim.style.display = 'none'; formCustom.style.display = 'none'; formRetake.style.display = 'none';
+  
+  if (tipo === 'curso') {
+    btnCurso.style.background = 'var(--primary)'; btnCurso.style.color = 'white';
+    formCurso.style.display = 'block';
+  } else if (tipo === 'simulador') {
+    btnSim.style.background = 'var(--primary)'; btnSim.style.color = 'white';
+    formSim.style.display = 'block';
+  } else if (tipo === 'custom') {
+    btnCustom.style.background = 'var(--primary)'; btnCustom.style.color = 'white';
+    formCustom.style.display = 'block';
+    cargarCursosCustom();
+  } else if (tipo === 'retake') {
+    btnRetake.style.background = 'var(--primary)'; btnRetake.style.color = 'white';
+    formRetake.style.display = 'block';
+  }
+}
+
+function calcularPrecioSimulador() {
+  var select = document.getElementById('simCursos');
+  var meses = parseInt(document.getElementById('simMeses').value) || 1;
+  var cursosSeleccionados = Array.from(select.selectedOptions).length;
+  var total = cursosSeleccionados * meses * 14.90;
+  document.getElementById('simPrecioTotal').value = '$' + total.toFixed(2);
+}
+
+var simBusquedaTimeout = null;
+function buscarAlumnoSimulador() {
+  clearTimeout(simBusquedaTimeout);
+  var termino = document.getElementById('simBuscarAlumno').value;
+  if (termino.length < 2) { document.getElementById('simResultadosBusqueda').style.display = 'none'; return; }
+  simBusquedaTimeout = setTimeout(function() {
+    google.script.run
+      .withSuccessHandler(function(alumnos) {
+        var div = document.getElementById('simResultadosBusqueda');
+        if (!alumnos || alumnos.length === 0) { div.style.display = 'none'; return; }
+        var html = '';
+        alumnos.forEach(function(a) {
+          html += '<div style="padding:8px;cursor:pointer;border-bottom:1px solid #eee;" onclick="seleccionarAlumnoSim(\'' + a.ID + '\',\'' + (a.Nombre||'').replace(/'/g,'') + '\',\'' + (a.Gmail||a.Email||'') + '\',\'' + (a.Telefono||'') + '\',\'' + (a.Pais||'') + '\')">';
+          html += '<strong>' + (a.Nombre||'') + '</strong> - ' + (a.Gmail||a.Email||'') + '</div>';
+        });
+        div.innerHTML = html; div.style.display = 'block';
+      })
+      .buscarAlumno(termino);
+  }, 300);
+}
+
+function seleccionarAlumnoSim(id, nombre, email, tel, pais) {
+  simAlumnoSeleccionadoId = id;
+  document.getElementById('simBuscarAlumno').value = nombre;
+  document.getElementById('simNombre').value = nombre;
+  document.getElementById('simGmail').value = email;
+  document.getElementById('simTelefono').value = tel;
+  document.getElementById('simPais').value = pais;
+  document.getElementById('simResultadosBusqueda').style.display = 'none';
+}
+
+function handleSubmitSimulador(event) {
+  event.preventDefault();
+  var select = document.getElementById('simCursos');
+  var cursos = Array.from(select.selectedOptions).map(function(o) { return o.value; });
+  if (cursos.length === 0) { showToast('Selecciona al menos un curso', 'error'); return; }
+  if (!document.getElementById('simMedioPago').value) { showToast('Selecciona medio de pago', 'error'); return; }
+  
+  var data = {
+    alumnoId: simAlumnoSeleccionadoId,
+    nombre: document.getElementById('simNombre').value,
+    gmail: document.getElementById('simGmail').value,
+    telefono: document.getElementById('simTelefono').value,
+    pais: document.getElementById('simPais').value,
+    cursos: cursos,
+    meses: parseInt(document.getElementById('simMeses').value) || 1,
+    medioPago: document.getElementById('simMedioPago').value,
+    idOperacion: document.getElementById('simIdOperacion').value,
+    esTest: document.getElementById('modoTest').checked
+  };
+  
+  var btn = document.querySelector('#simuladorForm button[type="submit"]');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Procesando...'; }
+  
+  google.script.run
+    .withSuccessHandler(function(result) {
+      if (btn) { btn.disabled = false; btn.textContent = '💾 Registrar Simulador'; }
+      if (result.success) {
+        showToast(result.message, 'success');
+        document.getElementById('simuladorForm').reset();
+        simAlumnoSeleccionadoId = null;
+        document.getElementById('simBuscarAlumno').value = '';
+        document.getElementById('simPrecioTotal').value = '';
+      } else {
+        showToast(result.message, 'error');
+      }
+    })
+    .withFailureHandler(function(error) {
+      if (btn) { btn.disabled = false; btn.textContent = '💾 Registrar Simulador'; }
+      showToast('Error: ' + error.message, 'error');
+    })
+    .saveVentaSimulador(data);
+}
+
+// === VENTA CUSTOM ===
+var customCursoCounter = 1;
+var custAlumnoSeleccionadoId = null;
+
+function cargarCursosCustom() {
+  var selects = document.querySelectorAll('.custom-curso-select');
+  selects.forEach(function(select) {
+    if (select.options.length <= 1) {
+      todosCursos.forEach(function(c) {
+        select.add(new Option(c.Nombre + ' (' + c.Codigo + ')', c.Codigo));
+      });
+    }
+  });
+}
+
+function cargarSeccionesCustom(index) {
+  var row = document.querySelector('[data-cindex="' + index + '"]');
+  var cursoSelect = row.querySelector('.custom-curso-select');
+  var seccionSelect = row.querySelector('.custom-seccion-select');
+  var codigoCurso = cursoSelect.value;
+  seccionSelect.innerHTML = '<option value="">Seleccionar sección...</option>';
+  
+  if (codigoCurso) {
+    var secciones = todasSecciones.filter(function(s) {
+      return String(s.CodigoCursoBD || '').indexOf(codigoCurso) !== -1 || String(s.Codigo || '').indexOf(codigoCurso) !== -1;
+    });
+    secciones.forEach(function(s) {
+      seccionSelect.add(new Option(s.Codigo + ' - ' + s.DocenteNombre, s.Codigo));
+    });
+  }
+}
+
+function agregarCursoCustom() {
+  var container = document.getElementById('customCursosContainer');
+  var row = document.createElement('div');
+  row.className = 'custom-curso-row';
+  row.setAttribute('data-cindex', customCursoCounter);
+  var ci = customCursoCounter;
+  
+  var cursosOptions = '<option value="">Seleccionar curso...</option>';
+  todosCursos.forEach(function(c) { cursosOptions += '<option value="' + c.Codigo + '">' + c.Nombre + ' (' + c.Codigo + ')</option>'; });
+  
+  row.innerHTML = '<div class="form-grid" style="margin-bottom:10px;">' +
+    '<div class="form-group" style="flex:1;"><label>Curso *</label><select class="custom-curso-select" onchange="cargarSeccionesCustom(' + ci + ')" required>' + cursosOptions + '</select></div>' +
+    '<div class="form-group" style="flex:1;"><label>Sección</label><select class="custom-seccion-select"><option value="">Seleccionar sección...</option></select></div>' +
+    '<button type="button" class="btn-icon" onclick="eliminarCursoCustom(' + ci + ')" style="margin-top:24px;">🗑️</button></div>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:15px;font-size:13px;">' +
+    '<label><input type="checkbox" class="chk-grabaciones"> 📹 Grabaciones</label>' +
+    '<label><input type="checkbox" class="chk-material"> 📂 Material</label>' +
+    '<label><input type="checkbox" class="chk-simulador" onchange="toggleSimCustom(' + ci + ')"> 🎮 Simulador</label>' +
+    '<label><input type="checkbox" class="chk-voucher" onchange="toggleVoucherCustom(' + ci + ')"> 🎓 Voucher Examen</label>' +
+    '<label><input type="checkbox" class="chk-sesiones" onchange="toggleSesionesCustom(' + ci + ')"> 👨‍💻 Sesiones 1:1</label>' +
+    '<label><input type="checkbox" class="chk-classroom"> 🪧 Classroom</label></div>' +
+    '<div class="custom-sim-fields" style="display:none;margin-top:10px;padding:10px;background:white;border-radius:4px;"><div style="display:flex;gap:10px;flex-wrap:wrap;">' +
+    '<div><label style="font-size:12px;">Meses</label><input type="number" class="sim-meses" min="1" max="12" value="2" style="padding:6px;width:60px;border:1px solid #ccc;border-radius:4px;"></div>' +
+    '<div><label style="font-size:12px;">Fecha inicio acceso</label><input type="date" class="sim-fecha-inicio" style="padding:6px;border:1px solid #ccc;border-radius:4px;"></div></div></div>' +
+    '<div class="custom-voucher-fields" style="display:none;margin-top:10px;"><label style="font-size:12px;">Monto Examen (USD)</label><input type="number" class="voucher-monto" step="0.01" min="0" placeholder="0.00" style="padding:6px;width:100px;border:1px solid #ccc;border-radius:4px;"></div>' +
+    '<div class="custom-sesiones-fields" style="display:none;margin-top:10px;"><label style="font-size:12px;">Cantidad de sesiones</label><input type="number" class="sesiones-cantidad" min="1" max="20" value="2" style="padding:6px;width:60px;border:1px solid #ccc;border-radius:4px;"></div>';
+  
+  row.style.cssText = 'border:1px solid #e5e7eb;border-radius:8px;padding:15px;margin-bottom:15px;background:#f9fafb;';
+  container.appendChild(row);
+  customCursoCounter++;
+}
+
+function eliminarCursoCustom(index) {
+  var rows = document.querySelectorAll('.custom-curso-row');
+  if (rows.length <= 1) { showToast('Debe haber al menos un curso', 'warning'); return; }
+  var row = document.querySelector('[data-cindex="' + index + '"]');
+  if (row) row.remove();
+}
+
+function toggleSimCustom(index) {
+  var row = document.querySelector('[data-cindex="' + index + '"]');
+  var chk = row.querySelector('.chk-simulador');
+  row.querySelector('.custom-sim-fields').style.display = chk.checked ? 'block' : 'none';
+}
+function toggleVoucherCustom(index) {
+  var row = document.querySelector('[data-cindex="' + index + '"]');
+  var chk = row.querySelector('.chk-voucher');
+  row.querySelector('.custom-voucher-fields').style.display = chk.checked ? 'block' : 'none';
+}
+function toggleSesionesCustom(index) {
+  var row = document.querySelector('[data-cindex="' + index + '"]');
+  var chk = row.querySelector('.chk-sesiones');
+  row.querySelector('.custom-sesiones-fields').style.display = chk.checked ? 'block' : 'none';
+}
+
+var custBusquedaTimeout = null;
+function buscarAlumnoCustom() {
+  clearTimeout(custBusquedaTimeout);
+  var termino = document.getElementById('custBuscarAlumno').value;
+  if (termino.length < 2) { document.getElementById('custResultadosBusqueda').style.display = 'none'; return; }
+  custBusquedaTimeout = setTimeout(function() {
+    google.script.run.withSuccessHandler(function(alumnos) {
+      var div = document.getElementById('custResultadosBusqueda');
+      if (!alumnos || alumnos.length === 0) { div.style.display = 'none'; return; }
+      var html = '';
+      alumnos.forEach(function(a) {
+        html += '<div style="padding:8px;cursor:pointer;border-bottom:1px solid #eee;" onclick="seleccionarAlumnoCust(\'' + a.ID + '\',\'' + (a.Nombre||'').replace(/'/g,'') + '\',\'' + (a.Gmail||a.Email||'') + '\',\'' + (a.Telefono||'') + '\',\'' + (a.Pais||'') + '\')">';
+        html += '<strong>' + (a.Nombre||'') + '</strong> - ' + (a.Gmail||a.Email||'') + '</div>';
+      });
+      div.innerHTML = html; div.style.display = 'block';
+    }).buscarAlumno(termino);
+  }, 300);
+}
+
+function seleccionarAlumnoCust(id, nombre, email, tel, pais) {
+  custAlumnoSeleccionadoId = id;
+  document.getElementById('custBuscarAlumno').value = nombre;
+  document.getElementById('custNombre').value = nombre;
+  document.getElementById('custGmail').value = email;
+  document.getElementById('custTelefono').value = tel;
+  document.getElementById('custPais').value = pais;
+  document.getElementById('custResultadosBusqueda').style.display = 'none';
+}
+
+function handleSubmitCustom(event) {
+  event.preventDefault();
+  
+  // Recopilar cursos y beneficios
+  var cursos = [];
+  document.querySelectorAll('.custom-curso-row').forEach(function(row) {
+    var cursoSelect = row.querySelector('.custom-curso-select');
+    var seccionSelect = row.querySelector('.custom-seccion-select');
+    if (!cursoSelect.value) return;
+    
+    var curso = {
+      codigo: cursoSelect.value,
+      seccion: seccionSelect.value || '',
+      grabaciones: row.querySelector('.chk-grabaciones').checked,
+      material: row.querySelector('.chk-material').checked,
+      simulador: row.querySelector('.chk-simulador').checked,
+      voucher: row.querySelector('.chk-voucher').checked,
+      sesiones: row.querySelector('.chk-sesiones').checked,
+      classroom: row.querySelector('.chk-classroom').checked
+    };
+    
+    if (curso.simulador) {
+      curso.simMeses = parseInt(row.querySelector('.sim-meses').value) || 2;
+      curso.simFechaInicio = row.querySelector('.sim-fecha-inicio').value || '';
+    }
+    if (curso.voucher) {
+      curso.voucherMonto = parseFloat(row.querySelector('.voucher-monto').value) || 0;
+    }
+    if (curso.sesiones) {
+      curso.sesionesCantidad = parseInt(row.querySelector('.sesiones-cantidad').value) || 2;
+    }
+    cursos.push(curso);
+  });
+  
+  if (cursos.length === 0) { showToast('Agrega al menos un curso con beneficios', 'error'); return; }
+  if (!document.getElementById('custMedioPago').value) { showToast('Selecciona medio de pago', 'error'); return; }
+  
+  var data = {
+    alumnoId: custAlumnoSeleccionadoId,
+    nombre: document.getElementById('custNombre').value,
+    gmail: document.getElementById('custGmail').value,
+    telefono: document.getElementById('custTelefono').value,
+    pais: document.getElementById('custPais').value,
+    cursos: cursos,
+    precioTotal: parseFloat(document.getElementById('custPrecioTotal').value) || 0,
+    medioPago: document.getElementById('custMedioPago').value,
+    idOperacion: document.getElementById('custIdOperacion').value,
+    observaciones: document.getElementById('custObservaciones').value,
+    esTest: document.getElementById('modoTest').checked
+  };
+  
+  var btn = document.querySelector('#customForm button[type="submit"]');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Procesando...'; }
+  
+  google.script.run
+    .withSuccessHandler(function(result) {
+      if (btn) { btn.disabled = false; btn.textContent = '💾 Registrar Venta Custom'; }
+      if (result.success) {
+        showToast(result.message, 'success');
+        document.getElementById('customForm').reset();
+        custAlumnoSeleccionadoId = null;
+        document.getElementById('custBuscarAlumno').value = '';
+      } else {
+        showToast(result.message, 'error');
+      }
+    })
+    .withFailureHandler(function(error) {
+      if (btn) { btn.disabled = false; btn.textContent = '💾 Registrar Venta Custom'; }
+      showToast('Error: ' + error.message, 'error');
+    })
+    .saveVentaCustom(data);
+}
+
+// ============================================
+// RETAKE - Re-inscripción de Alumno
+// ============================================
+var retakeAlumnoSeleccionadoId = null;
+var retakeBusquedaTimeout = null;
+var retakeCursosAlumno = [];
+
+function retakeBuscarAlumno() {
+  clearTimeout(retakeBusquedaTimeout);
+  var termino = document.getElementById('retakeBuscarInput').value.trim();
+  
+  if (termino.length < 2) {
+    document.getElementById('retakeResultadosAlumno').style.display = 'none';
+    return;
+  }
+  
+  retakeBusquedaTimeout = setTimeout(function() {
+    var busq = termino.toLowerCase();
+    var busqDigits = busq.replace(/[^\d]/g, '');
+    var resultados = todosAlumnos.filter(function(a) {
+      if ((String(a.Nombre || '')).toLowerCase().includes(busq)) return true;
+      if ((String(a.Email || '')).toLowerCase().includes(busq)) return true;
+      if ((String(a.Gmail || '')).toLowerCase().includes(busq)) return true;
+      // Para teléfono: comparar solo dígitos
+      if (busqDigits.length >= 4) {
+        var telDigits = String(a.Telefono || '').replace(/[^\d]/g, '');
+        if (telDigits.includes(busqDigits) || busqDigits.includes(telDigits)) return true;
+      } else {
+        if ((String(a.Telefono || '')).toLowerCase().includes(busq)) return true;
+      }
+      return false;
+    }).slice(0, 5);
+    
+    var container = document.getElementById('retakeResultadosAlumno');
+    if (resultados.length === 0) {
+      container.style.display = 'none';
+      return;
+    }
+    
+    var html = '';
+    resultados.forEach(function(alumno) {
+      html += '<div style="padding: 12px; border-bottom: 1px solid #e5e7eb; cursor: pointer; transition: background 0.2s;" ' +
+              'onmouseover="this.style.background=\'#f0f9ff\'" ' +
+              'onmouseout="this.style.background=\'white\'" ' +
+              'onclick="retakeSeleccionarAlumno(\'' + alumno.ID + '\')">' +
+              '<div style="font-weight: 600; color: #1e40af;">' + alumno.Nombre + '</div>' +
+              '<div style="font-size: 13px; color: #64748b;">' + (alumno.Email || alumno.Gmail) + ' • ' + (alumno.Telefono || '') + '</div>' +
+              '</div>';
+    });
+    
+    container.innerHTML = html;
+    container.style.display = 'block';
+  }, 300);
+}
+
+function retakeSeleccionarAlumno(alumnoId) {
+  var alumno = todosAlumnos.find(function(a) { return a.ID === alumnoId; });
+  if (!alumno) return;
+  
+  retakeAlumnoSeleccionadoId = alumnoId;
+  document.getElementById('retakeAlumnoId').value = alumnoId;
+  document.getElementById('retakeAlumnoNombre').textContent = alumno.Nombre || '';
+  document.getElementById('retakeAlumnoEmail').textContent = alumno.Gmail || alumno.Email || '';
+  document.getElementById('retakeAlumnoTelefono').value = alumno.Telefono || '';
+  document.getElementById('retakeAlumnoPais').value = alumno.Pais || '';
+  document.getElementById('retakeAlumnoInfo').style.display = 'block';
+  document.getElementById('retakeBuscarInput').value = alumno.Nombre;
+  document.getElementById('retakeResultadosAlumno').style.display = 'none';
+  
+  // Cargar cursos del alumno desde backend
+  document.getElementById('retakeCursoSection').style.display = 'block';
+  document.getElementById('retakeCursoSelect').innerHTML = '<option value="">Cargando cursos...</option>';
+  document.getElementById('retakeNoCursos').style.display = 'none';
+  document.getElementById('retakeSeccionSelect').innerHTML = '<option value="">Seleccionar sección...</option>';
+  document.getElementById('retakePrecioSection').style.display = 'none';
+  document.getElementById('retakePagoSection').style.display = 'none';
+  
+  google.script.run
+    .withSuccessHandler(function(cursos) {
+      retakeCursosAlumno = cursos || [];
+      retakeCargarCursos(cursos);
+    })
+    .withFailureHandler(function(error) {
+      showToast('Error cargando cursos del alumno: ' + error.message, 'error');
+    })
+    .getMatriculasAlumno(alumnoId);
+  
+  showToast('Alumno seleccionado: ' + alumno.Nombre, 'success');
+  retakeValidarSubmit();
+}
+
+function retakeCargarCursos(cursos) {
+  var select = document.getElementById('retakeCursoSelect');
+  select.innerHTML = '<option value="">Seleccionar curso...</option>';
+  
+  if (!cursos || cursos.length === 0) {
+    document.getElementById('retakeNoCursos').style.display = 'block';
+    select.disabled = true;
+    return;
+  }
+  
+  document.getElementById('retakeNoCursos').style.display = 'none';
+  select.disabled = false;
+  
+  cursos.forEach(function(c) {
+    var option = document.createElement('option');
+    option.value = c.codigoCurso;
+    option.textContent = c.nombreCurso + ' (' + c.codigoCurso + ')';
+    select.appendChild(option);
+  });
+}
+
+function retakeCargarSecciones() {
+  var codigoCurso = document.getElementById('retakeCursoSelect').value;
+  var seccionSelect = document.getElementById('retakeSeccionSelect');
+  seccionSelect.innerHTML = '<option value="">Seleccionar sección...</option>';
+  document.getElementById('retakeNoSecciones').style.display = 'none';
+  
+  if (!codigoCurso) {
+    document.getElementById('retakePrecioSection').style.display = 'none';
+    document.getElementById('retakePagoSection').style.display = 'none';
+    retakeValidarSubmit();
+    return;
+  }
+  
+  // Filtrar secciones activas/programadas/en curso del curso seleccionado
+  var secciones = todasSecciones.filter(function(s) {
+    var secCursoBD = String(s.CodigoCursoBD || '');
+    var secCodigo = String(s.Codigo || '');
+    var matchCurso = (secCursoBD === codigoCurso) || 
+                     (secCodigo.toUpperCase().indexOf(codigoCurso.toUpperCase()) === 0);
+    var estadoValido = (s.Estado === 'Activa' || s.Estado === 'Programada' || s.Estado === 'En Curso');
+    return matchCurso && estadoValido;
+  });
+  
+  if (secciones.length === 0) {
+    document.getElementById('retakeNoSecciones').style.display = 'block';
+    document.getElementById('retakePrecioSection').style.display = 'none';
+    document.getElementById('retakePagoSection').style.display = 'none';
+    retakeValidarSubmit();
+    return;
+  }
+  
+  secciones.forEach(function(s) {
+    var option = document.createElement('option');
+    option.value = s.Codigo;
+    option.textContent = s.Codigo + ' - ' + (s.DocenteNombre || 'Sin docente');
+    seccionSelect.appendChild(option);
+  });
+  
+  // Mostrar sección de precio
+  document.getElementById('retakePrecioSection').style.display = 'block';
+  retakeActualizarPago();
+  retakeValidarSubmit();
+}
+
+function retakeToggleConstancia() {
+  var checked = document.getElementById('retakeConstancia').checked;
+  var precioInput = document.getElementById('retakePrecio');
+  precioInput.value = checked ? '0' : '19';
+  retakeActualizarPago();
+}
+
+function retakeToggleSimulador() {
+  var checked = document.getElementById('retakeSimulador').checked;
+  document.getElementById('retakeSimuladorMeses').style.display = checked ? 'block' : 'none';
+}
+
+function retakeActualizarPago() {
+  var precio = parseFloat(document.getElementById('retakePrecio').value) || 0;
+  var pagoSection = document.getElementById('retakePagoSection');
+  
+  if (precio > 0) {
+    pagoSection.style.display = 'block';
+    document.getElementById('retakeMedioPago').required = true;
+  } else {
+    pagoSection.style.display = 'none';
+    document.getElementById('retakeMedioPago').required = false;
+  }
+  retakeValidarSubmit();
+}
+
+function retakeValidarSubmit() {
+  var btn = document.getElementById('retakeSubmitBtn');
+  var alumnoOk = !!retakeAlumnoSeleccionadoId;
+  var cursoOk = !!document.getElementById('retakeCursoSelect').value;
+  var seccionOk = !!document.getElementById('retakeSeccionSelect').value;
+  
+  btn.disabled = !(alumnoOk && cursoOk && seccionOk);
+}
+
+function retakeLimpiarAlumno() {
+  retakeAlumnoSeleccionadoId = null;
+  retakeCursosAlumno = [];
+  document.getElementById('retakeBuscarInput').value = '';
+  document.getElementById('retakeAlumnoInfo').style.display = 'none';
+  document.getElementById('retakeAlumnoId').value = '';
+  document.getElementById('retakeAlumnoNombre').textContent = '';
+  document.getElementById('retakeAlumnoEmail').textContent = '';
+  document.getElementById('retakeResultadosAlumno').style.display = 'none';
+  document.getElementById('retakeCursoSection').style.display = 'none';
+  document.getElementById('retakePrecioSection').style.display = 'none';
+  document.getElementById('retakePagoSection').style.display = 'none';
+  document.getElementById('retakeCursoSelect').innerHTML = '<option value="">Seleccionar curso...</option>';
+  document.getElementById('retakeSeccionSelect').innerHTML = '<option value="">Seleccionar sección...</option>';
+  document.getElementById('retakeNoCursos').style.display = 'none';
+  document.getElementById('retakeNoSecciones').style.display = 'none';
+  retakeValidarSubmit();
+}
+
+function handleSubmitRetake(event) {
+  event.preventDefault();
+  
+  // Validaciones
+  if (!retakeAlumnoSeleccionadoId) {
+    showToast('Selecciona un alumno existente', 'error');
+    return;
+  }
+  
+  var seccion = document.getElementById('retakeSeccionSelect').value;
+  if (!seccion) {
+    showToast('Selecciona una sección', 'error');
+    return;
+  }
+  
+  var cursoCode = document.getElementById('retakeCursoSelect').value;
+  if (!cursoCode) {
+    showToast('Selecciona un curso', 'error');
+    return;
+  }
+  
+  var precio = parseFloat(document.getElementById('retakePrecio').value) || 0;
+  var constancia = document.getElementById('retakeConstancia').checked;
+  var medioPago = '';
+  var idOperacion = '';
+  
+  if (precio > 0) {
+    medioPago = document.getElementById('retakeMedioPago').value;
+    if (!medioPago) {
+      showToast('Selecciona un medio de pago', 'error');
+      return;
+    }
+    idOperacion = document.getElementById('retakeIdOperacion').value;
+  }
+  
+  // Construir observaciones
+  var observaciones = constancia ? 'Retake - Con constancia de examen fallido' : 'Retake - Sin constancia';
+  
+  // Obtener datos del alumno
+  var alumno = todosAlumnos.find(function(a) { return a.ID === retakeAlumnoSeleccionadoId; });
+  if (!alumno) {
+    showToast('Error: alumno no encontrado', 'error');
+    return;
+  }
+  
+  var data = {
+    alumnoId: retakeAlumnoSeleccionadoId,
+    nombre: alumno.Nombre || '',
+    gmail: alumno.Gmail || alumno.Email || '',
+    telefono: alumno.Telefono || '',
+    pais: alumno.Pais || '',
+    linkedin: '',
+    secciones: [seccion],
+    precioTotal: String(precio),
+    tipoPago: 'completo',
+    medioPago: medioPago,
+    idOperacion: idOperacion,
+    observaciones: observaciones,
+    esTest: document.getElementById('modoTest').checked,
+    esRetake: true,
+    modalidades: ['Retake'],
+    montosExamen: [''],
+    fechasComprometidas: ['']
+  };
+  
+  // Deshabilitar botón
+  var btn = document.getElementById('retakeSubmitBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Procesando retake...';
+  
+  google.script.run
+    .withSuccessHandler(function(result) {
+      btn.disabled = false;
+      btn.textContent = '💾 Registrar Retake';
+      
+      if (result.success) {
+        showToast(result.message, 'success');
+        
+        // Si simulador está marcado, activar acceso
+        var simChecked = document.getElementById('retakeSimulador').checked;
+        if (simChecked) {
+          var meses = parseInt(document.getElementById('retakeMeses').value) || 2;
+          var simData = {
+            alumnoId: retakeAlumnoSeleccionadoId,
+            email: alumno.Gmail || alumno.Email || '',
+            nombre: alumno.Nombre || '',
+            cursoCode: cursoCode,
+            meses: meses
+          };
+          
+          google.script.run
+            .withSuccessHandler(function(simResult) {
+              if (simResult.success) {
+                showToast('✅ Simulador activado: ' + simResult.message, 'success');
+              } else {
+                showToast('⚠️ Retake registrado pero simulador falló: ' + simResult.message, 'warning');
+              }
+            })
+            .withFailureHandler(function(simError) {
+              showToast('⚠️ Retake registrado pero simulador falló: ' + simError.message, 'warning');
+            })
+            .activarSimuladorRetake(simData);
+        }
+        
+        // Reset form
+        retakeLimpiarAlumno();
+        document.getElementById('retakeConstancia').checked = false;
+        document.getElementById('retakePrecio').value = '19';
+        document.getElementById('retakeSimulador').checked = false;
+        document.getElementById('retakeSimuladorMeses').style.display = 'none';
+        document.getElementById('retakeMeses').value = '2';
+        document.getElementById('retakeMedioPago').value = '';
+        document.getElementById('retakeIdOperacion').value = '';
+      } else {
+        showToast(result.message, 'error');
+      }
+    })
+    .withFailureHandler(function(error) {
+      btn.disabled = false;
+      btn.textContent = '💾 Registrar Retake';
+      showToast('Error: ' + error.message, 'error');
+    })
+    .saveVenta(data);
+}
+
+// Listener para validar submit cuando cambia la sección
+document.addEventListener('DOMContentLoaded', function() {
+  var secSelect = document.getElementById('retakeSeccionSelect');
+  if (secSelect) {
+    secSelect.addEventListener('change', retakeValidarSubmit);
+  }
+  var precioInput = document.getElementById('retakePrecio');
+  if (precioInput) {
+    precioInput.addEventListener('input', retakeActualizarPago);
+  }
+});
+
+</script>

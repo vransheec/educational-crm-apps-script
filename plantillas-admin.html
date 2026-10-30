@@ -1,0 +1,1496 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="frame-ancestors 'self' https://*.googleusercontent.com https://*.google.com">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <?!= includeWithBaseUrl('config'); ?>
+  <?!= include('styles'); ?>
+  <style>
+    .admin-container {
+      display: grid;
+      grid-template-columns: 250px 1fr;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    .admin-sidebar {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      height: fit-content;
+    }
+
+    .admin-sidebar h3 {
+      margin-top: 0;
+      color: var(--primary);
+      border-bottom: 2px solid var(--primary);
+      padding-bottom: 10px;
+    }
+
+    .admin-menu {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .admin-menu li {
+      margin-bottom: 8px;
+    }
+
+    .admin-menu button {
+      width: 100%;
+      padding: 10px;
+      border: 2px solid #e5e7eb;
+      background: white;
+      border-radius: 6px;
+      cursor: pointer;
+      text-align: left;
+      font-size: 13px;
+      transition: all 0.2s;
+    }
+
+    .admin-menu button:hover {
+      border-color: var(--primary);
+      background: #f0f7ff;
+    }
+
+    .admin-menu button.active {
+      border-color: var(--primary);
+      background: var(--primary);
+      color: white;
+    }
+
+    .admin-content {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .admin-section {
+      display: none;
+    }
+
+    .admin-section.active {
+      display: block;
+    }
+
+    .section-title {
+      font-size: 18px;
+      font-weight: bold;
+      color: var(--primary);
+      margin-bottom: 20px;
+      border-bottom: 2px solid var(--primary);
+      padding-bottom: 10px;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    .form-group label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 5px;
+      color: #333;
+      font-size: 13px;
+    }
+
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+      width: 100%;
+      padding: 10px;
+      border: 2px solid #e5e7eb;
+      border-radius: 4px;
+      font-size: 13px;
+      box-sizing: border-box;
+    }
+
+    .form-group textarea {
+      resize: vertical;
+      min-height: 100px;
+      font-family: monospace;
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus,
+    .form-group select:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .button-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 13px;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #1e3a8a;
+    }
+
+    .btn-secondary {
+      background: #e5e7eb;
+      color: #374151;
+    }
+
+    .btn-secondary:hover {
+      background: #d1d5db;
+    }
+
+    .btn-danger {
+      background: #ef4444;
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background: #dc2626;
+    }
+
+    .icons-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    .icon-item {
+      padding: 10px;
+      border: 2px solid #e5e7eb;
+      border-radius: 6px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .icon-item:hover {
+      border-color: var(--primary);
+      background: #f0f7ff;
+    }
+
+    .icon-item.selected {
+      border-color: var(--primary);
+      background: var(--primary);
+      color: white;
+    }
+
+    .icon-preview {
+      font-size: 24px;
+      margin-bottom: 5px;
+    }
+
+    .icon-name {
+      font-size: 11px;
+      word-break: break-word;
+    }
+
+    .links-list {
+      margin-top: 15px;
+    }
+
+    .link-item {
+      display: flex;
+      gap: 10px;
+      padding: 10px;
+      background: #f9f9f9;
+      border-radius: 6px;
+      margin-bottom: 10px;
+      align-items: center;
+    }
+
+    .link-item-icon {
+      font-size: 20px;
+      min-width: 30px;
+    }
+
+    .link-item-content {
+      flex: 1;
+    }
+
+    .link-item-label {
+      font-weight: 600;
+      font-size: 12px;
+      color: #333;
+    }
+
+    .link-item-url {
+      font-size: 11px;
+      color: #666;
+      word-break: break-all;
+    }
+
+    .link-item-delete {
+      background: #ef4444;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+    }
+
+    .link-item-delete:hover {
+      background: #dc2626;
+    }
+
+    .info-box {
+      background: #e0f2fe;
+      border-left: 4px solid var(--primary);
+      padding: 12px;
+      border-radius: 4px;
+      margin-bottom: 15px;
+      font-size: 12px;
+    }
+
+    .success-message {
+      background: #d1fae5;
+      border-left: 4px solid #10b981;
+      padding: 12px;
+      border-radius: 4px;
+      margin-bottom: 15px;
+      font-size: 12px;
+      color: #065f46;
+    }
+
+    .error-message {
+      background: #fee2e2;
+      border-left: 4px solid #ef4444;
+      padding: 12px;
+      border-radius: 4px;
+      margin-bottom: 15px;
+      font-size: 12px;
+      color: #7f1d1d;
+    }
+
+    /* Modal Styles */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.4);
+    }
+
+    .modal.active {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-content {
+      background-color: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+      max-width: 500px;
+      width: 90%;
+    }
+
+    .modal-header {
+      font-size: 18px;
+      font-weight: bold;
+      color: var(--primary);
+      margin-bottom: 20px;
+      border-bottom: 2px solid var(--primary);
+      padding-bottom: 10px;
+    }
+
+    .modal-body {
+      margin-bottom: 20px;
+    }
+
+    .modal-footer {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    .link-item-actions {
+      display: flex;
+      gap: 5px;
+      opacity: 1;
+    }
+
+    .link-item-edit {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+    }
+
+    .link-item-edit:hover {
+      background: #2563eb;
+    }
+
+    .icon-item-actions {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      display: flex;
+      gap: 3px;
+      opacity: 1;
+      transition: opacity 0.2s;
+    }
+
+    .icon-item:hover .icon-item-actions {
+      opacity: 1;
+    }
+
+    .icon-item-edit,
+    .icon-item-delete {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 3px 6px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 10px;
+    }
+
+    .icon-item-delete {
+      background: #ef4444;
+    }
+
+    .icon-item-delete:hover {
+      background: #dc2626;
+    }
+
+    .icon-item-edit:hover {
+      background: #2563eb;
+    }
+
+    .icon-item {
+      position: relative;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <?!= includeWithCurrentPage('nav', currentPage); ?>
+
+    <main class="main plantillas-admin-page" data-page="plantillas-admin">
+      <div class="form-card">
+        <h1 class="form-title">⚙️ Administración de Plantillas</h1>
+
+        <div class="admin-container">
+          <!-- Sidebar -->
+          <div class="admin-sidebar">
+            <h3>Opciones</h3>
+            <ul class="admin-menu">
+              <li><button class="admin-btn active" data-section="logo">🎨 Logo</button></li>
+              <li><button class="admin-btn" data-section="links">🔗 Hipervínculos</button></li>
+              <li><button class="admin-btn" data-section="icons">🎯 Íconos</button></li>
+              <li><button class="admin-btn" data-section="preview">👁️ Editar Preview</button></li>
+            </ul>
+          </div>
+
+          <!-- Content -->
+          <div class="admin-content">
+            <!-- Logo Section -->
+            <div class="admin-section active" id="logo-section">
+              <div class="section-title">🎨 Gestión del Logo</div>
+              
+              <div class="info-box">
+                ℹ️ Carga el logo de Educational CRM que aparecerá al inicio de los emails
+              </div>
+
+              <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 12px; border-radius: 4px; margin-bottom: 20px; font-size: 12px;">
+                <strong>📋 Especificaciones:</strong> Máximo 5MB, formatos: JPG, PNG. Se usará formato seguro de Google Drive (sin CORS).
+              </div>
+
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <!-- Opción 1: Subir archivo -->
+                <div>
+                  <h4 style="margin-top: 0; color: var(--primary);">Opción 1: Subir Archivo</h4>
+                  <div class="form-group">
+                    <label>Selecciona una imagen</label>
+                    <input type="file" id="logoFile" accept="image/*" onchange="previewLogoFile()">
+                  </div>
+                  <div id="logoFilePreview" style="border: 2px solid #e5e7eb; padding: 20px; text-align: center; border-radius: 6px; background: #f9f9f9; min-height: 150px; display: flex; align-items: center; justify-content: center;">
+                    <p style="color: #999; margin: 0;">Vista previa</p>
+                  </div>
+                  <button class="btn btn-primary" onclick="subirLogo()" style="width: 100%; margin-top: 10px;">📤 Subir Logo</button>
+                </div>
+
+                <!-- Opción 2: URL -->
+                <div>
+                  <h4 style="margin-top: 0; color: var(--primary);">Opción 2: URL</h4>
+                  <div class="form-group">
+                    <label>URL del Logo</label>
+                    <input type="text" id="logoUrl" placeholder="https://ejemplo.com/logo.png">
+                  </div>
+                  <div id="logoUrlPreview" style="border: 2px solid #e5e7eb; padding: 20px; text-align: center; border-radius: 6px; background: #f9f9f9; min-height: 150px; display: flex; align-items: center; justify-content: center;">
+                    <p style="color: #999; margin: 0;">Vista previa</p>
+                  </div>
+                  <button class="btn btn-primary" onclick="guardarLogoUrl()" style="width: 100%; margin-top: 10px;">💾 Guardar URL</button>
+                </div>
+              </div>
+
+              <div style="margin-top: 20px; padding: 15px; background: #f0f7ff; border-radius: 6px;">
+                <h4 style="margin-top: 0; color: var(--primary);">Logo Actual</h4>
+                <div id="logoActual" style="text-align: center;">
+                  <p style="color: #999;">Cargando...</p>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 15px; justify-content: center;">
+                  <button class="btn btn-primary" onclick="abrirModalEditarLogo()" style="flex: 1;">✏️ Editar Logo</button>
+                  <button class="btn btn-danger" onclick="eliminarLogo()" style="flex: 1;">🗑️ Eliminar Logo</button>
+                </div>
+              </div>
+
+              <div id="logoMessage"></div>
+            </div>
+
+            <!-- Links Section -->
+            <div class="admin-section" id="links-section">
+              <div class="section-title">🔗 Gestión de Hipervínculos</div>
+              
+              <div class="info-box">
+                ℹ️ Administra los hipervínculos que aparecen en las plantillas de email
+              </div>
+
+              <div style="background: #f0f7ff; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
+                <h4 style="margin-top: 0; color: var(--primary);">Hipervínculos Predeterminados</h4>
+                <p style="margin: 0; font-size: 12px; color: #666;">Estos hipervínculos ya están configurados:</p>
+                <ul style="margin: 10px 0 0 0; padding-left: 20px; font-size: 12px;">
+                  <li>🌐 Sitio Web: example.com</li>
+                  <li>📋 Términos y Condiciones: example.com/pages/libro-de-reclamaciones-virtual</li>
+                </ul>
+              </div>
+
+              <div style="border-top: 2px solid #e5e7eb; padding-top: 20px;">
+                <h4 style="margin-top: 0; color: var(--primary);">Agregar Hipervínculo Personalizado</h4>
+
+                <div class="form-group">
+                  <label>Nombre del Enlace</label>
+                  <input type="text" id="linkName" placeholder="Ej: Política de Privacidad">
+                </div>
+
+                <div class="form-group">
+                  <label>URL</label>
+                  <input type="text" id="linkUrl" placeholder="https://ejemplo.com">
+                </div>
+
+                <div class="form-group">
+                  <label>Ícono (emoji)</label>
+                  <input type="text" id="linkIcon" placeholder="🔒" maxlength="2">
+                </div>
+
+                <button class="btn btn-primary" onclick="agregarEnlace()" style="width: 100%;">➕ Agregar Enlace</button>
+              </div>
+
+              <div style="margin-top: 20px; border-top: 2px solid #e5e7eb; padding-top: 20px;">
+                <h4 style="margin-top: 0; color: var(--primary);">Hipervínculos Personalizados</h4>
+                <div class="links-list" id="linksList"></div>
+              </div>
+
+              <div id="linksMessage"></div>
+            </div>
+
+            <!-- Icons Section -->
+            <div class="admin-section" id="icons-section">
+              <div class="section-title">🎯 Gestión de Íconos</div>
+              
+              <div class="info-box">
+                ℹ️ Agrega íconos personalizados (emojis o imágenes) para usar en las plantillas. Los íconos pueden tener una URL asociada para hacer clic.
+              </div>
+
+              <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 12px; border-radius: 4px; margin-bottom: 20px; font-size: 12px;">
+                <strong>📋 Especificaciones de Imagen:</strong> Máximo 5MB, formatos: JPG, PNG. Se usará formato seguro de Google Drive (sin CORS).
+              </div>
+
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                <!-- Opción 1: Emoji -->
+                <div>
+                  <h4 style="margin-top: 0; color: var(--primary);">Opción 1: Ícono (Emoji)</h4>
+                  <div class="form-group">
+                    <label>Nombre del Ícono</label>
+                    <input type="text" id="iconName" placeholder="Ej: email">
+                  </div>
+
+                  <div class="form-group">
+                    <label>Ícono</label>
+                    <input type="text" id="iconEmoji" placeholder="📧" maxlength="2">
+                  </div>
+
+                  <div class="form-group">
+                    <label>URL (opcional)</label>
+                    <input type="text" id="iconEmojiUrl" placeholder="https://ejemplo.com">
+                  </div>
+
+                  <button class="btn btn-primary" onclick="agregarIcono()" style="width: 100%;">➕ Agregar Ícono</button>
+                </div>
+
+                <!-- Opción 2: Imagen -->
+                <div>
+                  <h4 style="margin-top: 0; color: var(--primary);">Opción 2: Icono (Imagen)</h4>
+                  <div class="form-group">
+                    <label>Nombre del Icono</label>
+                    <input type="text" id="iconImageName" placeholder="Ej: logo-pequeño">
+                  </div>
+
+                  <div class="form-group">
+                    <label>Selecciona una imagen</label>
+                    <input type="file" id="iconImageFile" accept="image/*" onchange="previewIconImage()">
+                  </div>
+
+                  <div id="iconImagePreview" style="border: 2px solid #e5e7eb; padding: 10px; text-align: center; border-radius: 6px; background: #f9f9f9; min-height: 80px; display: flex; align-items: center; justify-content: center;">
+                    <p style="color: #999; margin: 0; font-size: 12px;">Vista previa</p>
+                  </div>
+
+                  <div class="form-group" style="margin-top: 10px;">
+                    <label>URL (opcional)</label>
+                    <input type="text" id="iconImageUrl" placeholder="https://ejemplo.com">
+                  </div>
+
+                  <button class="btn btn-primary" onclick="subirIconoImagen()" style="width: 100%; margin-top: 10px;">📤 Subir Icono</button>
+                </div>
+              </div>
+
+              <div style="border-top: 2px solid #e5e7eb; padding-top: 20px;">
+                <h4 style="margin-top: 0; color: var(--primary);">Iconos Disponibles</h4>
+                <div class="icons-grid" id="iconsGrid"></div>
+              </div>
+
+              <div id="iconsMessage"></div>
+            </div>
+
+            <!-- Preview Edit Section -->
+            <div class="admin-section" id="preview-section">
+              <div class="section-title">👁️ Editar Preview</div>
+              
+              <div class="info-box">
+                ℹ️ Edita los campos estáticos de las plantillas de email
+              </div>
+
+              <div class="form-group">
+                <label>Selecciona una Plantilla</label>
+                <select id="previewPlantilla" onchange="cargarConfiguracionPreview()">
+                  <option value="">-- Selecciona una plantilla --</option>
+                  <option value="bienvenida">🎉 Email de Bienvenida</option>
+                  <option value="recordatorio-pago">💰 Recordatorio de Pago</option>
+                  <option value="confirmacion-pago">✅ Confirmación de Pago</option>
+                  <option value="cambio-seccion">🔄 Cambio de Sección</option>
+                  <option value="cambio-inicio-seccion">📅 Cambio de Inicio de Sección</option>
+                  <option value="acceso-simulador">🎮 Acceso a Simulador</option>
+                  <option value="acceso-material">📂 Acceso a Material del Curso</option>
+                </select>
+              </div>
+
+              <div id="previewConfigContent" style="display: none;">
+                <div class="form-group">
+                  <label>Asunto del Correo</label>
+                  <input type="text" id="previewSubject" placeholder="Ej: Bienvenido a Educational CRM">
+                </div>
+
+                <div class="form-group">
+                  <label>Título Principal</label>
+                  <input type="text" id="previewTitle" placeholder="BIENVENIDO A EDUCATIONAL CRM">
+                </div>
+
+                <div class="form-group">
+                  <label>Mensaje de Bienvenida</label>
+                  <textarea id="previewWelcome" placeholder="Estimado {{NOMBRE_ALUMNO}}, nos complace confirmar..."></textarea>
+                  <div style="margin-top: 8px; padding: 10px; background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 6px; font-size: 12px;">
+                    <strong>Variables disponibles:</strong><br>
+                    <code>{{NOMBRE_ALUMNO}}</code> - Nombre del estudiante<br>
+                    <code>{{NOMBRE_CURSO}}</code> - Nombre completo del curso<br>
+                    <code>{{CODIGO_CURSO}}</code> - Código del curso (ej: CLF, GCDL)<br>
+                    <code>{{FRECUENCIA}}</code> - Frecuencia del curso<br>
+                    <code>{{FECHA_INICIO}}</code> - Fecha de inicio del curso
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label>Título de Beneficios</label>
+                  <input type="text" id="previewBenefitsTitle" placeholder="✨ BENEFICIOS DEL CURSO">
+                </div>
+
+                <div class="form-group">
+                  <label>Título de Docentes</label>
+                  <input type="text" id="previewTeachersTitle" placeholder="👨‍🏫 DOCENTES DEL CURSO">
+                </div>
+
+                <div class="form-group">
+                  <label>Pie de Página</label>
+                  <textarea id="previewFooter" placeholder="© 2026 Educational CRM..."></textarea>
+                </div>
+
+                <div class="button-group">
+                  <button class="btn btn-primary" onclick="guardarPreviewSettings()">💾 Guardar Cambios</button>
+                  <button class="btn btn-secondary" onclick="resetearPreviewSettings()">🔄 Restaurar Predeterminados</button>
+                </div>
+
+                <div id="previewMessage"></div>
+              </div>
+
+              <div id="previewPlaceholder" style="padding: 20px; text-align: center; color: #999;">
+                Selecciona una plantilla para editar
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <?!= include('footer'); ?>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <!-- Modal para editar enlace -->
+  <div id="editLinkModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">✏️ Editar Hipervínculo</div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Nombre del Enlace</label>
+          <input type="text" id="editLinkName" placeholder="Ej: Política de Privacidad">
+        </div>
+        <div class="form-group">
+          <label>URL</label>
+          <input type="text" id="editLinkUrl" placeholder="https://ejemplo.com">
+        </div>
+        <div class="form-group">
+          <label>Ícono (emoji)</label>
+          <input type="text" id="editLinkIcon" placeholder="🔒" maxlength="2">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="cerrarModalEditarEnlace()">Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarEnlaceEditado()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal para editar ícono -->
+  <div id="editIconModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">✏️ Editar Ícono</div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Nombre del Ícono</label>
+          <input type="text" id="editIconName" placeholder="Ej: email">
+        </div>
+        
+        <div class="form-group">
+          <label>Opción 1: Cambiar Imagen</label>
+          <input type="file" id="editIconImageFile" accept="image/*" onchange="previewEditIconImage()">
+          <div id="editIconImagePreview" style="border: 2px solid #e5e7eb; padding: 10px; text-align: center; border-radius: 6px; background: #f9f9f9; min-height: 80px; display: flex; align-items: center; justify-content: center; margin-top: 10px;">
+            <p style="color: #999; margin: 0; font-size: 12px;">Vista previa de nueva imagen</p>
+          </div>
+        </div>
+        
+        <div style="border-top: 2px solid #e5e7eb; padding-top: 15px; margin-top: 15px;">
+          <div class="form-group">
+            <label>Opción 2: Usar Emoji</label>
+            <input type="text" id="editIconEmoji" placeholder="📧" maxlength="2">
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label>URL de Destino</label>
+          <input type="text" id="editIconUrl" placeholder="https://ejemplo.com">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="cerrarModalEditarIcono()">Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarIconoEditado()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal para editar logo -->
+  <div id="editLogoModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">✏️ Editar Logo</div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Opción 1: Subir Nuevo Archivo</label>
+          <input type="file" id="editLogoFile" accept="image/*" onchange="previewEditLogoFile()">
+          <div id="editLogoFilePreview" style="border: 2px solid #e5e7eb; padding: 10px; text-align: center; border-radius: 6px; background: #f9f9f9; min-height: 80px; display: flex; align-items: center; justify-content: center; margin-top: 10px;">
+            <p style="color: #999; margin: 0; font-size: 12px;">Vista previa</p>
+          </div>
+        </div>
+        <div style="border-top: 2px solid #e5e7eb; padding-top: 15px; margin-top: 15px;">
+          <div class="form-group">
+            <label>Opción 2: Cambiar URL</label>
+            <input type="text" id="editLogoUrl" placeholder="https://ejemplo.com/logo.png">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="cerrarModalEditarLogo()">Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarLogoEditado()">Guardar Cambios</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Cambiar secciones
+    document.querySelectorAll('.admin-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const section = this.dataset.section;
+        
+        // Actualizar botones
+        document.querySelectorAll('.admin-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        
+        // Actualizar secciones
+        document.querySelectorAll('.admin-section').forEach(s => s.classList.remove('active'));
+        document.getElementById(section + '-section').classList.add('active');
+      });
+    });
+
+    // Logo Functions
+    function previewLogoFile() {
+      const file = document.getElementById('logoFile').files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const preview = document.getElementById('logoFilePreview');
+          preview.innerHTML = '<img src="' + e.target.result + '" style="max-width: 100%; max-height: 150px;">';
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function subirLogo() {
+      console.log('=== subirLogo ===');
+      const file = document.getElementById('logoFile').files[0];
+      if (!file) {
+        showMessage('logoMessage', 'Por favor selecciona una imagen', 'error');
+        return;
+      }
+
+      // Validar tamaño (máximo 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        showMessage('logoMessage', 'El archivo es muy grande (máximo 5MB)', 'error');
+        return;
+      }
+
+      // Validar tipo
+      if (!file.type.startsWith('image/')) {
+        showMessage('logoMessage', 'Por favor selecciona una imagen válida', 'error');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const fullBase64 = e.target.result; // Incluye prefijo data:image/...;base64,
+        console.log('📊 Base64 completo (primeros 50 chars): ' + fullBase64.substring(0, 50));
+        google.script.run
+          .withSuccessHandler(function(result) {
+            console.log('✅ Respuesta del servidor: ' + JSON.stringify(result));
+            if (result.success) {
+              showMessage('logoMessage', '✓ Logo subido exitosamente', 'success');
+              document.getElementById('logoFile').value = '';
+              document.getElementById('logoFilePreview').innerHTML = '<p style="color: #999; margin: 0;">Vista previa</p>';
+              cargarLogoActual();
+            } else {
+              showMessage('logoMessage', 'Error: ' + result.message, 'error');
+            }
+          })
+          .withFailureHandler(function(error) {
+            console.log('❌ Error en subirLogo: ' + error);
+            showMessage('logoMessage', 'Error al subir: ' + error, 'error');
+          })
+          .subirLogoBase64(fullBase64, file.name);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function guardarLogoUrl() {
+      const url = document.getElementById('logoUrl').value;
+      if (!url) {
+        showMessage('logoMessage', 'Por favor ingresa una URL', 'error');
+        return;
+      }
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            showMessage('logoMessage', '✓ Logo guardado exitosamente', 'success');
+            cargarLogoActual();
+          } else {
+            showMessage('logoMessage', 'Error: ' + result.message, 'error');
+          }
+        })
+        .guardarConfiguracion('Logo_URL', url);
+    }
+
+    function cargarLogoActual() {
+      console.log('=== cargarLogoActual ===');
+      google.script.run
+        .withSuccessHandler(function(url) {
+          console.log('📊 URL del logo obtenida: ' + url);
+          const logoActual = document.getElementById('logoActual');
+          if (url && url.trim() !== '') {
+            console.log('✅ Renderizando logo con URL: ' + url);
+            logoActual.innerHTML = '<img src="' + url + '" style="max-width: 200px; height: auto; border-radius: 6px;" onerror="console.error(\'Error cargando logo: \' + this.src)">';
+            document.getElementById('logoUrl').value = url;
+            document.getElementById('logoUrlPreview').innerHTML = '<img src="' + url + '" style="max-width: 100%; max-height: 150px;" onerror="console.error(\'Error cargando preview: \' + this.src)">';
+          } else {
+            console.log('⚠️ URL vacía, mostrando placeholder');
+            logoActual.innerHTML = '<p style="color: #999;">Sin logo cargado</p>';
+          }
+        })
+        .withFailureHandler(function(error) {
+          console.log('❌ Error en cargarLogoActual: ' + error);
+          console.error('Error cargando logo:', error);
+        })
+        .obtenerURLLogo();
+    }
+
+    function abrirModalEditarLogo() {
+      google.script.run
+        .withSuccessHandler(function(url) {
+          if (url && url.trim() !== '') {
+            document.getElementById('editLogoUrl').value = url;
+            document.getElementById('editLogoFilePreview').innerHTML = '<img src="' + url + '" style="max-width: 100%; max-height: 80px;">';
+          }
+          document.getElementById('editLogoModal').classList.add('active');
+        })
+        .obtenerURLLogo();
+    }
+
+    function cerrarModalEditarLogo() {
+      document.getElementById('editLogoModal').classList.remove('active');
+      document.getElementById('editLogoFile').value = '';
+      document.getElementById('editLogoFilePreview').innerHTML = '<p style="color: #999; margin: 0; font-size: 12px;">Vista previa</p>';
+    }
+
+    function previewEditLogoFile() {
+      const file = document.getElementById('editLogoFile').files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const preview = document.getElementById('editLogoFilePreview');
+          preview.innerHTML = '<img src="' + e.target.result + '" style="max-width: 100%; max-height: 80px;">';
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function guardarLogoEditado() {
+      const file = document.getElementById('editLogoFile').files[0];
+      const url = document.getElementById('editLogoUrl').value;
+
+      if (!file && !url) {
+        showMessage('logoMessage', 'Por favor selecciona un archivo o ingresa una URL', 'error');
+        return;
+      }
+
+      if (file) {
+        // Validar tamaño (máximo 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+          showMessage('logoMessage', 'El archivo es muy grande (máximo 5MB)', 'error');
+          return;
+        }
+
+        // Validar tipo
+        if (!file.type.startsWith('image/')) {
+          showMessage('logoMessage', 'Por favor selecciona una imagen válida', 'error');
+          return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const base64 = e.target.result.split(',')[1];
+          google.script.run
+            .withSuccessHandler(function(result) {
+              if (result.success) {
+                showMessage('logoMessage', '✓ Logo actualizado exitosamente', 'success');
+                cerrarModalEditarLogo();
+                cargarLogoActual();
+              } else {
+                showMessage('logoMessage', 'Error: ' + result.message, 'error');
+              }
+            })
+            .withFailureHandler(function(error) {
+              showMessage('logoMessage', 'Error al subir: ' + error, 'error');
+            })
+            .subirLogoBase64(base64);
+        };
+        reader.readAsDataURL(file);
+      } else if (url) {
+        google.script.run
+          .withSuccessHandler(function(result) {
+            if (result.success) {
+              showMessage('logoMessage', '✓ Logo actualizado exitosamente', 'success');
+              cerrarModalEditarLogo();
+              cargarLogoActual();
+            } else {
+              showMessage('logoMessage', 'Error: ' + result.message, 'error');
+            }
+          })
+          .guardarConfiguracion('Logo_URL', url);
+      }
+    }
+
+    function eliminarLogo() {
+      if (confirm('¿Eliminar el logo actual?')) {
+        google.script.run
+          .withSuccessHandler(function() {
+            showMessage('logoMessage', '✓ Logo eliminado', 'success');
+            cargarLogoActual();
+          })
+          .guardarConfiguracion('Logo_URL', '');
+      }
+    }
+
+    // Links Functions
+    function agregarEnlace() {
+      const name = document.getElementById('linkName').value;
+      const url = document.getElementById('linkUrl').value;
+      const icon = document.getElementById('linkIcon').value;
+
+      if (!name || !url || !icon) {
+        showMessage('linksMessage', 'Por favor completa todos los campos', 'error');
+        return;
+      }
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            showMessage('linksMessage', '✓ Enlace agregado', 'success');
+            document.getElementById('linkName').value = '';
+            document.getElementById('linkUrl').value = '';
+            document.getElementById('linkIcon').value = '';
+            cargarEnlaces();
+          }
+        })
+        .agregarEnlacePersonalizado(name, url, icon);
+    }
+
+    function cargarEnlaces() {
+      google.script.run
+        .withSuccessHandler(function(enlaces) {
+          const html = enlaces.map(e => `
+            <div class="link-item" style="justify-content: space-between;">
+              <div style="display: flex; gap: 10px; align-items: center; flex: 1;">
+                <div class="link-item-icon">${e.icon}</div>
+                <div class="link-item-content">
+                  <div class="link-item-label">${e.name}</div>
+                  <div class="link-item-url">${e.url}</div>
+                </div>
+              </div>
+              <div class="link-item-actions" style="flex-shrink: 0;">
+                <button class="link-item-edit" onclick="abrirModalEditarEnlace('${e.name}', '${e.url}', '${e.icon}')">✏️ Editar</button>
+                <button class="link-item-delete" onclick="eliminarEnlace('${e.name}')">🗑️ Eliminar</button>
+              </div>
+            </div>
+          `).join('');
+          document.getElementById('linksList').innerHTML = html || '<p style="color: #999;">No hay enlaces agregados</p>';
+        })
+        .obtenerEnlacesPersonalizados();
+    }
+
+    function eliminarEnlace(name) {
+      if (confirm('¿Eliminar este enlace?')) {
+        google.script.run
+          .withSuccessHandler(function() {
+            cargarEnlaces();
+          })
+          .eliminarEnlacePersonalizado(name);
+      }
+    }
+
+    function abrirModalEditarEnlace(nombre, url, icono) {
+      document.getElementById('editLinkName').value = nombre;
+      document.getElementById('editLinkUrl').value = url;
+      document.getElementById('editLinkIcon').value = icono;
+      document.getElementById('editLinkModal').dataset.originalName = nombre;
+      document.getElementById('editLinkModal').classList.add('active');
+    }
+
+    function cerrarModalEditarEnlace() {
+      document.getElementById('editLinkModal').classList.remove('active');
+    }
+
+    function guardarEnlaceEditado() {
+      const nombreAnterior = document.getElementById('editLinkModal').dataset.originalName;
+      const nombreNuevo = document.getElementById('editLinkName').value;
+      const urlNueva = document.getElementById('editLinkUrl').value;
+      const iconoNuevo = document.getElementById('editLinkIcon').value;
+
+      if (!nombreNuevo || !urlNueva || !iconoNuevo) {
+        showMessage('linksMessage', 'Por favor completa todos los campos', 'error');
+        return;
+      }
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            showMessage('linksMessage', '✓ Enlace actualizado', 'success');
+            cerrarModalEditarEnlace();
+            cargarEnlaces();
+          }
+        })
+        .editarEnlacePersonalizado(nombreAnterior, nombreNuevo, urlNueva, iconoNuevo);
+    }
+
+    // Icons Functions
+    function previewIconImage() {
+      const file = document.getElementById('iconImageFile').files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const preview = document.getElementById('iconImagePreview');
+          preview.innerHTML = '<img src="' + e.target.result + '" style="max-width: 100%; max-height: 80px;">';
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function subirIconoImagen() {
+      const name = document.getElementById('iconImageName').value;
+      const file = document.getElementById('iconImageFile').files[0];
+
+      if (!name || !file) {
+        showMessage('iconsMessage', 'Por favor completa todos los campos', 'error');
+        return;
+      }
+
+      // Validar tamaño (máximo 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        showMessage('iconsMessage', 'El archivo es muy grande (máximo 5MB)', 'error');
+        return;
+      }
+
+      // Validar tipo
+      if (!file.type.startsWith('image/')) {
+        showMessage('iconsMessage', 'Por favor selecciona una imagen válida', 'error');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const fullBase64 = e.target.result;
+        
+        google.script.run
+          .withSuccessHandler(function(result) {
+            if (result.success) {
+              showMessage('iconsMessage', '✓ Imagen de ícono subida', 'success');
+              document.getElementById('iconImageName').value = '';
+              document.getElementById('iconImageFile').value = '';
+              document.getElementById('iconImagePreview').innerHTML = '<p style="color: #999; margin: 0; font-size: 12px;">Vista previa</p>';
+              cargarIconos();
+            } else {
+              showMessage('iconsMessage', 'Error: ' + result.message, 'error');
+            }
+          })
+          .withFailureHandler(function(error) {
+            showMessage('iconsMessage', 'Error al subir: ' + error, 'error');
+          })
+          .subirImagenIcono(name, fullBase64, '');
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function agregarIcono() {
+      const name = document.getElementById('iconName').value;
+      const emoji = document.getElementById('iconEmoji').value;
+      const url = document.getElementById('iconEmojiUrl').value;
+
+      if (!name || !emoji) {
+        showMessage('iconsMessage', 'Por favor completa los campos requeridos', 'error');
+        return;
+      }
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            showMessage('iconsMessage', '✓ Ícono agregado', 'success');
+            document.getElementById('iconName').value = '';
+            document.getElementById('iconEmoji').value = '';
+            document.getElementById('iconEmojiUrl').value = '';
+            cargarIconos();
+          }
+        })
+        .agregarIconoPersonalizadoConUrl(name, emoji, url);
+    }
+
+    function cargarIconos() {
+      console.log('🔍 cargarIconos() LLAMADA');
+      google.script.run
+        .withSuccessHandler(function(iconos) {
+          console.log('✅ obtenerIconosPersonalizados retornó:', iconos);
+          console.log('📊 Total de iconos:', iconos.length);
+          
+          iconos.forEach((i, idx) => {
+            console.log(`Icono ${idx}:`, {
+              name: i.name,
+              imageUrl: i.imageUrl,
+              url: i.url,
+              emoji: i.emoji
+            });
+          });
+          
+          const html = iconos.map(i => {
+            const iconName = (i.name || '').replace(/'/g, "\\'");
+            const iconUrl = (i.url || '').replace(/'/g, "\\'");
+            const imageUrl = (i.imageUrl || '').replace(/'/g, "\\'");
+            
+            console.log(`Renderizando icono: ${iconName}, imageUrl: ${imageUrl}`);
+            
+            // Mostrar imagen si existe, sino mostrar emoji o signo de interrogación
+            let preview = '';
+            if (i.imageUrl) {
+              preview = '<img src="' + imageUrl + '" style="width: 30px; height: 30px; border-radius: 4px; object-fit: cover;" onerror="console.log(\'❌ Error cargando imagen: ' + imageUrl + '\')">';
+            } else if (i.emoji) {
+              preview = '<span style="font-size: 24px;">' + i.emoji + '</span>';
+            } else {
+              preview = '<span style="font-size: 20px;">❓</span>';
+            }
+            
+            return `
+            <div class="icon-item">
+              <div class="icon-preview" style="text-align: center; padding: 8px;">${preview}</div>
+              <div class="icon-name">${iconName}</div>
+              <div class="icon-item-actions">
+                <button class="icon-item-edit" onclick="abrirModalEditarIcono('${iconName}', '${i.emoji || ''}', '${iconUrl}')">Editar</button>
+                <button class="icon-item-delete" onclick="eliminarIcono('${iconName}')">Eliminar</button>
+              </div>
+            </div>
+            `;
+          }).join('');
+          document.getElementById('iconsGrid').innerHTML = html || '<p style="color: #999;">No hay íconos agregados</p>';
+          console.log('✅ HTML renderizado en iconsGrid');
+        })
+        .withFailureHandler(function(error) {
+          console.log('❌ Error en obtenerIconosPersonalizados:', error);
+        })
+        .obtenerIconosPersonalizados();
+    }
+
+    function seleccionarIcono(name, emoji) {
+      console.log('Ícono seleccionado:', name, emoji);
+    }
+
+    function abrirModalEditarIcono(nombre, emoji, url) {
+      document.getElementById('editIconName').value = nombre;
+      document.getElementById('editIconEmoji').value = emoji;
+      document.getElementById('editIconUrl').value = url;
+      document.getElementById('editIconModal').dataset.originalName = nombre;
+      
+      // Limpiar preview de imagen
+      document.getElementById('editIconImageFile').value = '';
+      document.getElementById('editIconImagePreview').innerHTML = '<p style="color: #999; margin: 0; font-size: 12px;">Vista previa de nueva imagen</p>';
+      
+      document.getElementById('editIconModal').classList.add('active');
+    }
+
+    function cerrarModalEditarIcono() {
+      document.getElementById('editIconModal').classList.remove('active');
+    }
+
+    function previewEditIconImage() {
+      const file = document.getElementById('editIconImageFile').files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const preview = document.getElementById('editIconImagePreview');
+          preview.innerHTML = '<img src="' + e.target.result + '" style="max-width: 100%; max-height: 80px;">';
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function guardarIconoEditado() {
+      const nombreAnterior = document.getElementById('editIconModal').dataset.originalName;
+      const nombreNuevo = document.getElementById('editIconName').value;
+      const urlNueva = document.getElementById('editIconUrl').value;
+      const file = document.getElementById('editIconImageFile').files[0];
+
+      if (!nombreNuevo) {
+        showMessage('iconsMessage', 'Por favor ingresa un nombre', 'error');
+        return;
+      }
+
+      // Si hay un archivo, subir nueva imagen
+      if (file) {
+        // Validar tamaño (máximo 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+          showMessage('iconsMessage', 'El archivo es muy grande (máximo 5MB)', 'error');
+          return;
+        }
+
+        // Validar tipo
+        if (!file.type.startsWith('image/')) {
+          showMessage('iconsMessage', 'Por favor selecciona una imagen válida', 'error');
+          return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const fullBase64 = e.target.result;
+          google.script.run
+            .withSuccessHandler(function(result) {
+              if (result.success) {
+                showMessage('iconsMessage', '✓ Ícono actualizado con nueva imagen', 'success');
+                cerrarModalEditarIcono();
+                cargarIconos();
+              } else {
+                showMessage('iconsMessage', 'Error: ' + result.message, 'error');
+              }
+            })
+            .withFailureHandler(function(error) {
+              showMessage('iconsMessage', 'Error al actualizar: ' + error, 'error');
+            })
+            .subirImagenIcono(nombreAnterior, fullBase64, urlNueva);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        // Solo actualizar URL sin cambiar imagen
+        google.script.run
+          .withSuccessHandler(function(result) {
+            if (result.success) {
+              showMessage('iconsMessage', '✓ Ícono actualizado', 'success');
+              cerrarModalEditarIcono();
+              cargarIconos();
+            }
+          })
+          .editarIconoPersonalizado(nombreAnterior, nombreNuevo, emojiNuevo, urlNueva);
+      }
+    }
+
+    function eliminarIcono(nombre) {
+      if (confirm('¿Eliminar este ícono?')) {
+        google.script.run
+          .withSuccessHandler(function() {
+            cargarIconos();
+          })
+          .eliminarIconoPersonalizado(nombre);
+      }
+    }
+
+    // Preview Settings
+    var defaultPreviewSettings = {
+      bienvenida: {
+        subject: '🎉 ¡Bienvenido a Educational CRM! - {{NOMBRE_CURSO}}',
+        title: 'BIENVENIDO A EDUCATIONAL CRM',
+        welcome: 'Estimado {{NOMBRE_ALUMNO}},\n\nNos complace confirmar la recepción exitosa de su pago para el curso {{NOMBRE_CURSO}}. El curso se desarrollará {{FRECUENCIA}}, cada sesión tendrá una duración de 3 horas, de 19:00 hrs a 22:00 hrs (GMT-5).\n\nTu matrícula ha quedado ingresada oficialmente.',
+        benefitsTitle: '✨ BENEFICIOS DEL CURSO',
+        teachersTitle: '👨‍🏫 DOCENTES DEL CURSO',
+        footer: '© 2026 Educational CRM. Todos los derechos reservados.'
+      },
+      'recordatorio-pago': {
+        subject: '💰 Recordatorio de Pago - Educational CRM',
+        title: 'RECORDATORIO DE PAGO',
+        welcome: 'Hola {{NOMBRE_ALUMNO}},\n\nTe recordamos que tienes un pago pendiente por el curso {{NOMBRE_CURSO}}.\n\nMonto de tu próxima cuota: ${{PRECIO}}\n\nFecha límite de pago: {{FECHA_LIMITE}}\n\nLink de pago: https://payment-provider.example.com/pay/YOUR_PAYMENT_LINK\n\nSi ya realizaste tu pago, omite este mensaje.\n\nRecuerda que el pago debe realizarse hasta 2 horas antes del inicio del curso para garantizar tu acceso.',
+        benefitsTitle: '',
+        teachersTitle: '',
+        footer: '© 2026 Educational CRM. Todos los derechos reservados.'
+      },
+      'confirmacion-pago': {
+        subject: '✅ Confirmación de Pago - Educational CRM',
+        title: 'CONFIRMACIÓN DE PAGO',
+        welcome: 'Hola {{NOMBRE_ALUMNO}},\n\nHemos recibido tu pago por el curso {{NOMBRE_CURSO}}.\n\nMonto recibido: ${{PRECIO}}\n\n{{SALDO_PENDIENTE}}\n\nSi tienes cuotas pendientes, recuerda realizar tus pagos a tiempo.\n\n¡Gracias por tu pago!',
+        benefitsTitle: '',
+        teachersTitle: '',
+        footer: '© 2026 Educational CRM. Todos los derechos reservados.'
+      },
+      'cambio-seccion': {
+        subject: '🔄 Cambio de Sección - Educational CRM',
+        title: 'CAMBIO DE SECCIÓN',
+        welcome: 'Estimado {{NOMBRE_ALUMNO}},\n\nLe informamos que se ha realizado un cambio en su sección del curso {{NOMBRE_CURSO}}.',
+        benefitsTitle: '',
+        teachersTitle: '',
+        footer: '© 2026 Educational CRM. Todos los derechos reservados.'
+      },
+      'cambio-inicio-seccion': {
+        subject: '📅 Cambio de Fecha de Inicio - Educational CRM',
+        title: 'CAMBIO DE FECHA DE INICIO',
+        welcome: 'Hola {{NOMBRE_ALUMNO}},\n\nTe informamos que la fecha de inicio de tu curso {{NOMBRE_CURSO}} ha sido modificada.\n\nNueva fecha de inicio: {{NUEVA_FECHA}}\n\nSi tienes alguna consulta sobre este cambio, no dudes en contactarnos.',
+        benefitsTitle: '',
+        teachersTitle: '',
+        footer: '© 2026 Educational CRM. Todos los derechos reservados.'
+      },
+      'acceso-simulador': {
+        subject: '🎮 Acceso a Simulador de Examen - Educational CRM',
+        title: 'ACCESO A SIMULADOR DE EXAMEN',
+        welcome: 'Hola {{NOMBRE_ALUMNO}},\n\nTe damos la bienvenida al simulador de examen de Educational CRM.\n\nCursos: {{CURSOS_SIMULADOR}}\n\nTus credenciales de acceso:\nUsuario: {{EMAIL_ALUMNO}}\nContraseña: {{PASSWORD}}\n\nPeriodo de acceso: {{FECHA_INICIO}} al {{FECHA_FIN}}\n\nAccede al simulador en: https://simulator.example.com\n\n¡Éxitos en tu preparación!',
+        benefitsTitle: '',
+        teachersTitle: '',
+        footer: '© 2026 Educational CRM. Todos los derechos reservados.'
+      },
+      'acceso-material': {
+        subject: '📂 Acceso a Material del Curso - Educational CRM',
+        title: 'ACCESO A MATERIAL DEL CURSO',
+        welcome: 'Hola {{NOMBRE_ALUMNO}},\n\n¡Felicidades por completar el pago de tu curso {{NOMBRE_CURSO}}!\n\nYa tienes acceso al material de estudio de tu sección {{SECCION}}.\n\nAccede a tu material aquí:\n{{URL_CARPETA}}\n\nRecuerda revisar el contenido antes de cada clase para aprovechar al máximo tu experiencia de aprendizaje.\n\n¡Éxitos en tu preparación!',
+        benefitsTitle: '',
+        teachersTitle: '',
+        footer: '© 2026 Educational CRM. Todos los derechos reservados.'
+      }
+    };
+
+    function cargarConfiguracionPreview() {
+      var plantilla = document.getElementById('previewPlantilla').value;
+      if (!plantilla) {
+        document.getElementById('previewConfigContent').style.display = 'none';
+        document.getElementById('previewPlaceholder').style.display = 'block';
+        return;
+      }
+
+      document.getElementById('previewConfigContent').style.display = 'block';
+      document.getElementById('previewPlaceholder').style.display = 'none';
+
+      console.log('🔍 [preview] Cargando configuración para:', plantilla);
+
+      google.script.run
+        .withSuccessHandler(function(savedJson) {
+          console.log('✅ [preview] Config recibida:', savedJson);
+          var config = null;
+          if (savedJson) {
+            try {
+              config = JSON.parse(savedJson);
+            } catch(e) {
+              console.log('⚠️ [preview] Error parseando config guardada:', e);
+            }
+          }
+          
+          // Si no hay config guardada, usar defaults
+          if (!config) {
+            config = defaultPreviewSettings[plantilla] || {};
+            console.log('📋 [preview] Usando defaults para:', plantilla);
+          }
+          
+          document.getElementById('previewSubject').value = config.subject || '';
+          document.getElementById('previewTitle').value = config.title || '';
+          document.getElementById('previewWelcome').value = config.welcome || '';
+          document.getElementById('previewBenefitsTitle').value = config.benefitsTitle || '';
+          document.getElementById('previewTeachersTitle').value = config.teachersTitle || '';
+          document.getElementById('previewFooter').value = config.footer || '';
+        })
+        .withFailureHandler(function(error) {
+          console.log('❌ [preview] Error cargando config:', error);
+          // Usar defaults en caso de error
+          var config = defaultPreviewSettings[plantilla] || {};
+          document.getElementById('previewSubject').value = config.subject || '';
+          document.getElementById('previewTitle').value = config.title || '';
+          document.getElementById('previewWelcome').value = config.welcome || '';
+          document.getElementById('previewBenefitsTitle').value = config.benefitsTitle || '';
+          document.getElementById('previewTeachersTitle').value = config.teachersTitle || '';
+          document.getElementById('previewFooter').value = config.footer || '';
+        })
+        .obtenerConfigPreview(plantilla);
+    }
+
+    function guardarPreviewSettings() {
+      var plantilla = document.getElementById('previewPlantilla').value;
+      if (!plantilla) {
+        showMessage('previewMessage', 'Por favor selecciona una plantilla', 'error');
+        return;
+      }
+
+      var settings = {
+        plantilla: plantilla,
+        subject: document.getElementById('previewSubject').value,
+        title: document.getElementById('previewTitle').value,
+        welcome: document.getElementById('previewWelcome').value,
+        benefitsTitle: document.getElementById('previewBenefitsTitle').value,
+        teachersTitle: document.getElementById('previewTeachersTitle').value,
+        footer: document.getElementById('previewFooter').value
+      };
+
+      console.log('💾 [preview] Guardando config para:', plantilla);
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result && result.success) {
+            showMessage('previewMessage', '✓ Cambios guardados exitosamente', 'success');
+          } else {
+            showMessage('previewMessage', 'Error: ' + (result ? result.message : 'desconocido'), 'error');
+          }
+        })
+        .withFailureHandler(function(error) {
+          showMessage('previewMessage', 'Error al guardar: ' + error, 'error');
+        })
+        .guardarConfigPreview(plantilla, JSON.stringify(settings));
+    }
+
+    function resetearPreviewSettings() {
+      var plantilla = document.getElementById('previewPlantilla').value;
+      if (!plantilla) return;
+      
+      if (confirm('¿Restaurar valores predeterminados para esta plantilla?')) {
+        var config = defaultPreviewSettings[plantilla] || {};
+        document.getElementById('previewSubject').value = config.subject || '';
+        document.getElementById('previewTitle').value = config.title || '';
+        document.getElementById('previewWelcome').value = config.welcome || '';
+        document.getElementById('previewBenefitsTitle').value = config.benefitsTitle || '';
+        document.getElementById('previewTeachersTitle').value = config.teachersTitle || '';
+        document.getElementById('previewFooter').value = config.footer || '';
+        
+        // También guardar los defaults
+        guardarPreviewSettings();
+      }
+    }
+
+    // Utilities
+    function showMessage(elementId, message, type) {
+      const el = document.getElementById(elementId);
+      el.innerHTML = `<div class="${type}-message">${message}</div>`;
+      setTimeout(() => { el.innerHTML = ''; }, 3000);
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+      cargarLogoActual();
+      cargarEnlaces();
+      cargarIconos();
+      
+      // Cargar hipervínculos predeterminados
+      google.script.run
+        .withSuccessHandler(function() {
+          cargarEnlaces();
+        })
+        .inicializarEnlacesPredeterminados();
+
+      // Cerrar modales al hacer clic fuera
+      window.onclick = function(event) {
+        const editLinkModal = document.getElementById('editLinkModal');
+        const editIconModal = document.getElementById('editIconModal');
+        const editLogoModal = document.getElementById('editLogoModal');
+        
+        if (event.target === editLinkModal) {
+          editLinkModal.classList.remove('active');
+        }
+        if (event.target === editIconModal) {
+          editIconModal.classList.remove('active');
+        }
+        if (event.target === editLogoModal) {
+          editLogoModal.classList.remove('active');
+        }
+      };
+    });
+  </script>
+</body>
+</html>

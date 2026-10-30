@@ -1,0 +1,8325 @@
+/**
+ * Educational CRM - Sistema de Gestión de Ventas
+ * Versión 6.3.0 - Sistema Modular - DEPLOYMENT MARZO 16 2026
+ * 🚀 KIRO DEPLOYMENT v420+ - SI VES ESTO, EL DEPLOYMENT FUNCIONA 🚀
+ * 
+ * ARQUITECTURA MODULAR:
+ * - CoreFunctions.gs: Funciones básicas y configuración
+ * - VentasModule.gs: Ventas, alumnos y secciones básicas
+ * - CobranzaModule.gs: Cobranza y pagos
+ * - PlantillasModule.gs: Plantillas de email
+ * - CursosModule.gs: Gestión completa de cursos
+ * - DocentesModule.gs: Gestión de docentes
+ * - CertificacionesModule.gs: Gestión de certificaciones
+ * - SeccionesModule.gs: Gestión avanzada de secciones
+ * - DashboardModule.gs: Dashboard y reportes
+ * - TimelineModule.gs: Timeline y calendario
+ * - DatabaseModule.gs: Gestión de base de datos
+ * - FileSystemModule.gs: Gestión de archivos e imágenes
+ * - MantenimientoModule.gs: Funciones de mantenimiento
+ */
+
+const DB_SHEET_ID = 'YOUR_DATABASE_SPREADSHEET_ID';
+
+/**
+ * Función principal de routing para la aplicación web
+ */
+function doGet(e) {
+  Logger.log('🔥 doGet - Page: ' + (e.parameter.page || 'ventas'));
+  
+  const page = e.parameter.page || 'ventas';
+  
+  // INICIALIZACIÓN AUTOMÁTICA PARA ADMIN PLANTILLAS
+  if (page === 'plantillas-admin') {
+    try {
+      const iconosExistentes = PropertiesService.getScriptProperties().getProperty('Icono_ig-icon');
+      const logoExistente = PropertiesService.getScriptProperties().getProperty('Logo_URL');
+      
+      if (!iconosExistentes || !logoExistente) {
+        inicializarIconosPredeterminados();
+        inicializarEnlacesPredeterminados();
+        inicializarLogoPredeterminado();
+      }
+    } catch (error) {
+      Logger.log('❌ Error en inicialización: ' + error.toString());
+    }
+  }
+  
+  const templates = {
+    'ventas': 'index',
+    'cursos': 'cursos',
+    'certificaciones': 'certificaciones',
+    'docentes': 'docentes',
+    'docentes-logs': 'docentes-con-logs',
+    'test-logs': 'test-logs-simple',
+    'secciones': 'secciones',
+    'alumnos': 'alumnos',
+    'pagos': 'pagos',
+    'cobranza': 'cobranza',
+    'plantillas': 'plantillas',
+    'plantillas-admin': 'plantillas-admin',
+    'dashboard': 'dashboard',
+    'timeline': 'timeline',
+    'mantenimiento': 'mantenimiento',
+    'diagnostico': 'diagnostico-web',
+    'documentacion': 'documentacion',
+    'leads': 'leads',
+    'finanzas': 'finanzas'
+  };
+  
+  var template = HtmlService.createTemplateFromFile(templates[page] || 'index');
+  template.baseUrl = ScriptApp.getService().getUrl();
+  template.currentPage = page;
+  
+  Logger.log('📍 Base URL: ' + template.baseUrl);
+  
+  return template
+    .evaluate()
+    .setTitle('Educational CRM - Sistema de Ventas')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+/**
+ * Incluye archivos HTML
+ */
+function include(filename) {
+  return HtmlService.createHtmlOutputFromFile(filename).getContent();
+}
+
+/**
+ * Incluye archivos HTML con página actual
+ */
+function includeWithCurrentPage(filename, currentPage) {
+  // DESPLIEGUE DIRECTO DEL NAV - 2024-03-16
+  if (filename === 'nav') {
+    return getNavHTML(currentPage);
+  }
+  
+  var template = HtmlService.createTemplateFromFile(filename);
+  template.baseUrl = ScriptApp.getService().getUrl();
+  template.currentPage = currentPage || 'ventas';
+  return template.evaluate().getContent();
+}
+
+/**
+ * Genera el HTML de navegación directamente
+ */
+function getNavHTML(currentPage) {
+  currentPage = currentPage || 'ventas';
+  
+  // USAR DIRECTAMENTE EL ID CORRECTO DEL LOGO logo3-recortado.png
+  const logoFileId = 'YOUR_DRIVE_FILE_ID';
+  
+  const logoUrl = `https://drive.google.com/thumbnail?id=${logoFileId}&sz=w200`;
+  
+  return `<header class="header">
+  <div style="display: flex; align-items: flex-start; gap: 2px; flex-wrap: wrap; flex: 1; padding: 8px 0 8px 25px;">
+    <div style="display: flex; align-items: flex-start; gap: 8px; flex-shrink: 0;">
+      <div id="logoContainer" style="height: 50px; width: 50px; border-radius: 8px; display: flex; align-items: center; justify-content: center; min-width: 50px; flex-shrink: 0; overflow: hidden; background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 50%, #60a5fa 100%); border: 2px solid #fbbf24;">
+        <img id="logoImg" src="${logoUrl}" 
+             alt="Educational CRM Logo" 
+             style="width: 100%; height: 100%; object-fit: contain; border-radius: 8px; display: block;">
+      </div>
+      <div style="color: white; line-height: 0; padding-top: 4px;">
+        <div style="font-size: 18px; font-weight: 700; letter-spacing: 0.5px; line-height: 1;">EDUCATIONAL CRM</div>
+        <div style="font-size: 14px; font-weight: 600; letter-spacing: 0.5px; line-height: 1;">ACADEMY</div>
+        <div style="font-size: 10px; opacity: 0.85; margin-top: 0px; line-height: 1;">CRM Educativo</div>
+      </div>
+    </div>
+  </div>
+  <nav class="nav" id="mainNav">
+    <!-- Navigation will be generated by JavaScript -->
+  </nav>
+</header>
+
+<script>
+  (function() {
+    var currentPage = '${currentPage}';
+    var url = window.location.href.toLowerCase();
+    
+    // Detectar página actual
+    if (url.includes('page=pagos')) currentPage = 'pagos';
+    else if (url.includes('page=cobranza')) currentPage = 'cobranza';
+    else if (url.includes('page=cursos')) currentPage = 'cursos';
+    else if (url.includes('page=secciones')) currentPage = 'secciones';
+    else if (url.includes('page=docentes')) currentPage = 'docentes';
+    else if (url.includes('page=alumnos')) currentPage = 'alumnos';
+    else if (url.includes('page=timeline')) currentPage = 'timeline';
+    else if (url.includes('page=plantillas-admin')) currentPage = 'plantillas-admin';
+    else if (url.includes('page=plantillas')) currentPage = 'plantillas';
+    else if (url.includes('page=finanzas')) currentPage = 'finanzas';
+    else if (url.includes('page=dashboard')) currentPage = 'dashboard';
+    else if (url.includes('page=mantenimiento')) currentPage = 'mantenimiento';
+    
+    var nav = document.getElementById('mainNav');
+    if (!nav) return;
+    
+    var baseUrl = window.APP_BASE_URL || '';
+    
+    var pages = [
+      {page: 'ventas', icon: '💰', label: 'Ventas'},
+      {page: 'pagos', icon: '💳', label: 'Pagos'},
+      {page: 'cobranza', icon: '💸', label: 'Cobranza'},
+      {page: 'cursos', icon: '📚', label: 'Cursos'},
+      {page: 'secciones', icon: '🎓', label: 'Secciones'},
+      {page: 'docentes', icon: '👨‍🏫', label: 'Docentes'},
+      {page: 'alumnos', icon: '👥', label: 'Alumnos'},
+      {page: 'timeline', icon: '📅', label: 'Timeline'},
+      {page: 'plantillas', icon: '📧', label: 'Plantillas'},
+      {page: 'plantillas-admin', icon: '⚙️', label: 'Admin Plantillas'},
+      {page: 'dashboard', icon: '📊', label: 'Dashboard'},
+      {page: 'finanzas', icon: '🏦', label: 'Finanzas'},
+      {page: 'mantenimiento', icon: '🔧', label: 'Mantenimiento'},
+      {page: 'leads', icon: '📋', label: 'Lead Scoring'}
+    ];
+    
+    nav.innerHTML = '';
+    
+    var firstRow = document.createElement('div');
+    firstRow.style.cssText = 'display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px;';
+    
+    var secondRow = document.createElement('div');
+    secondRow.style.cssText = 'display:grid;grid-template-columns:repeat(7,1fr);gap:4px;';
+    
+    var thirdRow = document.createElement('div');
+    thirdRow.style.cssText = 'display:grid;grid-template-columns:repeat(1,1fr);gap:4px;margin-top:4px;';
+    
+    pages.forEach(function(pageData, index) {
+      var link = document.createElement('a');
+      link.href = baseUrl + '?page=' + pageData.page;
+      link.target = '_top';
+      link.className = 'nav-link';
+      link.textContent = pageData.icon + ' ' + pageData.label;
+      
+      link.style.cssText = 'color: rgba(255, 255, 255, 0.9); text-decoration: none; padding: 4px 8px; border-radius: 6px; transition: all 0.3s ease; font-size: 11px; font-weight: 500; border: 1px solid rgba(255, 255, 255, 0.2); background: rgba(255, 255, 255, 0.1); display: block; text-align: center;';
+      
+      if (pageData.page === currentPage) {
+        link.style.cssText += 'color: white !important; background: rgba(255, 255, 255, 0.3) !important; border-color: rgba(255, 255, 255, 0.6) !important; font-weight: 600 !important; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;';
+      }
+      
+      if (index < 7) {
+        firstRow.appendChild(link);
+      } else if (index < 14) {
+        secondRow.appendChild(link);
+      } else {
+        thirdRow.appendChild(link);
+      }
+    });
+    
+    nav.appendChild(firstRow);
+    nav.appendChild(secondRow);
+    nav.appendChild(thirdRow);
+  })();
+</script>`;
+}
+
+/**
+ * Incluye archivos con URL base
+ */
+function includeWithBaseUrl(filename) {
+  var template = HtmlService.createTemplateFromFile(filename);
+  template.baseUrl = ScriptApp.getService().getUrl();
+  return template.evaluate().getContent();
+}
+
+/**
+ * Obtiene la base de datos
+ */
+function getDB() {
+  return SpreadsheetApp.openById(DB_SHEET_ID);
+}
+
+// ============================================
+// FUNCIONES CRÍTICAS EXPUESTAS PARA FRONTEND
+// ============================================
+
+/**
+ * FUNCIÓN ULTRA-SIMPLE - Basada en el diagnóstico exitoso
+ */
+function getMatriculasConPagosHybrid(alumnoId) {
+  Logger.log('🔧 === getMatriculasConPagosHybrid ULTRA-SIMPLE ===');
+  Logger.log('🔧 AlumnoId: ' + alumnoId);
+  
+  try {
+    // Usar exactamente la misma lógica que funcionó en el diagnóstico
+    const spreadsheet = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+    Logger.log('✅ Spreadsheet abierto');
+    
+    // Obtener hoja Alumnos
+    const alumnosSheet = spreadsheet.getSheetByName('Alumnos');
+    if (!alumnosSheet) {
+      Logger.log('❌ Hoja Alumnos no encontrada');
+      return {
+        success: false,
+        alumno: null,
+        matriculas: [],
+        error: 'Hoja Alumnos no encontrada'
+      };
+    }
+    Logger.log('✅ Hoja Alumnos encontrada');
+    
+    // Leer todos los datos
+    const allData = alumnosSheet.getDataRange().getValues();
+    Logger.log('✅ Datos leídos: ' + allData.length + ' filas');
+    
+    // Buscar alumno
+    let alumno = null;
+    for (let i = 1; i < allData.length; i++) {
+      const idEnHoja = String(allData[i][0] || '').trim();
+      if (idEnHoja === String(alumnoId).trim()) {
+        alumno = {
+          ID: idEnHoja,
+          Nombre: String(allData[i][1] || ''),
+          Email: String(allData[i][2] || ''),
+          Telefono: String(allData[i][3] || ''),
+          Pais: String(allData[i][4] || '')
+        };
+        Logger.log('✅ Alumno encontrado: ' + alumno.Nombre);
+        break;
+      }
+    }
+    
+    if (!alumno) {
+      Logger.log('❌ Alumno no encontrado');
+      return {
+        success: false,
+        alumno: null,
+        matriculas: [],
+        error: 'Alumno no encontrado con ID: ' + alumnoId
+      };
+    }
+    
+    // Obtener matrículas
+    const matriculasSheet = spreadsheet.getSheetByName('Matriculas');
+    const matriculas = [];
+    
+    if (matriculasSheet) {
+      Logger.log('✅ Hoja Matriculas encontrada');
+      const matriculasData = matriculasSheet.getDataRange().getValues();
+      Logger.log('✅ Datos de matrículas: ' + matriculasData.length + ' filas');
+      
+      for (let i = 1; i < matriculasData.length; i++) {
+        const alumnoIdEnMatricula = String(matriculasData[i][1] || '').trim();
+        if (alumnoIdEnMatricula === String(alumnoId).trim()) {
+          const matricula = {
+            ID: String(matriculasData[i][0] || ''),
+            AlumnoID: alumnoIdEnMatricula,
+            Seccion: String(matriculasData[i][2] || ''),
+            CodigoSeccion: String(matriculasData[i][2] || ''),
+            PrecioTotal: Number(matriculasData[i][3]) || 0,
+            PrecioVenta: Number(matriculasData[i][3]) || 0,
+            IncluyeExamen: String(matriculasData[i][4] || ''),
+            Estado: String(matriculasData[i][5] || 'Pendiente'),
+            EstadoPago: String(matriculasData[i][5] || 'Pendiente'),
+            TotalPagado: Number(matriculasData[i][6]) || 0,
+            EstadoMatricula: String(matriculasData[i][7] || 'Activa'),
+            SaldoPendiente: Number(matriculasData[i][8]) || 0,
+            FechaMatricula: String(matriculasData[i][9] || ''),
+            Observaciones: String(matriculasData[i][10] || ''),
+            EsTest: String(matriculasData[i][11] || ''),
+            Pagos: []
+          };
+          matriculas.push(matricula);
+          Logger.log('✅ Matrícula agregada: ' + matricula.ID);
+        }
+      }
+    } else {
+      Logger.log('⚠️ Hoja Matriculas no encontrada');
+    }
+    
+    // Crear resultado final - CRÍTICO: ASEGURAR QUE SE RETORNE
+    const resultado = {
+      success: true,
+      alumno: alumno,
+      matriculas: matriculas,
+      error: null
+    };
+    
+    Logger.log('🎉 Resultado creado exitosamente');
+    Logger.log('🎉 Alumno: ' + (resultado.alumno ? resultado.alumno.Nombre : 'null'));
+    Logger.log('🎉 Matrículas: ' + resultado.matriculas.length);
+    Logger.log('🎉 RETORNANDO RESULTADO: ' + JSON.stringify(resultado));
+    
+    return resultado;
+    
+  } catch (error) {
+    Logger.log('❌ ERROR CAPTURADO: ' + error.toString());
+    Logger.log('❌ Stack: ' + error.stack);
+    
+    // RETORNAR ERROR ESTRUCTURADO EN LUGAR DE NULL
+    const errorResult = {
+      success: false,
+      alumno: null,
+      matriculas: [],
+      error: error.toString()
+    };
+    
+    Logger.log('❌ RETORNANDO ERROR: ' + JSON.stringify(errorResult));
+    return errorResult;
+  }
+}
+
+/**
+ * FUNCIÓN DE DIAGNÓSTICO EXTREMO - Para identificar el problema exacto
+ */
+function diagnosticoExtremo(alumnoId) {
+  const log = [];
+  
+  try {
+    log.push('🔍 DIAGNÓSTICO EXTREMO INICIADO');
+    log.push('🔍 Timestamp: ' + new Date().toISOString());
+    log.push('🔍 AlumnoId recibido: "' + alumnoId + '" (tipo: ' + typeof alumnoId + ')');
+    
+    // Test 1: Verificar acceso básico a SpreadsheetApp
+    log.push('🔍 Test 1: Verificando SpreadsheetApp...');
+    if (typeof SpreadsheetApp === 'undefined') {
+      log.push('❌ SpreadsheetApp no está disponible');
+      return { success: false, log: log, error: 'SpreadsheetApp no disponible' };
+    }
+    log.push('✅ SpreadsheetApp disponible');
+    
+    // Test 2: Verificar acceso al spreadsheet
+    log.push('🔍 Test 2: Abriendo spreadsheet...');
+    const spreadsheetId = 'YOUR_DATABASE_SPREADSHEET_ID';
+    log.push('🔍 ID del spreadsheet: ' + spreadsheetId);
+    
+    const spreadsheet = SpreadsheetApp.openById(spreadsheetId);
+    log.push('✅ Spreadsheet abierto correctamente');
+    
+    // Test 3: Listar todas las hojas disponibles
+    log.push('🔍 Test 3: Listando hojas disponibles...');
+    const sheets = spreadsheet.getSheets();
+    log.push('✅ Total de hojas: ' + sheets.length);
+    
+    const sheetNames = [];
+    for (let i = 0; i < sheets.length; i++) {
+      sheetNames.push(sheets[i].getName());
+    }
+    log.push('✅ Nombres de hojas: ' + JSON.stringify(sheetNames));
+    
+    // Test 4: Verificar hoja Alumnos específicamente
+    log.push('🔍 Test 4: Accediendo a hoja Alumnos...');
+    const alumnosSheet = spreadsheet.getSheetByName('Alumnos');
+    
+    if (!alumnosSheet) {
+      log.push('❌ Hoja "Alumnos" no encontrada');
+      log.push('❌ Hojas disponibles: ' + JSON.stringify(sheetNames));
+      return { success: false, log: log, error: 'Hoja Alumnos no encontrada', availableSheets: sheetNames };
+    }
+    
+    log.push('✅ Hoja Alumnos encontrada');
+    
+    // Test 5: Obtener información básica de la hoja
+    log.push('🔍 Test 5: Información de la hoja Alumnos...');
+    const lastRow = alumnosSheet.getLastRow();
+    const lastColumn = alumnosSheet.getLastColumn();
+    log.push('✅ Última fila con datos: ' + lastRow);
+    log.push('✅ Última columna con datos: ' + lastColumn);
+    
+    // Test 6: Leer los primeros datos
+    log.push('🔍 Test 6: Leyendo primeras 3 filas...');
+    if (lastRow >= 1) {
+      const range = alumnosSheet.getRange(1, 1, Math.min(3, lastRow), Math.min(5, lastColumn));
+      const values = range.getValues();
+      
+      for (let i = 0; i < values.length; i++) {
+        log.push('✅ Fila ' + (i + 1) + ': ' + JSON.stringify(values[i]));
+      }
+      
+      // Test 7: Buscar el alumno específico
+      if (alumnoId && lastRow > 1) {
+        log.push('🔍 Test 7: Buscando alumno "' + alumnoId + '"...');
+        
+        const allData = alumnosSheet.getDataRange().getValues();
+        log.push('✅ Total de filas leídas: ' + allData.length);
+        
+        let encontrado = false;
+        for (let i = 1; i < allData.length; i++) {
+          const idEnHoja = String(allData[i][0] || '').trim();
+          log.push('🔍 Comparando: "' + idEnHoja + '" vs "' + String(alumnoId).trim() + '"');
+          
+          if (idEnHoja === String(alumnoId).trim()) {
+            log.push('✅ ¡ALUMNO ENCONTRADO en fila ' + (i + 1) + '!');
+            log.push('✅ Datos: ' + JSON.stringify(allData[i]));
+            encontrado = true;
+            break;
+          }
+        }
+        
+        if (!encontrado) {
+          log.push('❌ Alumno no encontrado');
+          log.push('❌ Primeros 5 IDs en la hoja:');
+          for (let i = 1; i < Math.min(6, allData.length); i++) {
+            log.push('   - Fila ' + (i + 1) + ': "' + String(allData[i][0] || '') + '"');
+          }
+        }
+      }
+    }
+    
+    log.push('🎉 DIAGNÓSTICO COMPLETADO EXITOSAMENTE');
+    
+    return {
+      success: true,
+      log: log,
+      spreadsheetId: spreadsheetId,
+      availableSheets: sheetNames,
+      lastRow: lastRow,
+      lastColumn: lastColumn
+    };
+    
+  } catch (error) {
+    log.push('❌ ERROR en diagnóstico: ' + error.toString());
+    log.push('❌ Stack: ' + error.stack);
+    
+    return {
+      success: false,
+      log: log,
+      error: error.toString(),
+      stack: error.stack
+    };
+  }
+}
+
+/**
+ * Función de test que llama al diagnóstico extremo
+ */
+function testDiagnosticoExtremo() {
+  Logger.log('🚨 === TEST DIAGNÓSTICO EXTREMO ===');
+  
+  const resultado = diagnosticoExtremo('A0001');
+  
+  // Imprimir todo el log
+  if (resultado.log) {
+    resultado.log.forEach(function(linea) {
+      Logger.log(linea);
+    });
+  }
+  
+  Logger.log('🚨 === FIN DIAGNÓSTICO EXTREMO ===');
+  
+  return resultado;
+}
+function testSinSheets() {
+  Logger.log('🧪 Test SIN acceso a Sheets');
+  
+  try {
+    const resultado = {
+      success: true,
+      alumno: {
+        ID: 'A0001',
+        Nombre: 'Test Alumno',
+        Email: 'test@test.com',
+        Telefono: '123456789',
+        Pais: 'Test País'
+      },
+      matriculas: [
+        {
+          ID: 'M0001',
+          AlumnoID: 'A0001',
+          Seccion: 'TEST-001',
+          PrecioTotal: 100,
+          Estado: 'Pendiente',
+          SaldoPendiente: 50
+        }
+      ],
+      error: null,
+      timestamp: new Date().toISOString()
+    };
+    
+    Logger.log('🧪 Retornando resultado hardcodeado');
+    return resultado;
+    
+  } catch (error) {
+    Logger.log('❌ ERROR incluso en función sin Sheets: ' + error.toString());
+    return { error: error.toString() };
+  }
+}
+
+// ============================================
+// TODAS LAS DEMÁS FUNCIONES HAN SIDO MOVIDAS A MÓDULOS ESPECIALIZADOS
+// ============================================
+// 
+// Las funciones que anteriormente estaban en este archivo ahora se encuentran en:
+//
+// CoreFunctions.gs - Funciones básicas del sistema
+// VentasModule.gs - getSecciones(), getAlumnos(), buscarAlumno(), getCursos(), registrarVenta()
+// CobranzaModule.gs - getCobranzaData(), registrarPago()
+// PlantillasModule.gs - getPlantillasDisponibles(), getConfiguracionPlantilla()
+// CursosModule.gs - saveCurso(), getCursoByCodigo(), obtenerBeneficiosCurso(), etc.
+// DocentesModule.gs - getDocentes(), guardarDocente(), actualizarDocente(), etc.
+// CertificacionesModule.gs - getCertificaciones(), guardarCertificacion(), etc.
+// SeccionesModule.gs - getSeccionesCompletas(), guardarSeccion(), etc.
+// DashboardModule.gs - getDashboardData(), getReporteVentas(), etc.
+// TimelineModule.gs - getTimelineEvents(), getCalendarEvents(), etc.
+// DatabaseModule.gs - getMatriculasConPagos(), distribuirPagoEntreCursos(), etc.
+// FileSystemModule.gs - subirImagenCurso(), obtenerOCrearCarpetaCursos(), etc.
+// MantenimientoModule.gs - fixImagenes(), corregirConfiguracionLogo(), etc.
+//
+// Esta modularización mejora la mantenibilidad y evita problemas de compilación
+// por archivos demasiado grandes.
+// ============================================
+
+/**
+ * FUNCIÓN COMPLETAMENTE NUEVA - Para evitar problemas de caché
+ */
+function obtenerDatosAlumnoCompletos(alumnoId) {
+  Logger.log('🆕 === obtenerDatosAlumnoCompletos NUEVA FUNCIÓN ===');
+  Logger.log('🆕 AlumnoId: ' + alumnoId);
+  Logger.log('🆕 Timestamp: ' + new Date().toISOString());
+  
+  try {
+    const spreadsheet = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+    Logger.log('🆕 Spreadsheet abierto correctamente');
+    
+    // Obtener alumno
+    const alumnosSheet = spreadsheet.getSheetByName('Alumnos');
+    if (!alumnosSheet) {
+      const errorResult = {
+        success: false,
+        alumno: null,
+        matriculas: [],
+        error: 'Hoja Alumnos no encontrada'
+      };
+      Logger.log('🆕 ERROR - Retornando: ' + JSON.stringify(errorResult));
+      return errorResult;
+    }
+    
+    const allData = alumnosSheet.getDataRange().getValues();
+    Logger.log('🆕 Datos de alumnos leídos: ' + allData.length + ' filas');
+    
+    let alumno = null;
+    for (let i = 1; i < allData.length; i++) {
+      const idEnHoja = String(allData[i][0] || '').trim();
+      if (idEnHoja === String(alumnoId).trim()) {
+        alumno = {
+          ID: idEnHoja,
+          Nombre: String(allData[i][1] || ''),
+          Email: String(allData[i][2] || ''),
+          Telefono: String(allData[i][3] || ''),
+          Pais: String(allData[i][4] || '')
+        };
+        Logger.log('🆕 Alumno encontrado: ' + alumno.Nombre);
+        break;
+      }
+    }
+    
+    if (!alumno) {
+      const errorResult = {
+        success: false,
+        alumno: null,
+        matriculas: [],
+        error: 'Alumno no encontrado con ID: ' + alumnoId
+      };
+      Logger.log('🆕 Alumno no encontrado - Retornando: ' + JSON.stringify(errorResult));
+      return errorResult;
+    }
+    
+    // Obtener matrículas
+    const matriculasSheet = spreadsheet.getSheetByName('Matriculas');
+    const matriculas = [];
+    
+    if (matriculasSheet) {
+      const matriculasData = matriculasSheet.getDataRange().getValues();
+      Logger.log('🆕 Datos de matrículas leídos: ' + matriculasData.length + ' filas');
+      
+      for (let i = 1; i < matriculasData.length; i++) {
+        const alumnoIdEnMatricula = String(matriculasData[i][1] || '').trim();
+        if (alumnoIdEnMatricula === String(alumnoId).trim()) {
+          const matricula = {
+            ID: String(matriculasData[i][0] || ''),
+            AlumnoID: alumnoIdEnMatricula,
+            Seccion: String(matriculasData[i][2] || ''),
+            CodigoSeccion: String(matriculasData[i][2] || ''),
+            PrecioTotal: Number(matriculasData[i][3]) || 0,
+            PrecioVenta: Number(matriculasData[i][3]) || 0,
+            IncluyeExamen: String(matriculasData[i][4] || ''),
+            Estado: String(matriculasData[i][5] || 'Pendiente'),
+            EstadoPago: String(matriculasData[i][5] || 'Pendiente'),
+            TotalPagado: Number(matriculasData[i][6]) || 0,
+            EstadoMatricula: String(matriculasData[i][7] || 'Activa'),
+            SaldoPendiente: Number(matriculasData[i][8]) || 0,
+            FechaMatricula: String(matriculasData[i][9] || ''),
+            Observaciones: String(matriculasData[i][10] || ''),
+            EsTest: String(matriculasData[i][11] || ''),
+            Pagos: []
+          };
+          matriculas.push(matricula);
+          Logger.log('🆕 Matrícula agregada: ' + matricula.ID);
+        }
+      }
+    }
+    
+    // Cargar pagos por matrícula
+    try {
+      var pagosSheet = spreadsheet.getSheetByName('Pagos');
+      if (pagosSheet && matriculas.length > 0) {
+        var pagosData = pagosSheet.getDataRange().getValues();
+        for (var p = 1; p < pagosData.length; p++) {
+          var pagoMatId = String(pagosData[p][1] || '').trim();
+          for (var mi = 0; mi < matriculas.length; mi++) {
+            if (matriculas[mi].ID === pagoMatId) {
+              matriculas[mi].Pagos.push({
+                ID: String(pagosData[p][0] || ''),
+                NumeroCuota: Number(pagosData[p][2]) || 1,
+                Monto: Number(pagosData[p][3]) || 0,
+                FechaPago: String(pagosData[p][4] || ''),
+                MedioPago: String(pagosData[p][5] || '')
+              });
+              break;
+            }
+          }
+        }
+        Logger.log('🆕 Pagos cargados para ' + matriculas.length + ' matrículas');
+      }
+    } catch(pagosErr) {
+      Logger.log('⚠️ Error cargando pagos (no bloquea): ' + pagosErr.toString());
+    }
+    
+    const resultado = {
+      success: true,
+      alumno: alumno,
+      matriculas: matriculas,
+      error: null,
+      timestamp: new Date().toISOString(),
+      funcionUsada: 'obtenerDatosAlumnoCompletos'
+    };
+    
+    Logger.log('🆕 RESULTADO FINAL CREADO:');
+    Logger.log('🆕 - Success: ' + resultado.success);
+    Logger.log('🆕 - Alumno: ' + (resultado.alumno ? resultado.alumno.Nombre : 'null'));
+    Logger.log('🆕 - Matrículas: ' + resultado.matriculas.length);
+    Logger.log('🆕 - Función: ' + resultado.funcionUsada);
+    Logger.log('🆕 RETORNANDO: ' + JSON.stringify(resultado));
+    
+    return resultado;
+    
+  } catch (error) {
+    Logger.log('🆕 ERROR CAPTURADO: ' + error.toString());
+    Logger.log('🆕 Stack: ' + error.stack);
+    
+    const errorResult = {
+      success: false,
+      alumno: null,
+      matriculas: [],
+      error: 'Error en obtenerDatosAlumnoCompletos: ' + error.toString(),
+      timestamp: new Date().toISOString(),
+      funcionUsada: 'obtenerDatosAlumnoCompletos'
+    };
+    
+    Logger.log('🆕 RETORNANDO ERROR: ' + JSON.stringify(errorResult));
+    return errorResult;
+  }
+}
+
+
+/**
+ * ═══════════════════════════════════════════════════════════════
+ * LIMPIAR ICONOS AHORA - EJECUTAR INMEDIATAMENTE
+ * ═══════════════════════════════════════════════════════════════
+ * 
+ * Este script limpia el base64 guardado y restaura URLs de Google Drive
+ * 
+ * INSTRUCCIONES:
+ * 1. En Google Apps Script, busca esta función: limpiarIconosAhora
+ * 2. Presiona el botón ▶ (Ejecutar)
+ * 3. Ver logs (Ctrl+Enter)
+ * 4. Luego ejecuta: verificacionFinalIconos()
+ */
+
+function limpiarIconosAhora() {
+  console.log('🧹 LIMPIANDO ICONOS BASE64...');
+  
+  try {
+    // 1. Obtener todas las propiedades
+    const props = PropertiesService.getScriptProperties();
+    const allProps = props.getProperties();
+    
+    // 2. Eliminar propiedades que contengan base64
+    const keysToDelete = [];
+    Object.keys(allProps).forEach(key => {
+      if (key.startsWith('Icono_')) {
+        const valor = allProps[key];
+        if (valor.includes('data:image') || valor.includes('iVBORw0KGgo')) {
+          keysToDelete.push(key);
+          console.log(`   ❌ Eliminando ${key} (contiene base64)`);
+        }
+      }
+    });
+    
+    // Eliminar las propiedades
+    keysToDelete.forEach(key => {
+      props.deleteProperty(key);
+    });
+    
+    console.log(`\n✅ Eliminadas ${keysToDelete.length} propiedades con base64`);
+    
+    // 3. Restaurar URLs de Google Drive correctas
+    console.log('\n📝 Restaurando URLs de Google Drive...');
+    
+    const iconosCorrectos = {
+      'Icono_ig-icon': {
+        name: 'ig-icon',
+        emoji: '',
+        url: 'https://www.instagram.com/your_handle',
+        imageUrl: 'https://drive.google.com/uc?export=view&id=1NRRvu2NZtv1quRhSmlhK5a79x8Bke8Sh'
+      },
+      'Icono_fb-icon': {
+        name: 'fb-icon',
+        emoji: '',
+        url: 'https://www.facebook.com/share/1BKSwCXH5q/?mibextid=wwXIfr',
+        imageUrl: 'https://drive.google.com/uc?export=view&id=12yYitQdRC3ZQ1vGMt-gifcBOx5iX0wb5'
+      },
+      'Icono_in-icon': {
+        name: 'in-icon',
+        emoji: '',
+        url: 'https://www.linkedin.com/company/your-company/',
+        imageUrl: 'https://drive.google.com/uc?export=view&id=1P9wPjIxPTLBkJf1UuHA8CdWAft34jzWy'
+      }
+    };
+    
+    Object.keys(iconosCorrectos).forEach(key => {
+      const icono = iconosCorrectos[key];
+      props.setProperty(key, JSON.stringify(icono));
+      console.log(`   ✅ ${key} restaurado`);
+    });
+    
+    // 4. Verificar que se guardaron correctamente
+    console.log('\n🔍 Verificando...');
+    const propsActualizadas = props.getProperties();
+    
+    let todosCorrectos = true;
+    Object.keys(iconosCorrectos).forEach(key => {
+      const valor = propsActualizadas[key];
+      try {
+        const parsed = JSON.parse(valor);
+        const tieneImageUrl = parsed.imageUrl && parsed.imageUrl.includes('drive.google.com');
+        if (tieneImageUrl) {
+          console.log(`   ✅ ${key}: OK`);
+        } else {
+          console.log(`   ❌ ${key}: NO tiene URL de Google Drive`);
+          todosCorrectos = false;
+        }
+      } catch (e) {
+        console.log(`   ❌ ${key}: ERROR - ${e.toString()}`);
+        todosCorrectos = false;
+      }
+    });
+    
+    console.log('\n' + '═'.repeat(60));
+    if (todosCorrectos) {
+      console.log('✅ LIMPIEZA COMPLETADA EXITOSAMENTE');
+      console.log('═'.repeat(60));
+      console.log('\n🎉 Ahora ejecuta: verificacionFinalIconos()');
+    } else {
+      console.log('⚠️ LIMPIEZA PARCIAL - Revisar detalles arriba');
+      console.log('═'.repeat(60));
+    }
+    
+    return {
+      success: todosCorrectos,
+      eliminadas: keysToDelete.length,
+      restauradas: Object.keys(iconosCorrectos).length
+    };
+    
+  } catch (error) {
+    console.log('❌ ERROR: ' + error.toString());
+    return {
+      success: false,
+      error: error.toString()
+    };
+  }
+}
+
+
+/**
+ * ═══════════════════════════════════════════════════════════════
+ * RESTAURAR ICONOS AL FORMATO ORIGINAL
+ * ═══════════════════════════════════════════════════════════════
+ * 
+ * Este script restaura los iconos al formato original (export=view)
+ * que funcionaba correctamente
+ * 
+ * UBICACIÓN: Code.gs
+ * FUNCIÓN: restaurarIconosConFormatoCorrect()
+ */
+
+function restaurarIconosConFormatoCorrect() {
+  console.log('🔄 RESTAURANDO ICONOS CON EMOJIS...');
+  
+  try {
+    const props = PropertiesService.getScriptProperties();
+    
+    // Iconos con emojis (funciona garantizado)
+    const iconosCorrectos = {
+      'Icono_ig-icon': {
+        name: 'ig-icon',
+        emoji: '📷',
+        url: 'https://www.instagram.com/your_handle',
+        imageUrl: ''
+      },
+      'Icono_fb-icon': {
+        name: 'fb-icon',
+        emoji: '👍',
+        url: 'https://www.facebook.com/share/1BKSwCXH5q/?mibextid=wwXIfr',
+        imageUrl: ''
+      },
+      'Icono_in-icon': {
+        name: 'in-icon',
+        emoji: '💼',
+        url: 'https://www.linkedin.com/company/your-company/',
+        imageUrl: ''
+      }
+    };
+    
+    console.log('📝 Restaurando iconos con emojis...');
+    
+    Object.keys(iconosCorrectos).forEach(key => {
+      const icono = iconosCorrectos[key];
+      props.setProperty(key, JSON.stringify(icono));
+      console.log(`   ✅ ${key} restaurado con emoji: ${icono.emoji}`);
+    });
+    
+    // Verificar que se guardaron correctamente
+    console.log('\n🔍 Verificando...');
+    const propsActualizadas = props.getProperties();
+    
+    let todosCorrectos = true;
+    Object.keys(iconosCorrectos).forEach(key => {
+      const valor = propsActualizadas[key];
+      try {
+        const parsed = JSON.parse(valor);
+        const tieneEmoji = parsed.emoji && parsed.emoji !== '';
+        if (tieneEmoji) {
+          console.log(`   ✅ ${key}: OK (emoji: ${parsed.emoji})`);
+        } else {
+          console.log(`   ❌ ${key}: NO tiene emoji`);
+          todosCorrectos = false;
+        }
+      } catch (e) {
+        console.log(`   ❌ ${key}: ERROR - ${e.toString()}`);
+        todosCorrectos = false;
+      }
+    });
+    
+    console.log('\n' + '═'.repeat(60));
+    if (todosCorrectos) {
+      console.log('✅ RESTAURACIÓN COMPLETADA EXITOSAMENTE');
+      console.log('═'.repeat(60));
+      console.log('\n🎉 Iconos restaurados con emojis');
+      console.log('🎉 Ahora recarga Admin Plantillas para ver los cambios');
+    } else {
+      console.log('⚠️ RESTAURACIÓN PARCIAL - Revisar detalles arriba');
+      console.log('═'.repeat(60));
+    }
+    
+    return {
+      success: todosCorrectos,
+      restauradas: Object.keys(iconosCorrectos).length
+    };
+    
+  } catch (error) {
+    console.log('❌ ERROR: ' + error.toString());
+    return {
+      success: false,
+      error: error.toString()
+    };
+  }
+}
+
+// ============================================
+// FUNCIONES DE VENTAS - COPIADAS DESDE VentasModule.gs
+// ============================================
+
+/**
+ * Función para obtener alumnos
+ */
+function getAlumnos() {
+  try {
+    console.log('🔍 [getAlumnos] INICIANDO...');
+    Logger.log('🔍 [getAlumnos] INICIANDO...');
+    
+    console.log('🔍 [getAlumnos] SHEETS objeto:', typeof SHEETS);
+    Logger.log('🔍 [getAlumnos] SHEETS objeto: ' + typeof SHEETS);
+    
+    console.log('🔍 [getAlumnos] SHEETS.alumnos:', SHEETS.alumnos);
+    Logger.log('🔍 [getAlumnos] SHEETS.alumnos: ' + SHEETS.alumnos);
+    
+    const sheet = getSheet(SHEETS.alumnos);
+    console.log('🔍 [getAlumnos] Sheet obtenido:', sheet ? 'SÍ' : 'NO');
+    Logger.log('🔍 [getAlumnos] Sheet obtenido: ' + (sheet ? 'SÍ' : 'NO'));
+    
+    if (!sheet) {
+      console.log('❌ [getAlumnos] Sheet no encontrado, retornando []');
+      Logger.log('❌ [getAlumnos] Sheet no encontrado, retornando []');
+      return [];
+    }
+    
+    const data = sheet.getDataRange().getValues();
+    console.log('🔍 [getAlumnos] Filas de datos:', data.length);
+    Logger.log('🔍 [getAlumnos] Filas de datos: ' + data.length);
+    
+    if (data.length <= 1) {
+      console.log('❌ [getAlumnos] Sin datos (solo headers), retornando []');
+      Logger.log('❌ [getAlumnos] Sin datos (solo headers), retornando []');
+      return [];
+    }
+    
+    const alumnos = data.slice(1).map(row => ({
+      ID: String(row[0] || ''),
+      Nombre: String(row[1] || ''),
+      Email: String(row[2] || ''),
+      Gmail: String(row[2] || ''),
+      Telefono: String(row[3] || ''),
+      Pais: String(row[4] || ''),
+      LinkedIn: String(row[5] || ''),
+      FechaRegistro: String(row[6] || '')
+    }));
+    
+    console.log('✅ [getAlumnos] Alumnos encontrados:', alumnos.length);
+    Logger.log('✅ [getAlumnos] Alumnos encontrados: ' + alumnos.length);
+    console.log('✅ [getAlumnos] Tipo:', typeof alumnos);
+    console.log('✅ [getAlumnos] Es array:', Array.isArray(alumnos));
+    Logger.log('✅ [getAlumnos] Tipo: ' + typeof alumnos);
+    Logger.log('✅ [getAlumnos] Es array: ' + Array.isArray(alumnos));
+    
+    // Asegurar que retorna un array válido
+    if (!Array.isArray(alumnos)) {
+      console.log('❌ [getAlumnos] CRÍTICO: alumnos no es un array');
+      Logger.log('❌ [getAlumnos] CRÍTICO: alumnos no es un array');
+      return [];
+    }
+    
+    console.log('✅ [getAlumnos] Retornando', alumnos.length, 'alumnos');
+    Logger.log('✅ [getAlumnos] Retornando ' + alumnos.length + ' alumnos');
+    return alumnos;
+  } catch (error) {
+    console.log('❌ [getAlumnos] ERROR:', error.toString());
+    console.log('❌ [getAlumnos] Stack:', error.stack);
+    Logger.log('❌ [getAlumnos] ERROR: ' + error.toString());
+    Logger.log('❌ [getAlumnos] Stack: ' + error.stack);
+    return [];
+  }
+}
+
+/**
+ * Función para buscar alumno
+ */
+function buscarAlumno(termino) {
+  try {
+    console.log('🔍 [buscarAlumno] INICIANDO con término:', termino);
+    Logger.log('🔍 [buscarAlumno] INICIANDO con término: ' + termino);
+    
+    if (!termino || termino.trim().length < 2) {
+      console.log('⚠️ [buscarAlumno] Término muy corto, retornando []');
+      Logger.log('⚠️ [buscarAlumno] Término muy corto, retornando []');
+      return [];
+    }
+    
+    console.log('🔍 [buscarAlumno] Llamando a getAlumnos()...');
+    Logger.log('🔍 [buscarAlumno] Llamando a getAlumnos()...');
+    
+    const alumnos = getAlumnos();
+    console.log('🔍 [buscarAlumno] getAlumnos retornó:', alumnos ? 'array' : 'null');
+    console.log('🔍 [buscarAlumno] Tipo:', typeof alumnos);
+    console.log('🔍 [buscarAlumno] Es array?', Array.isArray(alumnos));
+    console.log('🔍 [buscarAlumno] Length:', alumnos ? alumnos.length : 'N/A');
+    
+    Logger.log('🔍 [buscarAlumno] getAlumnos retornó: ' + (alumnos ? 'array' : 'null'));
+    Logger.log('🔍 [buscarAlumno] Tipo: ' + typeof alumnos);
+    Logger.log('🔍 [buscarAlumno] Es array? ' + Array.isArray(alumnos));
+    Logger.log('🔍 [buscarAlumno] Length: ' + (alumnos ? alumnos.length : 'N/A'));
+    
+    if (!alumnos || !Array.isArray(alumnos)) {
+      console.log('❌ [buscarAlumno] Alumnos no es un array válido, retornando []');
+      Logger.log('❌ [buscarAlumno] Alumnos no es un array válido, retornando []');
+      return [];
+    }
+    
+    const terminoLower = termino.toLowerCase();
+    const terminoDigits = termino.replace(/[^\d]/g, '');
+    console.log('🔍 [buscarAlumno] Buscando:', terminoLower);
+    Logger.log('🔍 [buscarAlumno] Buscando: ' + terminoLower);
+    
+    const resultados = alumnos.filter(alumno => {
+      if (!alumno) return false;
+      const nombre = (alumno.Nombre || '').toLowerCase();
+      const email = (alumno.Email || '').toLowerCase();
+      const gmail = (alumno.Gmail || '').toLowerCase();
+      const telefono = (alumno.Telefono || '').toLowerCase();
+      const id = (alumno.ID || '').toLowerCase();
+      
+      if (nombre.includes(terminoLower) || 
+          email.includes(terminoLower) || 
+          gmail.includes(terminoLower) ||
+          id.includes(terminoLower)) return true;
+      
+      // Para teléfono: comparar solo dígitos
+      if (terminoDigits.length >= 4) {
+        var telDigits = (alumno.Telefono || '').replace(/[^\d]/g, '');
+        if (telDigits.includes(terminoDigits) || terminoDigits.includes(telDigits)) return true;
+      } else {
+        if (telefono.includes(terminoLower)) return true;
+      }
+      
+      return false;
+    });
+    
+    console.log('✅ [buscarAlumno] Resultados encontrados:', resultados.length);
+    Logger.log('✅ [buscarAlumno] Resultados encontrados: ' + resultados.length);
+    return resultados.slice(0, 10);
+  } catch (error) {
+    console.log('❌ [buscarAlumno] ERROR:', error.toString());
+    console.log('❌ [buscarAlumno] Stack:', error.stack);
+    Logger.log('❌ [buscarAlumno] ERROR: ' + error.toString());
+    Logger.log('❌ [buscarAlumno] Stack: ' + error.stack);
+    return [];
+  }
+}
+
+/**
+ * Función para obtener secciones
+ */
+function getSecciones() {
+  try {
+    console.log('🔍 [getSecciones] INICIANDO...');
+    Logger.log('🔍 [getSecciones] INICIANDO...');
+    
+    console.log('🔍 [getSecciones] SHEETS.secciones:', SHEETS.secciones);
+    Logger.log('🔍 [getSecciones] SHEETS.secciones: ' + SHEETS.secciones);
+    
+    const sheet = getSheet(SHEETS.secciones);
+    console.log('🔍 [getSecciones] Sheet obtenido:', sheet ? 'SÍ' : 'NO');
+    Logger.log('🔍 [getSecciones] Sheet obtenido: ' + (sheet ? 'SÍ' : 'NO'));
+    
+    if (!sheet) {
+      console.log('❌ [getSecciones] Sheet no encontrado, retornando []');
+      Logger.log('❌ [getSecciones] Sheet no encontrado, retornando []');
+      return [];
+    }
+    
+    const data = sheet.getDataRange().getValues();
+    console.log('🔍 [getSecciones] Filas de datos:', data.length);
+    Logger.log('🔍 [getSecciones] Filas de datos: ' + data.length);
+    
+    if (data.length <= 1) {
+      console.log('❌ [getSecciones] Sin datos (solo headers), retornando []');
+      Logger.log('❌ [getSecciones] Sin datos (solo headers), retornando []');
+      return [];
+    }
+    
+    // Contar matrículas por sección para saber cuáles se pueden eliminar
+    var conteoMatriculas = {};
+    try {
+      var spreadsheet = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+      var matriculasSheet = spreadsheet.getSheetByName('Matriculas');
+      if (matriculasSheet) {
+        var matData = matriculasSheet.getDataRange().getValues();
+        for (var m = 1; m < matData.length; m++) {
+          var codSec = String(matData[m][2] || '');
+          if (codSec) conteoMatriculas[codSec] = (conteoMatriculas[codSec] || 0) + 1;
+        }
+      }
+    } catch(matErr) {
+      Logger.log('⚠️ [getSecciones] Error contando matrículas: ' + matErr.toString());
+    }
+    
+    const secciones = data.slice(1).map(row => ({
+      ID: String(row[0] || ''),
+      Codigo: String(row[0] || ''),
+      NombreCurso: String(row[1] || ''),
+      Nombre: String(row[1] || ''),
+      Tecnologia: String(row[2] || ''),
+      Provider: String(row[3] || ''),
+      Nivel: String(row[4] || ''),
+      DocenteID: String(row[5] || ''),
+      Docente: String(row[6] || ''),
+      DocenteNombre: String(row[6] || ''),
+      HorasTotales: row[7] || 0,
+      Mes: String(row[8] || ''),
+      Año: String(row[9] || ''),
+      Frecuencia: String(row[10] || ''),
+      Horario: String(row[10] || ''),
+      PuestoEnMes: String(row[11] || ''),
+      Estado: String(row[12] || 'Activa'),
+      FechaInicio: row[13] instanceof Date ? (String(row[13].getDate()).padStart(2,'0') + '/' + String(row[13].getMonth()+1).padStart(2,'0') + '/' + row[13].getFullYear()) : String(row[13] || ''),
+      FechaFin: String(row[14] || ''),
+      Confirmada: String(row[15] || ''),
+      FechaCreacion: String(row[16] || ''),
+      EsTest: String(row[17] || ''),
+      DriveFolderId: String(row[18] || ''),
+      CodigoCursoBD: String(row[19] || ''),
+      CalendarEventId: String(row[20] || ''),
+      ClassroomId: String(row[21] || ''),
+      Modalidad: 'Online',
+      MaxAlumnos: 20,
+      AlumnosInscritos: conteoMatriculas[String(row[0] || '')] || 0
+    }));
+    
+    console.log('✅ [getSecciones] Secciones encontradas:', secciones.length);
+    Logger.log('✅ [getSecciones] Secciones encontradas: ' + secciones.length);
+    console.log('✅ [getSecciones] Retornando array válido');
+    Logger.log('✅ [getSecciones] Retornando array válido');
+    return secciones;
+  } catch (error) {
+    console.log('❌ [getSecciones] ERROR:', error.toString());
+    console.log('❌ [getSecciones] Stack:', error.stack);
+    Logger.log('❌ [getSecciones] ERROR: ' + error.toString());
+    Logger.log('❌ [getSecciones] Stack: ' + error.stack);
+    return [];
+  }
+}
+
+
+/**
+ * Función para obtener datos de cobranza
+ */
+function getCobranzaData() {
+  try {
+    console.log('🔍 [getCobranzaData] INICIANDO...');
+    Logger.log('🔍 [getCobranzaData] INICIANDO...');
+    
+    const matriculasSheet = getSheet('Matriculas');
+    const alumnosSheet = getSheet(SHEETS.alumnos);
+    
+    console.log('🔍 [getCobranzaData] Matriculas sheet:', matriculasSheet ? 'SÍ' : 'NO');
+    console.log('🔍 [getCobranzaData] Alumnos sheet:', alumnosSheet ? 'SÍ' : 'NO');
+    Logger.log('🔍 [getCobranzaData] Matriculas sheet: ' + (matriculasSheet ? 'SÍ' : 'NO'));
+    Logger.log('🔍 [getCobranzaData] Alumnos sheet: ' + (alumnosSheet ? 'SÍ' : 'NO'));
+    
+    if (!matriculasSheet || !alumnosSheet) {
+      console.log('❌ [getCobranzaData] Hojas no encontradas, retornando []');
+      Logger.log('❌ [getCobranzaData] Hojas no encontradas, retornando []');
+      return [];
+    }
+    
+    const matriculasData = matriculasSheet.getDataRange().getValues();
+    const alumnosData = alumnosSheet.getDataRange().getValues();
+    
+    console.log('🔍 [getCobranzaData] Filas matrículas:', matriculasData.length);
+    console.log('🔍 [getCobranzaData] Filas alumnos:', alumnosData.length);
+    Logger.log('🔍 [getCobranzaData] Filas matrículas: ' + matriculasData.length);
+    Logger.log('🔍 [getCobranzaData] Filas alumnos: ' + alumnosData.length);
+    
+    if (matriculasData.length <= 1) {
+      console.log('❌ [getCobranzaData] Sin matrículas, retornando []');
+      Logger.log('❌ [getCobranzaData] Sin matrículas, retornando []');
+      return [];
+    }
+    
+    const alumnosMap = {};
+    for (let i = 1; i < alumnosData.length; i++) {
+      const alumno = alumnosData[i];
+      alumnosMap[alumno[0]] = {
+        ID: String(alumno[0] || ''),
+        Nombre: String(alumno[1] || ''),
+        Email: String(alumno[2] || ''),
+        Telefono: String(alumno[3] || ''),
+        Pais: String(alumno[4] || '')
+      };
+    }
+    
+    // Cargar pagos por matrícula para determinar cuotas pendientes
+    var pagosPorMatriculaCobranza = {};
+    try {
+      var pagosSheetCob = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID').getSheetByName('Pagos');
+      if (pagosSheetCob) {
+        var pagosDataCob = pagosSheetCob.getDataRange().getValues();
+        for (var pc = 1; pc < pagosDataCob.length; pc++) {
+          var matIdCob = String(pagosDataCob[pc][1] || '');
+          if (matIdCob) pagosPorMatriculaCobranza[matIdCob] = (pagosPorMatriculaCobranza[matIdCob] || 0) + 1;
+        }
+      }
+    } catch(pagosErr2) {}
+    
+    const cobranzaData = [];
+    
+    // Cargar cuotas programadas
+    var cuotasMap = {};
+    try {
+      var ssCobranza = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+      var cuotasSheet = ssCobranza.getSheetByName('CuotasProgramadas');
+      if (cuotasSheet) {
+        var cuotasData = cuotasSheet.getDataRange().getValues();
+        for (var ci = 1; ci < cuotasData.length; ci++) {
+          var idVentaCuota = String(cuotasData[ci][0] || '');
+          if (!cuotasMap[idVentaCuota]) cuotasMap[idVentaCuota] = [];
+          cuotasMap[idVentaCuota].push({
+            numero: parseInt(cuotasData[ci][1]) || 0,
+            monto: parseFloat(cuotasData[ci][2]) || 0,
+            fechaVencimiento: String(cuotasData[ci][3] || ''),
+            estado: String(cuotasData[ci][4] || '')
+          });
+        }
+      }
+    } catch(cuotasErr) {
+      Logger.log('⚠️ Error cargando cuotas: ' + cuotasErr.toString());
+    }
+    
+    for (let i = 1; i < matriculasData.length; i++) {
+      const matricula = matriculasData[i];
+      const alumnoId = String(matricula[1] || '');
+      const saldoPendiente = parseFloat(matricula[8]) || 0;
+      const totalPagado = parseFloat(matricula[6]) || 0;
+      const precioTotal = parseFloat(matricula[3]) || 0;
+      
+      // Incluir TODAS las matrículas, no solo las que tienen saldo > 0
+      const alumno = alumnosMap[alumnoId];
+      if (alumno) {
+        const fechaMatriculaRaw = matricula[9] || '';
+        const fechaMatriculaStr = fechaMatriculaRaw ? String(fechaMatriculaRaw) : '';
+        const diasTranscurridos = fechaMatriculaRaw ? Math.floor((new Date() - new Date(fechaMatriculaRaw)) / (1000 * 60 * 60 * 24)) : 0;
+        
+        // Determinar estado basado en pagos reales
+        var estadoPago;
+        if (saldoPendiente <= 0 && totalPagado >= precioTotal) {
+          estadoPago = 'Pago Completo';
+        } else {
+          estadoPago = 'Pago Pendiente';
+        }
+        
+        cobranzaData.push({
+          MatriculaId: String(matricula[0] || ''),
+          AlumnoId: alumnoId,
+          Alumno: alumno.Nombre,
+          Email: alumno.Email,
+          Telefono: alumno.Telefono,
+          Pais: alumno.Pais || '',
+          Seccion: String(matricula[2] || ''),
+          Modalidad: String(matricula[14] || 'Pro'),
+          PrecioTotal: precioTotal,
+          TotalPagado: totalPagado,
+          Saldo: saldoPendiente,
+          Estado: estadoPago,
+          FechaMatricula: fechaMatriculaStr,
+          Dias: diasTranscurridos,
+          NumPagosRealizados: 0,
+          CuotasPendientes: (function() {
+            var idVenta = String(matricula[12] || '');
+            if (!idVenta || !cuotasMap[idVenta]) return [];
+            var numPagos = pagosPorMatriculaCobranza[String(matricula[0])] || 0;
+            // Filtrar cuotas cuyo número sea mayor al número de pagos realizados
+            return cuotasMap[idVenta]
+              .filter(function(c) { return c.numero > numPagos; })
+              .sort(function(a, b) { return a.numero - b.numero; });
+          })()
+        });
+      }
+    }
+    
+    console.log('✅ [getCobranzaData] Registros encontrados:', cobranzaData.length);
+    Logger.log('✅ [getCobranzaData] Registros encontrados: ' + cobranzaData.length);
+    return cobranzaData;
+  } catch (error) {
+    console.log('❌ [getCobranzaData] ERROR:', error.toString());
+    console.log('❌ [getCobranzaData] Stack:', error.stack);
+    Logger.log('❌ [getCobranzaData] ERROR: ' + error.toString());
+    Logger.log('❌ [getCobranzaData] Stack: ' + error.stack);
+    return [];
+  }
+}
+
+
+// ============================================
+// FUNCIONES MOVIDAS DESDE MÓDULOS PARA EVITAR NULL EN CLIENTE
+// ============================================
+
+/**
+ * Obtiene todos los cursos - MOVIDA DESDE VentasModule.gs
+ */
+function getCursos(filtros) {
+  try {
+    Logger.log('🔍 [getCursos] INICIANDO...');
+    const sheet = getSheet(SHEETS.cursos);
+    if (!sheet) {
+      Logger.log('❌ [getCursos] Sheet no encontrado');
+      return [];
+    }
+    
+    const data = sheet.getDataRange().getValues();
+    Logger.log('🔍 [getCursos] Filas: ' + data.length);
+    
+    let cursos = data.slice(1).map(function(row) {
+      return {
+        Codigo: String(row[0] || ''),
+        Nombre: String(row[1] || ''),
+        Tecnologia: String(row[2] || '').trim(),
+        Provider: String(row[3] || '').trim(),
+        Nivel: String(row[4] || '').trim(),
+        Horas: row[5],
+        PrecioBase: row[6],
+        Frecuencia: String(row[7] || '3 veces por semana').trim(),
+        Beneficios: String(row[8] || '').trim(),
+        Requisitos_Clase: String(row[9] || '').trim(),
+        URLImagen: String(row[10] || '').trim(),
+        FileId: String(row[11] || '').trim()
+      };
+    });
+    
+    if (filtros) {
+      if (filtros.tecnologia) cursos = cursos.filter(function(c) { return c.Tecnologia === filtros.tecnologia; });
+      if (filtros.provider) cursos = cursos.filter(function(c) { return c.Provider === filtros.provider; });
+      if (filtros.nivel) cursos = cursos.filter(function(c) { return c.Nivel === filtros.nivel; });
+    }
+    
+    var ordenNivel = { 'Básico': 1, 'Asociado': 2, 'Profesional': 3, 'Especialidad': 4 };
+    cursos.sort(function(a, b) { return (ordenNivel[a.Nivel] || 5) - (ordenNivel[b.Nivel] || 5); });
+    
+    Logger.log('✅ [getCursos] Retornando ' + cursos.length + ' cursos');
+    return cursos;
+  } catch (error) {
+    Logger.log('❌ [getCursos] ERROR: ' + error.toString());
+    return [];
+  }
+}
+
+/**
+ * Obtiene todos los docentes - MOVIDA DESDE DocentesModule.gs
+ */
+function getDocentes() {
+  try {
+    Logger.log('🔍 [getDocentes] INICIANDO...');
+    
+    var sheet = getSheet(SHEETS.docentes);
+    if (!sheet) {
+      Logger.log('❌ [getDocentes] Sheet no encontrado');
+      return [];
+    }
+    
+    var data = sheet.getDataRange().getValues();
+    Logger.log('🔍 [getDocentes] Filas: ' + data.length);
+    
+    if (data.length <= 1) {
+      Logger.log('❌ [getDocentes] Sin datos');
+      return [];
+    }
+    
+    var docentes = [];
+    
+    for (var i = 1; i < data.length; i++) {
+      var row = data[i];
+      
+      var foto = '';
+      var fileId = '';
+      
+      if (row.length >= 2) {
+        var ultimaColumna = String(row[row.length - 1] || '').trim();
+        var penultimaColumna = String(row[row.length - 2] || '').trim();
+        
+        if (penultimaColumna.includes('googleusercontent.com') || penultimaColumna.includes('drive.google.com')) {
+          foto = penultimaColumna;
+          fileId = ultimaColumna;
+        } else {
+          for (var j = row.length - 1; j >= Math.max(0, row.length - 5); j--) {
+            var valor = String(row[j] || '').trim();
+            if (valor.includes('googleusercontent.com') || valor.includes('drive.google.com')) {
+              foto = valor;
+              if (j + 1 < row.length) {
+                fileId = String(row[j + 1] || '').trim();
+              }
+              break;
+            }
+          }
+        }
+      }
+      
+      docentes.push({
+        ID: String(row[0] || ''),
+        Nombre: String(row[1] || ''),
+        Email: String(row[2] || ''),
+        Telefono: String(row[3] || ''),
+        Pais: String(row[4] || ''),
+        Certificaciones: String(row[5] || ''),
+        CursosQueDicta: String(row[6] || ''),
+        TarifaHora: parseFloat(row[7]) || 0,
+        MetodoPago: String(row[8] || ''),
+        EmailPayPal: String(row[9] || ''),
+        Banco: String(row[10] || ''),
+        NumeroCuenta: String(row[11] || ''),
+        LinkedIn: String(row[12] || ''),
+        Estado: String(row[13] || ''),
+        PuedeWebinars: String(row[14] || 'No'),
+        TieneMaterial: String(row[15] || ''),
+        Comentarios: String(row[16] || ''),
+        Cargo: String(row[17] || ''),
+        Foto: foto,
+        FileId: fileId
+      });
+    }
+    
+    Logger.log('✅ [getDocentes] Retornando ' + docentes.length + ' docentes');
+    return docentes;
+  } catch (error) {
+    Logger.log('❌ [getDocentes] ERROR: ' + error.toString());
+    return [];
+  }
+}
+
+/**
+ * Dashboard mejorado - RESTAURADA DESDE BACKUP
+ */
+function getDashboardDataMejorado() {
+  try {
+    Logger.log('🔍 [getDashboardDataMejorado] INICIANDO...');
+    
+    var matriculasSheet = getSheet('Matriculas');
+    var alumnosSheet = getSheet(SHEETS.alumnos);
+    var seccionesSheet = getSheet(SHEETS.secciones);
+    var docentesSheet = getSheet(SHEETS.docentes);
+    
+    if (!matriculasSheet || !alumnosSheet) {
+      Logger.log('❌ [getDashboardDataMejorado] Hojas no encontradas');
+      return {
+        totalVentas: 0, totalIngresos: 0, totalPagado: 0, totalPendiente: 0,
+        ventasPorMes: [], cursosMasVendidos: [], tasaConversion: { completos: 0, pendientes: 0, tasa: 0 },
+        alumnosAtrasados: [], proyeccionIngresos: 0, margenPorSeccion: [],
+        ventasPorEstado: [], ventasPendientes: []
+      };
+    }
+    
+    var matriculasData = matriculasSheet.getDataRange().getValues();
+    var headers = matriculasData[0];
+    var matriculas = matriculasData.slice(1);
+    var alumnos = alumnosSheet.getDataRange().getValues().slice(1);
+    var secciones = seccionesSheet ? seccionesSheet.getDataRange().getValues().slice(1) : [];
+    var docentes = docentesSheet ? docentesSheet.getDataRange().getValues().slice(1) : [];
+    
+    Logger.log('🔍 [getDashboardDataMejorado] Matrículas: ' + matriculas.length);
+    
+    // Obtener índices de columnas
+    var estadoMatriculaIdx = headers.indexOf('Estado_Matricula');
+    var precioIdx = headers.indexOf('Precio_Venta');
+    if (precioIdx === -1) precioIdx = 3; // fallback
+    var pagadoIdx = headers.indexOf('Total_Pagado');
+    if (pagadoIdx === -1) pagadoIdx = 6; // fallback
+    var saldoIdx = headers.indexOf('Saldo_Pendiente');
+    if (saldoIdx === -1) saldoIdx = 8; // fallback
+    
+    // Filtrar matrículas activas (excluir retiradas)
+    var matriculasActivas = matriculas.filter(function(r) {
+      if (estadoMatriculaIdx !== -1) {
+        var estado = r[estadoMatriculaIdx];
+        if (estado && typeof estado === 'string' && estado.indexOf('Retirado') === 0) {
+          return false;
+        }
+      }
+      return true;
+    });
+    
+    // Métricas básicas
+    var totalVentas = matriculasActivas.length;
+    var totalIngresos = 0, totalPagado = 0, totalPendiente = 0;
+    for (var i = 0; i < matriculasActivas.length; i++) {
+      totalIngresos += parseFloat(matriculasActivas[i][precioIdx]) || 0;
+      totalPagado += parseFloat(matriculasActivas[i][pagadoIdx]) || 0;
+      totalPendiente += parseFloat(matriculasActivas[i][saldoIdx]) || 0;
+    }
+    
+    // Incluir ventas de simulador en ingresos totales
+    try {
+      var simSheet = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID').getSheetByName('VentasSimulador');
+      if (simSheet) {
+        var simData = simSheet.getDataRange().getValues();
+        for (var si = 1; si < simData.length; si++) {
+          if (String(simData[si][11] || '') !== 'Sí') { // Excluir test
+            var precioSim = parseFloat(simData[si][4]) || 0;
+            totalIngresos += precioSim;
+            totalPagado += precioSim; // Simuladores se pagan completo al momento
+            totalVentas++;
+          }
+        }
+      }
+    } catch(simErr) {
+      Logger.log('⚠️ Error incluyendo simuladores en dashboard: ' + simErr.toString());
+    }
+    
+    // Estados de pago
+    var estadoCount = {};
+    matriculasActivas.forEach(function(r) {
+      var estado = r[5] || 'Sin estado';
+      estadoCount[estado] = (estadoCount[estado] || 0) + 1;
+    });
+    var ventasPorEstado = [];
+    for (var est in estadoCount) {
+      ventasPorEstado.push({ estado: est, count: estadoCount[est] });
+    }
+    
+    // Ventas pendientes (Top 20)
+    var alumnosMap = {};
+    alumnos.forEach(function(a) {
+      alumnosMap[a[0]] = { nombre: a[1], gmail: a[2] };
+    });
+    
+    var ventasPendientes = [];
+    matriculasActivas.forEach(function(m) {
+      var saldo = parseFloat(m[saldoIdx]) || 0;
+      if (saldo > 0) {
+        var alumno = alumnosMap[m[1]];
+        if (alumno) {
+          ventasPendientes.push({
+            id: m[0],
+            nombre: alumno.nombre,
+            gmail: alumno.gmail,
+            seccion: m[2],
+            saldo: saldo
+          });
+        }
+      }
+    });
+    ventasPendientes.sort(function(a, b) { return b.saldo - a.saldo; });
+    ventasPendientes = ventasPendientes.slice(0, 20);
+    
+    // Margen por sección
+    var seccionesMap = {};
+    var docentesMap = {};
+    secciones.forEach(function(s) {
+      seccionesMap[s[0]] = { nombre: s[1], docenteId: s[5], horas: parseFloat(s[7]) || 0, codigoCurso: String(s[19] || '') };
+    });
+    docentes.forEach(function(d) {
+      docentesMap[d[0]] = parseFloat(d[7]) || 0;
+    });
+    
+    var margenData = {};
+    matriculasActivas.forEach(function(m) {
+      var cod = m[2];
+      var sec = seccionesMap[cod];
+      if (!sec) return;
+      if (!margenData[cod]) {
+        var tarifa = docentesMap[sec.docenteId] || 0;
+        margenData[cod] = { seccion: cod, curso: sec.nombre, codigoCurso: sec.codigoCurso, horas: sec.horas, docenteId: sec.docenteId, alumnos: 0, ingresos: 0, cobrado: 0, pendiente: 0, costo: tarifa * sec.horas };
+      }
+      margenData[cod].alumnos++;
+      // Excluir MontoExamen (col 16, idx 15) del ingreso para cálculo de margen
+      var precioMatricula = parseFloat(m[precioIdx]) || 0;
+      var modalidad = String(m[14] || '');
+      var montoExamen = (modalidad === 'Certify') ? (parseFloat(m[15]) || 0) : 0;
+      margenData[cod].ingresos += (precioMatricula - montoExamen);
+      margenData[cod].cobrado += parseFloat(m[pagadoIdx]) || 0;
+      margenData[cod].pendiente += parseFloat(m[saldoIdx]) || 0;
+    });
+    
+    var margenPorSeccion = [];
+    for (var key in margenData) {
+      var s = margenData[key];
+      var margen = s.ingresos - s.costo;
+      var porcentaje = s.costo > 0 ? ((margen / s.costo) * 100).toFixed(1) : (s.ingresos > 0 ? 100 : 0);
+      var precioPromedio = s.alumnos > 0 ? s.ingresos / s.alumnos : 0;
+      margenPorSeccion.push({ seccion: s.seccion, curso: s.curso, codigoCurso: s.codigoCurso, horas: s.horas, docenteId: s.docenteId, alumnos: s.alumnos, ingresos: s.ingresos, cobrado: s.cobrado, pendiente: s.pendiente, costo: s.costo, margen: margen, porcentaje: porcentaje, precioPromedio: precioPromedio });
+    }
+    margenPorSeccion.sort(function(a, b) { return b.margen - a.margen; });
+    
+    // Lista de docentes con tarifa y cursos que dictan para el simulador
+    var docentesLista = [];
+    docentes.forEach(function(d) {
+      var id = String(d[0] || '');
+      var nombre = String(d[1] || '');
+      var tarifa = parseFloat(d[7]) || 0;
+      var cursosQueDicta = String(d[6] || '');
+      var estado = String(d[13] || '').toLowerCase();
+      // Incluir docentes que no estén explícitamente inactivos
+      if (nombre && estado !== 'inactivo') {
+        docentesLista.push({ id: id, nombre: nombre, tarifa: tarifa, cursos: cursosQueDicta });
+      }
+    });
+    
+    var resultado = {
+      totalVentas: totalVentas,
+      totalIngresos: totalIngresos,
+      totalPagado: totalPagado,
+      totalPendiente: totalPendiente,
+      ventasPorMes: [],
+      cursosMasVendidos: [],
+      tasaConversion: { completos: 0, pendientes: 0, tasa: 0 },
+      alumnosAtrasados: [],
+      proyeccionIngresos: totalPendiente,
+      margenPorSeccion: margenPorSeccion,
+      docentesLista: docentesLista,
+      ventasPorEstado: ventasPorEstado,
+      ventasPendientes: ventasPendientes
+    };
+    
+    Logger.log('✅ [getDashboardDataMejorado] Resultado: ventas=' + totalVentas + ', ingresos=' + totalIngresos);
+    return resultado;
+  } catch (error) {
+    Logger.log('❌ [getDashboardDataMejorado] ERROR: ' + error.toString());
+    return {
+      totalVentas: 0, totalIngresos: 0, totalPagado: 0, totalPendiente: 0,
+      ventasPorMes: [], cursosMasVendidos: [],
+      tasaConversion: { completos: 0, pendientes: 0, tasa: 0 },
+      alumnosAtrasados: [], proyeccionIngresos: 0, margenPorSeccion: [],
+      ventasPorEstado: [], ventasPendientes: []
+    };
+  }
+}
+
+// ============================================
+// getMatriculasConPagos - Movido a _Code.gs para compatibilidad con google.script.run
+// ============================================
+
+/**
+ * Obtiene matrículas con información de pagos para un alumno
+ * NOTA: Debe estar en _Code.gs para que google.script.run lo encuentre correctamente
+ */
+function getMatriculasConPagos(alumnoId) {
+  try {
+    Logger.log('=== [getMatriculasConPagos] INICIO - alumnoId: ' + alumnoId + ' ===');
+    console.log('🔍 [getMatriculasConPagos] alumnoId:', alumnoId);
+    
+    // Obtener información del alumno
+    var alumnosSheet = getSheet(SHEETS.alumnos);
+    if (!alumnosSheet) {
+      Logger.log('❌ [getMatriculasConPagos] Hoja Alumnos no encontrada');
+      return { success: false, alumno: null, matriculas: [], error: 'Hoja Alumnos no encontrada' };
+    }
+    
+    var alumnosData = alumnosSheet.getDataRange().getValues();
+    var alumno = null;
+    
+    for (var i = 1; i < alumnosData.length; i++) {
+      if (String(alumnosData[i][0]) === String(alumnoId)) {
+        alumno = {
+          ID: String(alumnosData[i][0] || ''),
+          Nombre: String(alumnosData[i][1] || ''),
+          Email: String(alumnosData[i][2] || ''),
+          Telefono: String(alumnosData[i][3] || ''),
+          Pais: String(alumnosData[i][4] || '')
+        };
+        break;
+      }
+    }
+    
+    if (!alumno) {
+      Logger.log('❌ [getMatriculasConPagos] Alumno no encontrado con ID: ' + alumnoId);
+      return { success: false, alumno: null, matriculas: [], error: 'Alumno no encontrado' };
+    }
+    
+    Logger.log('✅ [getMatriculasConPagos] Alumno encontrado: ' + alumno.Nombre);
+    
+    // Obtener matrículas del alumno
+    var matriculasSheet = getSheet('Matriculas');
+    if (!matriculasSheet) {
+      Logger.log('❌ [getMatriculasConPagos] Hoja Matriculas no encontrada');
+      return { success: false, alumno: alumno, matriculas: [], error: 'Hoja Matriculas no encontrada' };
+    }
+    
+    var matriculasData = matriculasSheet.getDataRange().getValues();
+    Logger.log('🔍 [getMatriculasConPagos] Filas en Matriculas: ' + matriculasData.length);
+    
+    var matriculas = [];
+    
+    for (var i = 1; i < matriculasData.length; i++) {
+      if (String(matriculasData[i][1]) === String(alumnoId)) {
+        var matriculaId = String(matriculasData[i][0] || '');
+        
+        // Obtener pagos para esta matrícula
+        var pagos = obtenerPagosMatricula(matriculaId);
+        
+        var matricula = {
+          ID: matriculaId,
+          AlumnoID: String(matriculasData[i][1] || ''),
+          Seccion: String(matriculasData[i][2] || ''),
+          CodigoSeccion: String(matriculasData[i][2] || ''),
+          PrecioTotal: parseFloat(matriculasData[i][3]) || 0,
+          PrecioVenta: parseFloat(matriculasData[i][3]) || 0,
+          IncluyeExamen: String(matriculasData[i][4] || ''),
+          Estado: String(matriculasData[i][5] || 'Pendiente'),
+          EstadoPago: String(matriculasData[i][5] || 'Pendiente'),
+          TotalPagado: parseFloat(matriculasData[i][6]) || 0,
+          EstadoMatricula: String(matriculasData[i][7] || 'Activa'),
+          SaldoPendiente: parseFloat(matriculasData[i][8]) || 0,
+          FechaMatricula: String(matriculasData[i][9] || ''),
+          Observaciones: String(matriculasData[i][10] || ''),
+          EsTest: String(matriculasData[i][11] || ''),
+          MatriculaId: matriculaId,
+          Pagos: pagos
+        };
+        
+        matriculas.push(matricula);
+        Logger.log('✅ [getMatriculasConPagos] Matrícula: ' + matriculaId + ' - Sección: ' + matricula.Seccion + ' - Saldo: $' + matricula.SaldoPendiente);
+      }
+    }
+    
+    Logger.log('✅ [getMatriculasConPagos] Total matrículas encontradas: ' + matriculas.length);
+    
+    return {
+      success: true,
+      alumno: alumno,
+      matriculas: matriculas,
+      error: null
+    };
+    
+  } catch (error) {
+    Logger.log('❌ [getMatriculasConPagos] ERROR: ' + error.toString());
+    Logger.log('❌ [getMatriculasConPagos] Stack: ' + error.stack);
+    return { 
+      success: false,
+      alumno: null, 
+      matriculas: [], 
+      error: error.toString() 
+    };
+  }
+}
+
+// ============================================
+// FUNCIONES DE SECCIONES - Restauradas desde backup
+// ============================================
+
+function generarCodigoSeccion(codigoCurso, mes, año, puestoEnMes) {
+  var letras = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  var letra = letras[puestoEnMes - 1] || 'A';
+  var mesStr = String(mes).padStart(2, '0');
+  var añoStr = String(año).slice(-2);
+  return codigoCurso + mesStr + añoStr + '-' + letra;
+}
+
+function saveSeccion(data) {
+  try {
+    var codigo = generarCodigoSeccion(data.codigoCurso, data.mes, data.año, data.puestoEnMes);
+    
+    var sheet = getSheet(SHEETS.secciones);
+    if (!sheet) {
+      return { success: false, message: 'No se pudo acceder a la hoja de secciones' };
+    }
+    
+    // Verificar si ya existe
+    var existingData = sheet.getDataRange().getValues();
+    for (var i = 1; i < existingData.length; i++) {
+      if (existingData[i][0] === codigo) {
+        return { success: false, message: 'Ya existe una sección con el código ' + codigo };
+      }
+    }
+    
+    // Validar docente
+    if (data.docenteId) {
+      var docente = getDocentes().find(function(d) { return d.ID === data.docenteId; });
+      if (docente) {
+        var cursosQueDicta = (docente.CursosQueDicta || '').split(',').map(function(c) { return c.trim(); });
+        if (!cursosQueDicta.includes(data.codigoCurso)) {
+          return { success: false, message: 'El docente ' + docente.Nombre + ' no está habilitado para dictar el curso ' + data.codigoCurso };
+        }
+      }
+    }
+    
+    var frecuencia = data.frecuencia;
+    if (data.año >= 2025 && data.mes >= 11) {
+      frecuencia = 'L-M-V';
+    }
+    
+    if (data.fechaInicio && frecuencia) {
+      var validacionFecha = validarFechaInicioSeccion(data.fechaInicio, frecuencia);
+      if (!validacionFecha.valido) {
+        return { success: false, message: validacionFecha.mensaje };
+      }
+    }
+    
+    var curso = getCursoByCodigo(data.codigoCurso);
+    var nombreCurso = curso ? curso.Nombre : data.nombreCurso;
+    
+    // Columnas: Codigo(0), NombreCurso(1), Tecnologia(2), Provider(3), Nivel(4), DocenteID(5), DocenteNombre(6),
+    // HorasTotales(7), Mes(8), Año(9), Frecuencia(10), PuestoEnMes(11), Estado(12), FechaInicio(13), FechaFin(14),
+    // Confirmada(15), FechaCreacion(16), EsTest(17), DriveFolderId(18), CodigoCursoBD(19)
+    var esTest = data.esTest ? 'Sí' : 'No';
+    
+    // Crear SOLO la carpeta destino (vacía) en Drive. Esto es rápido.
+    // La copia del contenido de la CARPETA MAESTRA se hace en segundo plano
+    // (ver más abajo) para no bloquear la creación de la sección ni exceder
+    // el límite de tiempo de ejecución de Apps Script.
+    var driveFolderId = '';
+    var codigoCursoBD = data.codigoCurso; // Código exacto de la BD (ej: SAA, AZ900, CLF, GCDL)
+    try {
+      var nombreCarpetaSeccion = codigo + ' ' + nombreCurso + ' ' + frecuencia;
+      Logger.log('📁 [saveSeccion] Creando carpeta Drive: ' + data.provider + '/' + codigoCursoBD + '/' + nombreCarpetaSeccion);
+      var folderResult = crearCarpetaSeccionDrive(data.provider, codigoCursoBD, nombreCarpetaSeccion);
+      if (folderResult.success) {
+        driveFolderId = folderResult.folderId;
+        Logger.log('✅ [saveSeccion] Carpeta Drive creada: ' + driveFolderId);
+      } else {
+        Logger.log('⚠️ [saveSeccion] No se pudo crear carpeta Drive: ' + folderResult.message);
+      }
+    } catch (driveError) {
+      Logger.log('⚠️ [saveSeccion] Error creando carpeta Drive (no bloquea): ' + driveError.toString());
+    }
+    
+    sheet.appendRow([
+      codigo,
+      nombreCurso,
+      data.tecnologia,
+      data.provider,
+      data.nivel,
+      data.docenteId || '',
+      data.docenteNombre || '',
+      parseFloat(data.horasTotales) || 0,
+      data.mes,
+      data.año,
+      frecuencia,
+      data.puestoEnMes,
+      data.estado || 'Programada',
+      data.fechaInicio || '',
+      data.fechaFin || '',
+      data.confirmada || 'No',
+      new Date(),
+      esTest,
+      driveFolderId,
+      data.codigoCurso // CodigoCursoBD en columna 20 (índice 19)
+    ]);
+    
+    Logger.log('✅ [saveSeccion] Sección creada: ' + codigo + (esTest ? ' (TEST)' : '') + (driveFolderId ? ' con carpeta Drive' : ''));
+
+    // Programar la copia del material de la CARPETA MAESTRA en SEGUNDO PLANO.
+    // Así la sección se crea y responde de inmediato; el material se copia
+    // después mediante un trigger diferido (evita el timeout de Apps Script).
+    var copiaProgramada = false;
+    if (driveFolderId) {
+      try {
+        programarCopiaMaterialSeccion(codigoCursoBD, driveFolderId, data.provider);
+        copiaProgramada = true;
+      } catch (schedErr) {
+        Logger.log('⚠️ [saveSeccion] No se pudo programar copia en background: ' + schedErr.toString());
+      }
+    }
+
+    var mensajeExito = 'Sección creada exitosamente';
+    if (driveFolderId) {
+      mensajeExito += copiaProgramada
+        ? ' con carpeta en Drive (el material se está copiando en segundo plano)'
+        : ' con carpeta en Drive';
+    }
+    return { success: true, message: mensajeExito, codigo: codigo, driveFolderId: driveFolderId };
+  } catch (error) {
+    Logger.log('❌ [saveSeccion] ERROR: ' + error.toString());
+    return { success: false, message: error.toString() };
+  }
+}
+
+// ============================================
+// FUNCIONES DE CARPETAS DRIVE PARA SECCIONES
+// ============================================
+
+/**
+ * Crea la estructura de carpetas en Drive para una sección
+ * Ruta: My Drive/A. ACADÉMICA/Contenido Académico/Classroom/[Provider]/[CodigoCurso]/[NombreCarpeta]
+ */
+function crearCarpetaSeccionDrive(provider, codigoCurso, nombreCarpeta) {
+  try {
+    Logger.log('📁 [crearCarpetaSeccionDrive] Iniciando: My Drive/A. ACADÉMICA/Contenido Académico/Classroom/' + provider + '/' + codigoCurso + '/' + nombreCarpeta);
+    
+    // Navegar/crear la jerarquía de carpetas
+    var rootFolder = DriveApp.getRootFolder();
+    
+    // Nivel 1: A. ACADÉMICA
+    var academica = obtenerOCrearSubcarpeta(rootFolder, 'A. ACADÉMICA');
+    Logger.log('📁 Nivel 1: A. ACADÉMICA -> ' + academica.getId());
+    
+    // Nivel 2: Contenido Académico
+    var contenido = obtenerOCrearSubcarpeta(academica, 'Contenido Académico');
+    Logger.log('📁 Nivel 2: Contenido Académico -> ' + contenido.getId());
+    
+    // Nivel 3: Classroom
+    var classroom = obtenerOCrearSubcarpeta(contenido, 'Classroom');
+    Logger.log('📁 Nivel 3: Classroom -> ' + classroom.getId());
+    
+    // Nivel 4: Provider (AWS, Azure, GCP, etc.)
+    var providerFolder = obtenerOCrearSubcarpeta(classroom, provider);
+    Logger.log('📁 Nivel 4: ' + provider + ' -> ' + providerFolder.getId());
+    
+    // Nivel 5: Código de curso (CLF, SAA, GCDL, etc.)
+    var cursoFolder = obtenerOCrearSubcarpeta(providerFolder, codigoCurso);
+    Logger.log('📁 Nivel 5: ' + codigoCurso + ' -> ' + cursoFolder.getId());
+    
+    // Nivel 6: Carpeta de la sección (ej: CLF0426-A AWS Cloud Practitioner L-M-V)
+    var seccionFolder = obtenerOCrearSubcarpeta(cursoFolder, nombreCarpeta);
+    Logger.log('✅ [crearCarpetaSeccionDrive] Carpeta creada: ' + seccionFolder.getId() + ' -> ' + nombreCarpeta);
+    
+    return { success: true, folderId: seccionFolder.getId(), folderUrl: seccionFolder.getUrl() };
+  } catch (error) {
+    Logger.log('❌ [crearCarpetaSeccionDrive] ERROR: ' + error.toString());
+    Logger.log('❌ [crearCarpetaSeccionDrive] Stack: ' + error.stack);
+    return { success: false, message: error.toString(), folderId: '' };
+  }
+}
+
+/**
+ * Obtiene una subcarpeta por nombre, o la crea si no existe
+ */
+function obtenerOCrearSubcarpeta(parentFolder, nombre) {
+  var folders = parentFolder.getFoldersByName(nombre);
+  if (folders.hasNext()) {
+    return folders.next();
+  }
+  Logger.log('📁 Creando subcarpeta: ' + nombre);
+  return parentFolder.createFolder(nombre);
+}
+
+/**
+ * Busca si ya existe una carpeta de sección en la ruta correcta de Drive
+ * Ruta: My Drive/A. ACADÉMICA/Contenido Académico/Classroom/[Provider]/[CodigoCurso]/[nombreCarpeta]
+ * Retorna el folderId si existe, o null si no
+ */
+function buscarCarpetaExistente(provider, codigoCurso, nombreCarpeta) {
+  try {
+    Logger.log('🔍 [buscarCarpetaExistente] Buscando: My Drive/A. ACADÉMICA/Contenido Académico/Classroom/' + provider + '/' + codigoCurso + '/' + nombreCarpeta);
+    var root = DriveApp.getRootFolder();
+    
+    // Buscar case-insensitive en cada nivel
+    var academica = buscarSubcarpetaInsensitive(root, 'A. ACADÉMICA');
+    if (!academica) { Logger.log('🔍 No encontrada: A. ACADÉMICA'); return null; }
+    var contenido = buscarSubcarpetaInsensitive(academica, 'Contenido Académico');
+    if (!contenido) { Logger.log('🔍 No encontrada: Contenido Académico'); return null; }
+    var classroom = buscarSubcarpetaInsensitive(contenido, 'Classroom');
+    if (!classroom) { Logger.log('🔍 No encontrada: Classroom'); return null; }
+    var providerFolder = buscarSubcarpetaInsensitive(classroom, provider);
+    if (!providerFolder) { Logger.log('🔍 No encontrada: ' + provider); return null; }
+    var cursoFolder = buscarSubcarpetaInsensitive(providerFolder, codigoCurso);
+    if (!cursoFolder) { Logger.log('🔍 No encontrada: ' + codigoCurso); return null; }
+    
+    // Buscar la carpeta de sección: primero exacta, luego por código de sección al inicio
+    var codigoSeccion = nombreCarpeta.split(' ')[0]; // Ej: "CLF0426-A"
+    var nombreLower = nombreCarpeta.toLowerCase();
+    var codigoLower = codigoSeccion.toLowerCase();
+    
+    var subcarpetas = cursoFolder.getFolders();
+    var mejorMatch = null;
+    while (subcarpetas.hasNext()) {
+      var sub = subcarpetas.next();
+      var subNombre = sub.getName();
+      var subLower = subNombre.toLowerCase();
+      
+      // Match exacto (case-insensitive)
+      if (subLower === nombreLower) {
+        Logger.log('✅ [buscarCarpetaExistente] Match exacto: ' + subNombre + ' (' + sub.getId() + ')');
+        return sub.getId();
+      }
+      
+      // Match parcial: empieza con el código de sección (sin frecuencia)
+      if (subLower.indexOf(codigoLower) === 0) {
+        mejorMatch = sub;
+      }
+    }
+    
+    if (mejorMatch) {
+      Logger.log('✅ [buscarCarpetaExistente] Match parcial (sin frecuencia): ' + mejorMatch.getName() + ' (' + mejorMatch.getId() + ')');
+      return mejorMatch.getId();
+    }
+    
+    Logger.log('🔍 [buscarCarpetaExistente] No encontrada');
+    return null;
+  } catch (error) {
+    Logger.log('⚠️ [buscarCarpetaExistente] Error: ' + error.toString());
+    return null;
+  }
+}
+
+/**
+ * Busca una subcarpeta por nombre case-insensitive
+ */
+function buscarSubcarpetaInsensitive(parentFolder, nombre) {
+  var nombreLower = nombre.toLowerCase();
+  var folders = parentFolder.getFolders();
+  while (folders.hasNext()) {
+    var f = folders.next();
+    if (f.getName().toLowerCase() === nombreLower) {
+      return f;
+    }
+  }
+  return null;
+}
+
+/**
+ * Programa la copia del material de la CARPETA MAESTRA en segundo plano.
+ * Guarda los parámetros en PropertiesService y crea un trigger diferido que
+ * ejecuta ejecutarCopiaMaterialPendiente() unos segundos después.
+ * Así saveSeccion() responde de inmediato sin esperar la copia.
+ */
+function programarCopiaMaterialSeccion(codigoCurso, destinoFolderId, provider) {
+  var props = PropertiesService.getScriptProperties();
+
+  // Soportar varias copias pendientes en cola (por si se crean secciones seguidas)
+  var pendientesRaw = props.getProperty('COPIAS_MATERIAL_PENDIENTES');
+  var pendientes = [];
+  if (pendientesRaw) {
+    try { pendientes = JSON.parse(pendientesRaw); } catch (e) { pendientes = []; }
+  }
+  pendientes.push({ codigoCurso: codigoCurso, destinoFolderId: destinoFolderId, provider: provider });
+  props.setProperty('COPIAS_MATERIAL_PENDIENTES', JSON.stringify(pendientes));
+
+  // Crear trigger diferido (~15s) que procesará la cola
+  ScriptApp.newTrigger('ejecutarCopiaMaterialPendiente')
+    .timeBased()
+    .after(15 * 1000)
+    .create();
+
+  Logger.log('⏳ [programarCopiaMaterial] Copia encolada para ' + destinoFolderId + ' (pendientes: ' + pendientes.length + ')');
+}
+
+/**
+ * Ejecutado por el trigger diferido. Procesa la cola de copias pendientes,
+ * copia el material de la CARPETA MAESTRA a cada carpeta destino y limpia
+ * el trigger que lo disparó.
+ */
+function ejecutarCopiaMaterialPendiente() {
+  var props = PropertiesService.getScriptProperties();
+  var pendientesRaw = props.getProperty('COPIAS_MATERIAL_PENDIENTES');
+  var pendientes = [];
+  if (pendientesRaw) {
+    try { pendientes = JSON.parse(pendientesRaw); } catch (e) { pendientes = []; }
+  }
+
+  // Limpiar la cola ANTES de procesar para no reprocesar si algo falla a mitad
+  props.deleteProperty('COPIAS_MATERIAL_PENDIENTES');
+
+  Logger.log('▶️ [ejecutarCopiaMaterial] Procesando ' + pendientes.length + ' copia(s) pendiente(s)');
+  for (var i = 0; i < pendientes.length; i++) {
+    var p = pendientes[i];
+    try {
+      copiarContenidoCarpetaMaestra(p.codigoCurso, p.destinoFolderId, p.provider);
+    } catch (err) {
+      Logger.log('❌ [ejecutarCopiaMaterial] Error copiando ' + p.destinoFolderId + ': ' + err.toString());
+    }
+  }
+
+  // Eliminar los triggers de esta función ya usados para no acumularlos
+  try {
+    var triggers = ScriptApp.getProjectTriggers();
+    for (var t = 0; t < triggers.length; t++) {
+      if (triggers[t].getHandlerFunction() === 'ejecutarCopiaMaterialPendiente') {
+        ScriptApp.deleteTrigger(triggers[t]);
+      }
+    }
+  } catch (cleanErr) {
+    Logger.log('⚠️ [ejecutarCopiaMaterial] No se pudieron limpiar triggers: ' + cleanErr.toString());
+  }
+  Logger.log('✅ [ejecutarCopiaMaterial] Finalizado');
+}
+
+/**
+ * Copia archivos y subcarpetas de CARPETA MAESTRA/[Provider]/[codigoCurso] (maestra) a la carpeta destino
+ * Ruta origen: My Drive/A. ACADÉMICA/Contenido Académico/CARPETA MAESTRA/[Provider]/[codigoCurso] (maestra)
+ */
+function copiarContenidoCarpetaMaestra(codigoCurso, destinoFolderId, provider) {
+  try {
+    Logger.log('📋 [copiarContenidoCarpetaMaestra] Copiando desde CARPETA MAESTRA/' + provider + '/' + codigoCurso + ' (maestra) a ' + destinoFolderId);
+    
+    // Navegar a la carpeta origen
+    var root = DriveApp.getRootFolder();
+    var f1 = root.getFoldersByName('A. ACADÉMICA');
+    if (!f1.hasNext()) { Logger.log('⚠️ No se encontró A. ACADÉMICA'); return; }
+    var f2 = f1.next().getFoldersByName('Contenido Académico');
+    if (!f2.hasNext()) { Logger.log('⚠️ No se encontró Contenido Académico'); return; }
+    var f3 = f2.next().getFoldersByName('CARPETA MAESTRA');
+    if (!f3.hasNext()) { Logger.log('⚠️ No se encontró CARPETA MAESTRA'); return; }
+    var f3b = f3.next().getFoldersByName(provider);
+    if (!f3b.hasNext()) { Logger.log('⚠️ No se encontró CARPETA MAESTRA/' + provider); return; }
+    var f4 = f3b.next().getFoldersByName(codigoCurso + ' (maestra)');
+    if (!f4.hasNext()) { 
+      Logger.log('⚠️ No se encontró CARPETA MAESTRA/' + provider + '/' + codigoCurso + ' (maestra) - no se copia contenido'); 
+      return; 
+    }
+    
+    var origenFolder = f4.next();
+    var destinoFolder = DriveApp.getFolderById(destinoFolderId);
+    
+    Logger.log('📋 Origen: ' + origenFolder.getName() + ' (' + origenFolder.getId() + ')');
+    Logger.log('📋 Destino: ' + destinoFolder.getName() + ' (' + destinoFolderId + ')');
+    
+    // Copiar recursivamente (excluye "Banco de Preguntas")
+    copiarCarpetaRecursivo(origenFolder, destinoFolder);
+    
+    Logger.log('✅ [copiarContenidoCarpetaMaestra] Copia completada');
+  } catch (error) {
+    Logger.log('❌ [copiarContenidoCarpetaMaestra] ERROR: ' + error.toString());
+    Logger.log('❌ Stack: ' + error.stack);
+  }
+}
+
+/**
+ * Copia recursivamente archivos y subcarpetas de origen a destino
+ */
+function copiarCarpetaRecursivo(origenFolder, destinoFolder) {
+  var archivos = origenFolder.getFiles();
+  var contadorArchivos = 0;
+  while (archivos.hasNext()) {
+    var archivo = archivos.next();
+    try {
+      archivo.makeCopy(archivo.getName(), destinoFolder);
+      contadorArchivos++;
+      Utilities.sleep(300);
+    } catch (e) {
+      Logger.log('Error copiando archivo ' + archivo.getName() + ': ' + e.toString());
+      Utilities.sleep(2000);
+      try {
+        archivo.makeCopy(archivo.getName(), destinoFolder);
+        contadorArchivos++;
+      } catch (e2) {
+        Logger.log('Fallo reintento para ' + archivo.getName() + ': ' + e2.toString());
+      }
+    }
+  }
+  Logger.log('Copiados ' + contadorArchivos + ' archivos de ' + origenFolder.getName());
+  
+  var subcarpetas = origenFolder.getFolders();
+  while (subcarpetas.hasNext()) {
+    var subcarpeta = subcarpetas.next();
+    Utilities.sleep(300);
+    var nuevaSubcarpeta = destinoFolder.createFolder(subcarpeta.getName());
+    Logger.log('Creada subcarpeta: ' + subcarpeta.getName());
+    copiarCarpetaRecursivo(subcarpeta, nuevaSubcarpeta);
+  }
+}
+
+/**
+ * Comparte la carpeta "Banco de Preguntas" de la CARPETA MAESTRA con un alumno Pro/Certify.
+ * No se copia a la sección — se comparte directamente desde la maestra como viewer.
+ */
+function compartirBancoDePreguntas(codigoSeccion, emailAlumno) {
+  try {
+    if (!emailAlumno || !codigoSeccion) return;
+    
+    var ss = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+    var secSheet = ss.getSheetByName('Secciones');
+    var secData = secSheet.getDataRange().getValues();
+    
+    // Obtener provider y codigoCursoBD de la sección
+    var provider = '';
+    var codigoCursoBD = '';
+    for (var i = 1; i < secData.length; i++) {
+      if (String(secData[i][0]) === codigoSeccion) {
+        provider = String(secData[i][3] || '');
+        codigoCursoBD = String(secData[i][19] || '');
+        break;
+      }
+    }
+    
+    if (!provider || !codigoCursoBD) {
+      Logger.log('⚠️ [compartirBP] Sin provider o codigoCursoBD para sección ' + codigoSeccion);
+      return;
+    }
+    
+    // Navegar a CARPETA MAESTRA/[Provider]/[CodigoCurso] (maestra)/Banco de Preguntas
+    var root = DriveApp.getRootFolder();
+    var f1 = root.getFoldersByName('A. ACADÉMICA');
+    if (!f1.hasNext()) { Logger.log('⚠️ [compartirBP] No se encontró A. ACADÉMICA'); return; }
+    var f2 = f1.next().getFoldersByName('Contenido Académico');
+    if (!f2.hasNext()) { Logger.log('⚠️ [compartirBP] No se encontró Contenido Académico'); return; }
+    var f3 = f2.next().getFoldersByName('CARPETA MAESTRA');
+    if (!f3.hasNext()) { Logger.log('⚠️ [compartirBP] No se encontró CARPETA MAESTRA'); return; }
+    var f3b = f3.next().getFoldersByName(provider);
+    if (!f3b.hasNext()) { Logger.log('⚠️ [compartirBP] No se encontró provider ' + provider); return; }
+    var f4 = f3b.next().getFoldersByName(codigoCursoBD + ' (maestra)');
+    if (!f4.hasNext()) { Logger.log('⚠️ [compartirBP] No se encontró carpeta maestra de ' + codigoCursoBD); return; }
+    
+    var maestraFolder = f4.next();
+    var bpFolders = maestraFolder.getFoldersByName('Banco de Preguntas');
+    
+    if (!bpFolders.hasNext()) {
+      Logger.log('📋 [compartirBP] No existe "Banco de Preguntas" en maestra de ' + codigoCursoBD);
+      return;
+    }
+    
+    var bpFolder = bpFolders.next();
+    
+    // Verificar si ya tiene acceso
+    var viewers = bpFolder.getViewers().map(function(u) { return u.getEmail(); });
+    var editors = bpFolder.getEditors().map(function(u) { return u.getEmail(); });
+    if (viewers.indexOf(emailAlumno) !== -1 || editors.indexOf(emailAlumno) !== -1) {
+      Logger.log('✅ [compartirBP] Alumno ya tiene acceso: ' + emailAlumno);
+      return;
+    }
+    
+    bpFolder.addViewer(emailAlumno);
+    Logger.log('✅ [compartirBP] Banco de Preguntas de ' + codigoCursoBD + ' compartido con ' + emailAlumno);
+  } catch (error) {
+    Logger.log('⚠️ [compartirBP] Error (no bloquea): ' + error.toString());
+  }
+}
+
+/**
+ * Crea carpeta Drive para una sección existente (botón manual)
+ * Si la carpeta ya existe en Drive por nombre, solo vincula el ID sin duplicar
+ * Si no existe, crea la carpeta y copia contenido de CARPETA MAESTRA
+ */
+function crearCarpetaDriveParaSeccion(codigoSeccion) {
+  try {
+    Logger.log('📁 [crearCarpetaDriveParaSeccion] Código: ' + codigoSeccion);
+    
+    var sheet = getSheet(SHEETS.secciones);
+    if (!sheet) {
+      return { success: false, message: 'No se pudo acceder a la hoja de secciones' };
+    }
+    
+    var data = sheet.getDataRange().getValues();
+    var filaIndex = -1;
+    
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][0]) === codigoSeccion) {
+        filaIndex = i;
+        break;
+      }
+    }
+    
+    if (filaIndex === -1) {
+      return { success: false, message: 'Sección no encontrada: ' + codigoSeccion };
+    }
+    
+    var row = data[filaIndex];
+    var existingFolderId = String(row[18] || '');
+    
+    // Verificar si ya tiene carpeta vinculada y accesible
+    if (existingFolderId) {
+      try {
+        var existingFolder = DriveApp.getFolderById(existingFolderId);
+        return { success: true, message: 'La sección ya tiene carpeta en Drive', folderId: existingFolderId, folderUrl: existingFolder.getUrl(), yaExistia: true };
+      } catch (e) {
+        Logger.log('⚠️ Carpeta anterior no accesible, buscando o creando nueva');
+      }
+    }
+    
+    var provider = String(row[3] || '');
+    var nombreCurso = String(row[1] || '');
+    var frecuencia = String(row[10] || '');
+    var codigoCursoBD = String(row[19] || '');
+    
+    // Fallback: si no tiene CodigoCursoBD guardado, extraer letras del código de sección
+    if (!codigoCursoBD) {
+      var codigoCursoMatch = codigoSeccion.match(/^([A-Za-z]+\d*)/);
+      codigoCursoBD = codigoCursoMatch ? codigoCursoMatch[1] : '';
+      // Intentar buscar en la BD de cursos por nombre
+      if (!codigoCursoBD && nombreCurso) {
+        var cursos = getCursos();
+        var cursoEncontrado = cursos.find(function(c) { return c.Nombre === nombreCurso; });
+        if (cursoEncontrado) codigoCursoBD = cursoEncontrado.Codigo;
+      }
+      Logger.log('📁 CodigoCursoBD no guardado, usando fallback: ' + codigoCursoBD);
+    }
+    
+    if (!provider || !codigoCursoBD) {
+      return { success: false, message: 'Datos incompletos: Provider=' + provider + ', CodigoCurso=' + codigoCursoBD };
+    }
+    
+    var nombreCarpeta = codigoSeccion + ' ' + nombreCurso + ' ' + frecuencia;
+    
+    // Buscar si la carpeta ya existe en Drive por nombre en la ruta correcta
+    var folderIdEncontrado = buscarCarpetaExistente(provider, codigoCursoBD, nombreCarpeta);
+    
+    if (folderIdEncontrado) {
+      // La carpeta ya existe, solo vincular el ID
+      sheet.getRange(filaIndex + 1, 19).setValue(folderIdEncontrado);
+      // Guardar también CodigoCursoBD si no estaba
+      if (!String(row[19] || '')) {
+        sheet.getRange(filaIndex + 1, 20).setValue(codigoCursoBD);
+      }
+      Logger.log('✅ [crearCarpetaDriveParaSeccion] Carpeta existente vinculada: ' + folderIdEncontrado);
+      try {
+        var folderUrl = DriveApp.getFolderById(folderIdEncontrado).getUrl();
+        return { success: true, message: 'Carpeta existente encontrada y vinculada', folderId: folderIdEncontrado, folderUrl: folderUrl, yaExistia: true };
+      } catch (e) {
+        return { success: true, message: 'Carpeta existente encontrada y vinculada', folderId: folderIdEncontrado, yaExistia: true };
+      }
+    }
+    
+    // No existe, crear la carpeta
+    var result = crearCarpetaSeccionDrive(provider, codigoCursoBD, nombreCarpeta);
+    
+    if (result.success) {
+      // Guardar el folder ID en columna 19 (índice 18)
+      sheet.getRange(filaIndex + 1, 19).setValue(result.folderId);
+      // Guardar CodigoCursoBD en columna 20 (índice 19)
+      if (!String(row[19] || '')) {
+        sheet.getRange(filaIndex + 1, 20).setValue(codigoCursoBD);
+      }
+      Logger.log('✅ [crearCarpetaDriveParaSeccion] Folder ID guardado en fila ' + (filaIndex + 1));
+      
+      // Copiar contenido de CARPETA MAESTRA
+      try {
+        copiarContenidoCarpetaMaestra(codigoCursoBD, result.folderId, provider);
+      } catch (copyError) {
+        Logger.log('⚠️ [crearCarpetaDriveParaSeccion] Error copiando contenido maestra: ' + copyError.toString());
+      }
+      
+      // Compartir con alumnos que ya pagaron completamente
+      try {
+        compartirCarpetaConAlumnosPagados(codigoSeccion);
+      } catch (shareError) {
+        Logger.log('⚠️ [crearCarpetaDriveParaSeccion] Error compartiendo con pagados: ' + shareError.toString());
+      }
+      
+      // Compartir con docente como editor
+      try {
+        var secDataShare = sheet.getDataRange().getValues();
+        var docenteIdShare = '';
+        for (var ds = 1; ds < secDataShare.length; ds++) {
+          if (String(secDataShare[ds][0]) === codigoSeccion) {
+            docenteIdShare = String(secDataShare[ds][5] || '');
+            break;
+          }
+        }
+        if (docenteIdShare) {
+          var docSheet = getSheet(SHEETS.docentes);
+          var docData = docSheet.getDataRange().getValues();
+          for (var dd = 1; dd < docData.length; dd++) {
+            if (String(docData[dd][0]) === docenteIdShare) {
+              var emailDoc = String(docData[dd][2] || '');
+              if (emailDoc && result.folderId) {
+                DriveApp.getFolderById(result.folderId).addEditor(emailDoc);
+                Logger.log('✅ Docente ' + emailDoc + ' agregado como editor');
+              }
+              break;
+            }
+          }
+        }
+      } catch(docShareErr) {
+        Logger.log('⚠️ Error compartiendo con docente: ' + docShareErr.toString());
+      }
+    }
+    
+    return result;
+  } catch (error) {
+    Logger.log('❌ [crearCarpetaDriveParaSeccion] ERROR: ' + error.toString());
+    return { success: false, message: error.toString() };
+  }
+}
+
+/**
+ * Limpia TODAS las secciones de test y sus carpetas de Drive
+ * EXTREMO CUIDADO: Solo elimina filas donde EsTest = 'Sí'
+ */
+function limpiarSeccionesTest() {
+  try {
+    Logger.log('🧹 [limpiarSeccionesTest] INICIANDO LIMPIEZA DE SECCIONES TEST');
+    
+    var sheet = getSheet(SHEETS.secciones);
+    if (!sheet) {
+      return { success: false, message: 'No se pudo acceder a la hoja de secciones' };
+    }
+    
+    var data = sheet.getDataRange().getValues();
+    Logger.log('🧹 [limpiarSeccionesTest] Total filas (con header): ' + data.length);
+    
+    // Identificar filas test (de abajo hacia arriba para no romper índices)
+    var filasTest = [];
+    for (var i = 1; i < data.length; i++) {
+      var esTest = String(data[i][17] || '').trim();
+      if (esTest === 'Sí' || esTest === 'Si' || esTest === 'sí' || esTest === 'si' || esTest === 'YES' || esTest === 'yes') {
+        filasTest.push({
+          fila: i + 1, // fila en la hoja (1-indexed)
+          codigo: String(data[i][0] || ''),
+          driveFolderId: String(data[i][18] || ''),
+          nombreCurso: String(data[i][1] || '')
+        });
+      }
+    }
+    
+    Logger.log('🧹 [limpiarSeccionesTest] Secciones test encontradas: ' + filasTest.length);
+    
+    if (filasTest.length === 0) {
+      return { success: true, message: 'No hay secciones de test para limpiar', eliminadas: 0 };
+    }
+    
+    // Log de lo que se va a eliminar (para auditoría)
+    filasTest.forEach(function(ft) {
+      Logger.log('🧹 A eliminar: ' + ft.codigo + ' (fila ' + ft.fila + ') DriveFolder: ' + (ft.driveFolderId || 'ninguno'));
+    });
+    
+    // Paso 1: Eliminar carpetas de Drive
+    var carpetasEliminadas = 0;
+    var erroresDrive = [];
+    filasTest.forEach(function(ft) {
+      if (ft.driveFolderId) {
+        try {
+          var folder = DriveApp.getFolderById(ft.driveFolderId);
+          var folderName = folder.getName();
+          folder.setTrashed(true);
+          carpetasEliminadas++;
+          Logger.log('🗑️ Carpeta eliminada (trash): ' + folderName + ' (' + ft.driveFolderId + ')');
+        } catch (driveError) {
+          erroresDrive.push(ft.codigo + ': ' + driveError.toString());
+          Logger.log('⚠️ Error eliminando carpeta de ' + ft.codigo + ': ' + driveError.toString());
+        }
+      }
+    });
+    
+    // Paso 2: También limpiar matrículas test asociadas
+    var matriculasEliminadas = 0;
+    try {
+      var matriculasSheet = getSheet('Matriculas');
+      if (matriculasSheet) {
+        var matData = matriculasSheet.getDataRange().getValues();
+        var codigosTest = filasTest.map(function(ft) { return ft.codigo; });
+        var filasMatEliminar = [];
+        
+        for (var m = 1; m < matData.length; m++) {
+          var seccionMat = String(matData[m][2] || ''); // Columna de sección en matrículas
+          if (codigosTest.indexOf(seccionMat) !== -1) {
+            filasMatEliminar.push(m + 1);
+          }
+        }
+        
+        // Eliminar de abajo hacia arriba
+        filasMatEliminar.sort(function(a, b) { return b - a; });
+        filasMatEliminar.forEach(function(fila) {
+          matriculasSheet.deleteRow(fila);
+          matriculasEliminadas++;
+        });
+        Logger.log('🧹 Matrículas test eliminadas: ' + matriculasEliminadas);
+      }
+    } catch (matError) {
+      Logger.log('⚠️ Error limpiando matrículas test: ' + matError.toString());
+    }
+    
+    // Paso 3: Eliminar eventos de Calendar asociados
+    var eventosEliminados = 0;
+    filasTest.forEach(function(ft) {
+      try {
+        var matchCal = ft.codigo.match(/(\d{2})(\d{2})-/);
+        if (matchCal) {
+          var mesCal = parseInt(matchCal[1]) - 1;
+          var anoCal = 2000 + parseInt(matchCal[2]);
+          var inicioCal = new Date(anoCal, mesCal, 1);
+          var finCal = new Date(anoCal, mesCal + 3, 0, 23, 59, 59);
+          var nombreBuscado = 'Clase ' + ft.codigo;
+          
+          var events = Calendar.Events.list('primary', {
+            timeMin: inicioCal.toISOString(),
+            timeMax: finCal.toISOString(),
+            q: nombreBuscado,
+            singleEvents: false,
+            maxResults: 50
+          });
+          
+          if (events.items) {
+            events.items.forEach(function(ev) {
+              if (ev.summary && ev.summary.trim().indexOf(nombreBuscado) === 0) {
+                Calendar.Events.remove('primary', ev.id);
+                eventosEliminados++;
+                Logger.log('🗑️ Evento Calendar eliminado: ' + ev.summary);
+              }
+            });
+          }
+        }
+      } catch(calErr) {
+        Logger.log('⚠️ Error eliminando eventos Calendar de ' + ft.codigo + ': ' + calErr.toString());
+      }
+    });
+    
+    // Paso 4: Eliminar filas de secciones (de abajo hacia arriba)
+    filasTest.sort(function(a, b) { return b.fila - a.fila; });
+    filasTest.forEach(function(ft) {
+      sheet.deleteRow(ft.fila);
+      Logger.log('🗑️ Fila eliminada: ' + ft.fila + ' (' + ft.codigo + ')');
+    });
+    
+    var mensaje = 'Limpieza completada: ' + filasTest.length + ' secciones test eliminadas';
+    if (carpetasEliminadas > 0) mensaje += ', ' + carpetasEliminadas + ' carpetas Drive enviadas a papelera';
+    if (matriculasEliminadas > 0) mensaje += ', ' + matriculasEliminadas + ' matrículas test eliminadas';
+    if (eventosEliminados > 0) mensaje += ', ' + eventosEliminados + ' eventos Calendar eliminados';
+    if (erroresDrive.length > 0) mensaje += '. Errores Drive: ' + erroresDrive.join('; ');
+    
+    Logger.log('✅ [limpiarSeccionesTest] ' + mensaje);
+    return { success: true, message: mensaje, eliminadas: filasTest.length, carpetasEliminadas: carpetasEliminadas, matriculasEliminadas: matriculasEliminadas };
+  } catch (error) {
+    Logger.log('❌ [limpiarSeccionesTest] ERROR: ' + error.toString());
+    Logger.log('❌ [limpiarSeccionesTest] Stack: ' + error.stack);
+    return { success: false, message: error.toString() };
+  }
+}
+
+function updateSeccion(codigo, campo, valor) {
+  try {
+    var sheet = getSheet(SHEETS.secciones);
+    var data = sheet.getDataRange().getValues();
+    var headers = data[0];
+    var colIndex = headers.indexOf(campo);
+    
+    if (colIndex === -1) {
+      return { success: false, message: 'Campo no encontrado: ' + campo };
+    }
+    
+    for (var i = 1; i < data.length; i++) {
+      if (data[i][0] === codigo) {
+        sheet.getRange(i + 1, colIndex + 1).setValue(valor);
+        Logger.log('✅ [updateSeccion] ' + codigo + ' - ' + campo + ' = ' + valor);
+        return { success: true, message: 'Sección actualizada' };
+      }
+    }
+    
+    return { success: false, message: 'Sección no encontrada' };
+  } catch (error) {
+    Logger.log('❌ [updateSeccion] ERROR: ' + error.toString());
+    return { success: false, message: error.toString() };
+  }
+}
+
+// ============================================
+// FUNCIONES DE FUSIÓN, REPROGRAMACIÓN Y MOVIMIENTO DE ALUMNOS
+// ============================================
+
+/**
+ * Fusiona dos secciones del mismo curso
+ * Mueve matrículas de origen a destino, elimina sección origen y su carpeta Drive
+ */
+function fusionarSecciones(codigoOrigen, codigoDestino) {
+  try {
+    Logger.log('🔀 [fusionarSecciones] Origen: ' + codigoOrigen + ' -> Destino: ' + codigoDestino);
+    
+    if (codigoOrigen === codigoDestino) {
+      return { success: false, message: 'No se puede fusionar una sección consigo misma' };
+    }
+    
+    var seccionesSheet = getSheet(SHEETS.secciones);
+    var data = seccionesSheet.getDataRange().getValues();
+    
+    var filaOrigen = -1, filaDestino = -1;
+    var secOrigen = null, secDestino = null;
+    
+    for (var i = 1; i < data.length; i++) {
+      var cod = String(data[i][0] || '');
+      if (cod === codigoOrigen) { filaOrigen = i; secOrigen = data[i]; }
+      if (cod === codigoDestino) { filaDestino = i; secDestino = data[i]; }
+    }
+    
+    if (!secOrigen) return { success: false, message: 'Sección origen no encontrada: ' + codigoOrigen };
+    if (!secDestino) return { success: false, message: 'Sección destino no encontrada: ' + codigoDestino };
+    
+    // Validar mismo curso
+    var cursoBDOrigen = String(secOrigen[19] || '');
+    var cursoBDDestino = String(secDestino[19] || '');
+    var nombreCursoOrigen = String(secOrigen[1] || '');
+    var nombreCursoDestino = String(secDestino[1] || '');
+    
+    if (cursoBDOrigen && cursoBDDestino && cursoBDOrigen !== cursoBDDestino) {
+      return { success: false, message: 'No se pueden fusionar secciones de cursos distintos (' + cursoBDOrigen + ' vs ' + cursoBDDestino + ')' };
+    }
+    if (!cursoBDOrigen && !cursoBDDestino && nombreCursoOrigen !== nombreCursoDestino) {
+      return { success: false, message: 'No se pueden fusionar secciones de cursos distintos (' + nombreCursoOrigen + ' vs ' + nombreCursoDestino + ')' };
+    }
+    
+    // Mover matrículas
+    var matriculasSheet = getSheet('Matriculas');
+    var matData = matriculasSheet.getDataRange().getValues();
+    var matriculasMovidas = 0;
+    
+    for (var m = 1; m < matData.length; m++) {
+      if (String(matData[m][2] || '') === codigoOrigen) {
+        matriculasSheet.getRange(m + 1, 3).setValue(codigoDestino);
+        matriculasMovidas++;
+        Utilities.sleep(200);
+      }
+    }
+    Logger.log('🔀 Matrículas movidas: ' + matriculasMovidas);
+    
+    // Eliminar carpeta Drive de origen
+    var driveIdOrigen = String(secOrigen[18] || '');
+    if (driveIdOrigen) {
+      try {
+        DriveApp.getFolderById(driveIdOrigen).setTrashed(true);
+        Logger.log('🗑️ Carpeta Drive origen eliminada: ' + driveIdOrigen);
+      } catch (e) {
+        Logger.log('⚠️ Error eliminando carpeta Drive origen: ' + e.toString());
+      }
+    }
+    
+    // Calendar: mover alumnos de origen a destino y eliminar serie origen
+    try {
+      var almSheetFus = getSheet(SHEETS.alumnos);
+      var almDataFus = almSheetFus.getDataRange().getValues();
+      var emailMapFus = {};
+      for (var af = 1; af < almDataFus.length; af++) {
+        emailMapFus[String(almDataFus[af][0])] = String(almDataFus[af][2] || '');
+      }
+      
+      // Obtener emails de alumnos que se movieron
+      var matDataFus = matriculasSheet.getDataRange().getValues();
+      for (var mf = 1; mf < matDataFus.length; mf++) {
+        if (String(matDataFus[mf][2]) === codigoDestino) {
+          var emailFus = emailMapFus[String(matDataFus[mf][1])] || '';
+          if (emailFus) {
+            agregarAlumnoAEventosCalendar(codigoDestino, emailFus);
+          }
+        }
+      }
+      
+      // Eliminar serie de eventos de la sección origen
+      var matchFus = codigoOrigen.match(/(\d{2})(\d{2})-/);
+      if (matchFus) {
+        var mesFus = parseInt(matchFus[1]) - 1;
+        var anoFus = 2000 + parseInt(matchFus[2]);
+        var inicioFus = new Date(anoFus, mesFus, 1);
+        var finFus = new Date(anoFus, mesFus + 3, 0, 23, 59, 59);
+        var eventsFus = Calendar.Events.list('primary', {
+          timeMin: inicioFus.toISOString(), timeMax: finFus.toISOString(),
+          q: 'Clase ' + codigoOrigen, singleEvents: false, maxResults: 50
+        });
+        if (eventsFus.items) {
+          eventsFus.items.forEach(function(ev) {
+            if (ev.summary && ev.summary.trim().indexOf('Clase ' + codigoOrigen) === 0) {
+              try { Calendar.Events.remove('primary', ev.id); } catch(re) {}
+            }
+          });
+        }
+        Logger.log('📅 Eventos Calendar de sección origen eliminados');
+      }
+    } catch(calFus) {
+      Logger.log('⚠️ Error actualizando Calendar en fusión: ' + calFus.toString());
+    }
+    
+    // Eliminar fila de sección origen
+    seccionesSheet.deleteRow(filaOrigen + 1);
+    Logger.log('🗑️ Sección origen eliminada de la hoja');
+    
+    var msg = 'Fusión completada: ' + matriculasMovidas + ' matrículas movidas de ' + codigoOrigen + ' a ' + codigoDestino;
+    Logger.log('✅ [fusionarSecciones] ' + msg);
+    return { success: true, message: msg, matriculasMovidas: matriculasMovidas };
+  } catch (error) {
+    Logger.log('❌ [fusionarSecciones] ERROR: ' + error.toString());
+    return { success: false, message: error.toString() };
+  }
+}
+
+/**
+ * Reprograma una sección cambiando mes/año/puesto
+ * Regenera el código, actualiza matrículas y renombra carpeta Drive
+ * Si el nuevo código ya existe, retorna conflicto para que el frontend ofrezca fusionar
+ */
+function reprogramarSeccion(codigoActual, nuevoMes, nuevoAno, nuevoPuesto, nuevaFechaInicio) {
+  try {
+    Logger.log('📅 [reprogramarSeccion] ' + codigoActual + ' -> mes=' + nuevoMes + ' año=' + nuevoAno + ' puesto=' + nuevoPuesto);
+    
+    var seccionesSheet = getSheet(SHEETS.secciones);
+    var data = seccionesSheet.getDataRange().getValues();
+    
+    var filaIndex = -1;
+    var seccion = null;
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][0] || '') === codigoActual) {
+        filaIndex = i;
+        seccion = data[i];
+        break;
+      }
+    }
+    
+    if (!seccion) return { success: false, message: 'Sección no encontrada: ' + codigoActual };
+    
+    var codigoCursoBD = String(seccion[19] || '');
+    if (!codigoCursoBD) {
+      // Fallback: extraer del código de sección
+      var match = codigoActual.match(/^([A-Za-z]+\d*)/);
+      codigoCursoBD = match ? match[1] : '';
+    }
+    
+    var nuevoCodigo = generarCodigoSeccion(codigoCursoBD, nuevoMes, nuevoAno, nuevoPuesto);
+    Logger.log('📅 Nuevo código: ' + nuevoCodigo);
+    
+    if (nuevoCodigo === codigoActual && !nuevaFechaInicio) {
+      return { success: false, message: 'No hay cambios que aplicar' };
+    }
+    
+    // Si el código no cambia pero sí la fecha, solo actualizar fecha
+    var soloFecha = (nuevoCodigo === codigoActual && nuevaFechaInicio);
+    
+    // Verificar si el nuevo código ya existe (solo si cambia)
+    if (!soloFecha) {
+      for (var j = 1; j < data.length; j++) {
+        if (String(data[j][0] || '') === nuevoCodigo && j !== filaIndex) {
+          return { success: false, message: 'Ya existe la sección ' + nuevoCodigo, conflicto: true, codigoConflicto: nuevoCodigo };
+        }
+      }
+    }
+    
+    // Actualizar datos en la hoja de secciones
+    if (!soloFecha) {
+      seccionesSheet.getRange(filaIndex + 1, 1).setValue(nuevoCodigo);
+    }
+    seccionesSheet.getRange(filaIndex + 1, 9).setValue(nuevoMes);
+    seccionesSheet.getRange(filaIndex + 1, 10).setValue(nuevoAno);
+    seccionesSheet.getRange(filaIndex + 1, 12).setValue(nuevoPuesto);
+    if (nuevaFechaInicio) {
+      // Crear fecha con hora mediodía para evitar desfase por timezone UTC vs America/Lima
+      var partesFecha = String(nuevaFechaInicio).split('-');
+      var fechaLocal = new Date(parseInt(partesFecha[0]), parseInt(partesFecha[1]) - 1, parseInt(partesFecha[2]), 12, 0, 0);
+      seccionesSheet.getRange(filaIndex + 1, 14).setValue(fechaLocal);
+      SpreadsheetApp.flush();
+      Logger.log('📅 FechaInicio actualizada y flush: ' + nuevaFechaInicio + ' en fila ' + (filaIndex + 1));
+    }
+    Logger.log('📅 Sección actualizada en hoja');
+    
+    // Actualizar matrículas (solo si el código cambió)
+    var matriculasActualizadas = 0;
+    if (!soloFecha) {
+      var matriculasSheet = getSheet('Matriculas');
+      var matData = matriculasSheet.getDataRange().getValues();
+      
+      for (var m = 1; m < matData.length; m++) {
+        if (String(matData[m][2] || '') === codigoActual) {
+          matriculasSheet.getRange(m + 1, 3).setValue(nuevoCodigo);
+          matriculasActualizadas++;
+        Utilities.sleep(200);
+      }
+    }
+    Logger.log('📅 Matrículas actualizadas: ' + matriculasActualizadas);
+    
+    // Renombrar carpeta Drive
+    var driveId = String(seccion[18] || '');
+    if (driveId) {
+      try {
+        var folder = DriveApp.getFolderById(driveId);
+        var nombreCurso = String(seccion[1] || '');
+        var frecuencia = String(seccion[10] || '');
+        var nuevoNombre = nuevoCodigo + ' ' + nombreCurso + ' ' + frecuencia;
+        folder.setName(nuevoNombre);
+        Logger.log('📁 Carpeta Drive renombrada: ' + nuevoNombre);
+      } catch (e) {
+        Logger.log('⚠️ Error renombrando carpeta Drive: ' + e.toString());
+      }
+    }
+    } // fin de if (!soloFecha)
+    
+    // Renombrar y reprogramar eventos de Calendar
+    try {
+      var matchOld = codigoActual.match(/(\d{2})(\d{2})-/);
+      if (matchOld) {
+        var mesOld = parseInt(matchOld[1]) - 1;
+        var anoOld = 2000 + parseInt(matchOld[2]);
+        var inicioMes = new Date(anoOld, mesOld, 1);
+        var finBusqueda = new Date(anoOld, mesOld + 3, 0, 23, 59, 59);
+        var nombreViejo = 'Clase ' + codigoActual;
+        
+        // Eliminar la serie vieja
+        var events = Calendar.Events.list('primary', {
+          timeMin: inicioMes.toISOString(),
+          timeMax: finBusqueda.toISOString(),
+          q: nombreViejo,
+          singleEvents: false,
+          maxResults: 50
+        });
+        
+        var seriesEliminadas = 0;
+        if (events.items) {
+          events.items.forEach(function(ev) {
+            if (ev.summary && ev.summary.indexOf(nombreViejo) === 0) {
+              try { Calendar.Events.remove('primary', ev.id); seriesEliminadas++; } catch(re) {}
+            }
+          });
+        }
+        Logger.log('📅 Series Calendar eliminadas: ' + seriesEliminadas);
+        
+        // Recrear con nuevo código y nueva fecha
+        if (seriesEliminadas > 0) {
+          Utilities.sleep(1000);
+          var resultCal = crearEventosCalendarSeccion(nuevoCodigo);
+          Logger.log('📅 Nueva serie Calendar creada: ' + JSON.stringify(resultCal));
+        }
+      }
+    } catch(calErr) {
+      Logger.log('⚠️ Error reprogramando eventos Calendar: ' + calErr.toString());
+    }
+    
+    // Renombrar Classroom si existe
+    try {
+      var classroomId = String(seccion[21] || '');
+      if (classroomId && !soloFecha) {
+        var nombreCursoClass = String(seccion[1] || '');
+        var nuevoNombreClass = nuevoCodigo + ' - ' + nombreCursoClass;
+        Classroom.Courses.patch({ name: nuevoNombreClass }, classroomId, { updateMask: 'name' });
+        Logger.log('📚 Classroom renombrado: ' + nuevoNombreClass);
+      }
+    } catch(classErr) {
+      Logger.log('⚠️ Error renombrando Classroom (no bloquea): ' + classErr.toString());
+    }
+    
+    // Enviar email de cambio de inicio a alumnos matriculados
+    try {
+      var spreadsheetEmail = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+      var matSheetEmail = spreadsheetEmail.getSheetByName('Matriculas');
+      var almSheetEmail = spreadsheetEmail.getSheetByName('Alumnos');
+      var matDataEmail = matSheetEmail.getDataRange().getValues();
+      var almDataEmail = almSheetEmail.getDataRange().getValues();
+      
+      var alumnosMap = {};
+      for (var ae = 1; ae < almDataEmail.length; ae++) {
+        alumnosMap[String(almDataEmail[ae][0])] = { nombre: String(almDataEmail[ae][1] || ''), email: String(almDataEmail[ae][2] || '') };
+      }
+      
+      for (var me = 1; me < matDataEmail.length; me++) {
+        if (String(matDataEmail[me][2]) === nuevoCodigo) {
+          var alumno = alumnosMap[String(matDataEmail[me][1])];
+          if (alumno && alumno.email) {
+            try {
+              enviarPlantilla('cambio-inicio-seccion', {
+                alumno_nombre: alumno.nombre,
+                email_alumno: alumno.email,
+                seccion: nuevoCodigo,
+                curso: String(seccion[1] || ''),
+                nueva_fecha: (function() {
+                  if (!nuevaFechaInicio) return '';
+                  var fp = String(nuevaFechaInicio).split('-');
+                  var meses = ['','enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+                  return parseInt(fp[2]) + ' de ' + meses[parseInt(fp[1])] + ', ' + fp[0];
+                })()
+              });
+            } catch(emailErr) {
+              Logger.log('⚠️ Error enviando email a ' + alumno.email + ': ' + emailErr.toString());
+            }
+          }
+        }
+      }
+      Logger.log('✅ Emails de cambio de inicio enviados');
+    } catch(emailErr2) {
+      Logger.log('⚠️ Error enviando emails de cambio (no bloquea): ' + emailErr2.toString());
+    }
+    
+    var msg = soloFecha ? 
+      'Fecha de inicio actualizada para ' + codigoActual + (nuevaFechaInicio ? ' -> ' + nuevaFechaInicio : '') :
+      'Sección reprogramada: ' + codigoActual + ' -> ' + nuevoCodigo + ' (' + matriculasActualizadas + ' matrículas actualizadas)';
+    
+    // Registrar en historial de reprogramaciones
+    try {
+      var ssHist = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+      var histSheet = ssHist.getSheetByName('HistorialReprogramaciones');
+      if (!histSheet) {
+        histSheet = ssHist.insertSheet('HistorialReprogramaciones');
+        histSheet.appendRow(['Seccion', 'CodigoAnterior', 'CodigoNuevo', 'FechaAnterior', 'FechaNueva', 'FechaDelCambio']);
+      }
+      var fechaAnteriorHist = String(seccion[13] || '');
+      histSheet.appendRow([
+        soloFecha ? codigoActual : nuevoCodigo,
+        codigoActual,
+        soloFecha ? codigoActual : nuevoCodigo,
+        fechaAnteriorHist,
+        nuevaFechaInicio || '',
+        new Date()
+      ]);
+    } catch(histErr) {
+      Logger.log('⚠️ Error registrando historial: ' + histErr.toString());
+    }
+    Logger.log('✅ [reprogramarSeccion] ' + msg);
+    return { success: true, message: msg, nuevoCodigo: nuevoCodigo };
+  } catch (error) {
+    Logger.log('❌ [reprogramarSeccion] ERROR: ' + error.toString());
+    return { success: false, message: error.toString() };
+  }
+}
+
+/**
+ * Mueve un alumno individual de una sección a otra
+ * Actualiza la matrícula del alumno con la nueva sección
+ */
+function moverAlumnoDeSeccion(matriculaId, codigoSeccionDestino) {
+  try {
+    Logger.log('🔄 [moverAlumnoDeSeccion] Matrícula: ' + matriculaId + ' -> Sección: ' + codigoSeccionDestino);
+    
+    // Verificar que la sección destino existe
+    var seccionesSheet = getSheet(SHEETS.secciones);
+    var secData = seccionesSheet.getDataRange().getValues();
+    var secDestino = null;
+    var secOrigen = null;
+    
+    for (var s = 1; s < secData.length; s++) {
+      if (String(secData[s][0] || '') === codigoSeccionDestino) {
+        secDestino = secData[s];
+        break;
+      }
+    }
+    
+    if (!secDestino) return { success: false, message: 'Sección destino no encontrada: ' + codigoSeccionDestino };
+    
+    // Buscar la matrícula
+    var matriculasSheet = getSheet('Matriculas');
+    var matData = matriculasSheet.getDataRange().getValues();
+    var filaMatricula = -1;
+    var seccionOrigenCodigo = '';
+    
+    for (var m = 1; m < matData.length; m++) {
+      if (String(matData[m][0] || '') === matriculaId) {
+        filaMatricula = m;
+        seccionOrigenCodigo = String(matData[m][2] || '');
+        break;
+      }
+    }
+    
+    if (filaMatricula === -1) return { success: false, message: 'Matrícula no encontrada: ' + matriculaId };
+    
+    if (seccionOrigenCodigo === codigoSeccionDestino) {
+      return { success: false, message: 'El alumno ya está en esa sección' };
+    }
+    
+    // Validar mismo curso
+    for (var s2 = 1; s2 < secData.length; s2++) {
+      if (String(secData[s2][0] || '') === seccionOrigenCodigo) {
+        secOrigen = secData[s2];
+        break;
+      }
+    }
+    
+    if (secOrigen) {
+      var cursoOrigen = String(secOrigen[19] || secOrigen[1] || '');
+      var cursoDestino = String(secDestino[19] || secDestino[1] || '');
+      if (cursoOrigen !== cursoDestino) {
+        return { success: false, message: 'No se puede mover entre cursos distintos (' + cursoOrigen + ' vs ' + cursoDestino + ')' };
+      }
+    }
+    
+    // Mover
+    matriculasSheet.getRange(filaMatricula + 1, 3).setValue(codigoSeccionDestino);
+    
+    // Actualizar Calendar: quitar de origen, agregar a destino
+    try {
+      var alumnosSheetMov = getSheet(SHEETS.alumnos);
+      var almDataMov = alumnosSheetMov.getDataRange().getValues();
+      var emailAlumnoMov = '';
+      for (var am = 1; am < almDataMov.length; am++) {
+        if (String(almDataMov[am][0]) === alumnoId) { emailAlumnoMov = String(almDataMov[am][2] || ''); break; }
+      }
+      if (emailAlumnoMov) {
+        removerInvitadoDeEventosCalendar(seccionOrigenCodigo, emailAlumnoMov);
+        agregarAlumnoAEventosCalendar(codigoSeccionDestino, emailAlumnoMov);
+        Logger.log('📅 Alumno movido en Calendar: ' + seccionOrigenCodigo + ' -> ' + codigoSeccionDestino);
+      }
+    } catch(calMov) {
+      Logger.log('⚠️ Error moviendo en Calendar (no bloquea): ' + calMov.toString());
+    }
+    
+    var msg = 'Alumno movido de ' + seccionOrigenCodigo + ' a ' + codigoSeccionDestino;
+    Logger.log('✅ [moverAlumnoDeSeccion] ' + msg);
+    return { success: true, message: msg };
+  } catch (error) {
+    Logger.log('❌ [moverAlumnoDeSeccion] ERROR: ' + error.toString());
+    return { success: false, message: error.toString() };
+  }
+}
+
+/**
+ * Obtiene secciones del mismo curso para mostrar como opciones de destino
+ */
+function getSeccionesDelMismoCurso(codigoSeccion) {
+  try {
+    var seccionesSheet = getSheet(SHEETS.secciones);
+    var data = seccionesSheet.getDataRange().getValues();
+    
+    var cursoRef = '';
+    var nombreRef = '';
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][0] || '') === codigoSeccion) {
+        cursoRef = String(data[i][19] || '');
+        nombreRef = String(data[i][1] || '');
+        break;
+      }
+    }
+    
+    var resultado = [];
+    for (var j = 1; j < data.length; j++) {
+      var cod = String(data[j][0] || '');
+      if (cod === codigoSeccion) continue;
+      var cursoBD = String(data[j][19] || '');
+      var nombre = String(data[j][1] || '');
+      if ((cursoRef && cursoBD === cursoRef) || (!cursoRef && nombre === nombreRef)) {
+        resultado.push({
+          Codigo: cod,
+          Nombre: nombre,
+          NombreCurso: nombre,
+          Mes: String(data[j][8] || ''),
+          Ano: String(data[j][9] || ''),
+          Frecuencia: String(data[j][10] || ''),
+          Estado: String(data[j][12] || '')
+        });
+      }
+    }
+    
+    return resultado;
+  } catch (error) {
+    Logger.log('❌ [getSeccionesDelMismoCurso] ERROR: ' + error.toString());
+    return [];
+  }
+}
+
+/**
+ * Alias para compatibilidad con alumnos.html
+ */
+function getSeccionesMismoCurso(codigoSeccion) {
+  return getSeccionesDelMismoCurso(codigoSeccion);
+}
+
+/**
+ * Elimina una sección solo si no tiene alumnos matriculados.
+ * También elimina la carpeta Drive asociada (a papelera).
+ */
+function eliminarSeccion(codigoSeccion) {
+  try {
+    Logger.log('🗑️ [eliminarSeccion] INICIO - codigo=' + codigoSeccion);
+    
+    var spreadsheet = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+    var seccionesSheet = spreadsheet.getSheetByName('Secciones');
+    var matriculasSheet = spreadsheet.getSheetByName('Matriculas');
+    
+    if (!seccionesSheet || !matriculasSheet) {
+      return { success: false, message: 'No se encontraron las hojas necesarias' };
+    }
+    
+    // Verificar que no haya matrículas activas en esta sección
+    var matriculasData = matriculasSheet.getDataRange().getValues();
+    var alumnosEnSeccion = 0;
+    for (var i = 1; i < matriculasData.length; i++) {
+      if (String(matriculasData[i][2] || '') === codigoSeccion) {
+        alumnosEnSeccion++;
+      }
+    }
+    
+    if (alumnosEnSeccion > 0) {
+      Logger.log('❌ [eliminarSeccion] Tiene ' + alumnosEnSeccion + ' alumnos matriculados');
+      return { success: false, message: 'No se puede eliminar: la sección tiene ' + alumnosEnSeccion + ' alumno(s) matriculado(s). Muévalos primero.' };
+    }
+    
+    // Buscar la fila de la sección
+    var seccionesData = seccionesSheet.getDataRange().getValues();
+    var filaSeccion = -1;
+    var driveFolderId = '';
+    
+    for (var j = 1; j < seccionesData.length; j++) {
+      if (String(seccionesData[j][0] || '') === codigoSeccion) {
+        filaSeccion = j + 1; // +1 porque getRange es 1-based
+        driveFolderId = String(seccionesData[j][18] || '');
+        break;
+      }
+    }
+    
+    if (filaSeccion === -1) {
+      Logger.log('❌ [eliminarSeccion] Sección no encontrada: ' + codigoSeccion);
+      return { success: false, message: 'Sección no encontrada' };
+    }
+    
+    // Eliminar carpeta Drive si existe
+    if (driveFolderId) {
+      try {
+        var folder = DriveApp.getFolderById(driveFolderId);
+        folder.setTrashed(true);
+        Logger.log('✅ [eliminarSeccion] Carpeta Drive enviada a papelera: ' + driveFolderId);
+      } catch(driveErr) {
+        Logger.log('⚠️ [eliminarSeccion] No se pudo eliminar carpeta Drive: ' + driveErr.toString());
+      }
+    }
+    
+    // Eliminar la fila
+    seccionesSheet.deleteRow(filaSeccion);
+    Logger.log('✅ [eliminarSeccion] Fila ' + filaSeccion + ' eliminada');
+    
+    try {
+      registrarLog('ELIMINAR_SECCION', 'Secciones', codigoSeccion, 'Sección eliminada (sin alumnos)');
+    } catch(logErr) {
+      Logger.log('⚠️ [eliminarSeccion] Error al registrar log: ' + logErr.toString());
+    }
+    
+    Logger.log('✅ [eliminarSeccion] COMPLETADO');
+    return { success: true, message: 'Sección ' + codigoSeccion + ' eliminada correctamente' };
+  } catch (error) {
+    Logger.log('❌ [eliminarSeccion] ERROR: ' + error.toString());
+    Logger.log('❌ [eliminarSeccion] Stack: ' + error.stack);
+    return { success: false, message: error.toString() };
+  }
+}
+
+/**
+ * Cambia un alumno de sección y registra pago administrativo
+ * Llamado desde alumnos.html botón "Cambiar"
+ */
+function cambiarSeccionAlumno(matriculaId, nuevaSeccionCodigo, montoPago, medioPago, idOperacion, observaciones) {
+  try {
+    Logger.log('🔄 [cambiarSeccionAlumno] INICIO - matriculaId=' + matriculaId + ' nuevaSeccion=' + nuevaSeccionCodigo);
+    
+    var spreadsheet = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+    var matriculasSheet = spreadsheet.getSheetByName('Matriculas');
+    var seccionesSheet = spreadsheet.getSheetByName('Secciones');
+    var pagosSheet = spreadsheet.getSheetByName('Pagos');
+    
+    if (!matriculasSheet || !seccionesSheet || !pagosSheet) {
+      return { success: false, message: 'No se encontraron las hojas necesarias' };
+    }
+    
+    var matriculasData = matriculasSheet.getDataRange().getValues();
+    var seccionesData = seccionesSheet.getDataRange().getValues();
+    
+    // Buscar matrícula (col 0=ID, col 1=AlumnoID, col 2=Codigo_Seccion)
+    var matriculaRow = -1;
+    var seccionActual = '';
+    var alumnoId = '';
+    
+    for (var i = 1; i < matriculasData.length; i++) {
+      if (String(matriculasData[i][0]) === String(matriculaId)) {
+        matriculaRow = i;
+        seccionActual = String(matriculasData[i][2] || '');
+        alumnoId = String(matriculasData[i][1] || '');
+        break;
+      }
+    }
+    
+    if (matriculaRow === -1) {
+      Logger.log('❌ [cambiarSeccionAlumno] Matrícula no encontrada: ' + matriculaId);
+      return { success: false, message: 'Matrícula no encontrada' };
+    }
+    
+    Logger.log('🔍 [cambiarSeccionAlumno] Matrícula encontrada fila=' + (matriculaRow+1) + ' seccionActual=' + seccionActual + ' alumnoId=' + alumnoId);
+    
+    // Obtener CodigoCursoBD de la sección actual (col 19)
+    var cursoActual = '';
+    for (var j = 1; j < seccionesData.length; j++) {
+      if (String(seccionesData[j][0]) === seccionActual) {
+        cursoActual = String(seccionesData[j][19] || '');
+        break;
+      }
+    }
+    
+    // Validar que la nueva sección existe y es del mismo curso
+    var cursoNuevo = '';
+    var seccionExiste = false;
+    for (var k = 1; k < seccionesData.length; k++) {
+      if (String(seccionesData[k][0]) === nuevaSeccionCodigo) {
+        cursoNuevo = String(seccionesData[k][19] || '');
+        seccionExiste = true;
+        break;
+      }
+    }
+    
+    if (!seccionExiste) {
+      Logger.log('❌ [cambiarSeccionAlumno] Sección destino no existe: ' + nuevaSeccionCodigo);
+      return { success: false, message: 'La nueva sección no existe' };
+    }
+    
+    if (cursoActual && cursoNuevo && cursoActual !== cursoNuevo) {
+      Logger.log('❌ [cambiarSeccionAlumno] Cursos diferentes: ' + cursoActual + ' vs ' + cursoNuevo);
+      return { success: false, message: 'La nueva sección debe ser del mismo curso (' + cursoActual + ')' };
+    }
+    
+    // Validar que el alumno no esté ya en la nueva sección
+    for (var m = 1; m < matriculasData.length; m++) {
+      if (String(matriculasData[m][1]) === alumnoId && 
+          String(matriculasData[m][2]) === nuevaSeccionCodigo &&
+          m !== matriculaRow) {
+        Logger.log('❌ [cambiarSeccionAlumno] Alumno ya matriculado en ' + nuevaSeccionCodigo);
+        return { success: false, message: 'El alumno ya está matriculado en la sección ' + nuevaSeccionCodigo };
+      }
+    }
+    
+    // Actualizar código de sección en matrícula (col 2 = Codigo_Seccion)
+    matriculasSheet.getRange(matriculaRow + 1, 3).setValue(nuevaSeccionCodigo);
+    Logger.log('✅ [cambiarSeccionAlumno] Sección actualizada de ' + seccionActual + ' a ' + nuevaSeccionCodigo);
+    
+    // Registrar pago administrativo
+    // Estructura Pagos: ID_Pago, ID_Matricula, Numero_Cuota, Monto, Medio_Pago, Tipo_Pago, ID_Operacion, Fecha_Pago, EsTest
+    var pagosData2 = pagosSheet.getDataRange().getValues();
+    var maxPago2 = 0;
+    for (var px = 1; px < pagosData2.length; px++) {
+      var pm = String(pagosData2[px][0] || '').match(/^P(\d+)$/);
+      if (pm) { var pn2 = parseInt(pm[1]); if (pn2 > maxPago2) maxPago2 = pn2; }
+    }
+    var pagoId = 'P' + String(maxPago2 + 1).padStart(6, '0');
+    var esTest = String(matriculasData[matriculaRow][11] || 'No');
+    
+    pagosSheet.appendRow([
+      pagoId,
+      matriculaId,
+      0,
+      parseFloat(montoPago) || 0,
+      medioPago || '',
+      'Cambio de Sección',
+      idOperacion || '',
+      new Date(),
+      esTest === 'Sí' ? 'Sí' : 'No'
+    ]);
+    Logger.log('✅ [cambiarSeccionAlumno] Pago administrativo registrado: ' + pagoId + ' monto=' + montoPago);
+    
+    // Registrar en logs
+    try {
+      registrarLog('CAMBIO_SECCION', 'Matrículas', matriculaId, 
+        'Cambio de ' + seccionActual + ' a ' + nuevaSeccionCodigo + '. Pago admin: $' + montoPago);
+    } catch(logErr) {
+      Logger.log('⚠️ [cambiarSeccionAlumno] Error al registrar log: ' + logErr.toString());
+    }
+    
+    Logger.log('✅ [cambiarSeccionAlumno] COMPLETADO exitosamente');
+    return { 
+      success: true, 
+      message: 'Cambio de sección realizado exitosamente. Pago administrativo registrado ($' + montoPago + ').' 
+    };
+  } catch (error) {
+    Logger.log('❌ [cambiarSeccionAlumno] ERROR: ' + error.toString());
+    Logger.log('❌ [cambiarSeccionAlumno] Stack: ' + error.stack);
+    return { success: false, message: error.toString() };
+  }
+}
+
+function validarFechaInicioSeccion(fechaInicio, frecuencia) {
+  try {
+    // Parsear como fecha local para evitar desfase por timezone UTC
+    var partes = String(fechaInicio).split('-');
+    var fecha = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
+    var diaSemana = fecha.getDay();
+    
+    Logger.log('📅 [validarFechaInicio] fecha=' + fechaInicio + ' diaSemana=' + diaSemana + ' (' + ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'][diaSemana] + ')');
+    
+    var validaciones = {
+      'L-M-V': [1, 3, 5],
+      'M-J-S': [2, 4, 6],
+      'Solo-Sabados': [6],
+      'Sólo sábados': [6]
+    };
+    
+    var diasValidos = validaciones[frecuencia];
+    if (!diasValidos) return { valido: true };
+    
+    if (!diasValidos.includes(diaSemana)) {
+      var nombresDias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+      var diasPermitidos = diasValidos.map(function(d) { return nombresDias[d]; }).join(', ');
+      return { valido: false, mensaje: 'Para frecuencia ' + frecuencia + ', la fecha de inicio debe ser: ' + diasPermitidos };
+    }
+    
+    return { valido: true };
+  } catch (error) {
+    Logger.log('ERROR en validarFechaInicioSeccion: ' + error.toString());
+    return { valido: true };
+  }
+}
+
+function asignarDocenteSeccion(codigoSeccion, docenteId) {
+  try {
+    var sheet = getSheet(SHEETS.secciones);
+    var data = sheet.getDataRange().getValues();
+    
+    // Obtener código del curso desde CodigoCursoBD (col 19) de la sección
+    var codigoCurso = '';
+    var docenteAnteriorId = '';
+    for (var sc = 1; sc < data.length; sc++) {
+      if (String(data[sc][0]) === codigoSeccion) {
+        codigoCurso = String(data[sc][19] || '');
+        docenteAnteriorId = String(data[sc][5] || '');
+        break;
+      }
+    }
+    // Fallback: extraer del código de sección
+    if (!codigoCurso) {
+      var matchCurso = codigoSeccion.match(/^([A-Z]+\d*)/);
+      codigoCurso = matchCurso ? matchCurso[1] : '';
+    }
+    
+    // Validar que el docente puede dictar este curso
+    if (docenteId && codigoCurso) {
+      var docentes = getDocentes();
+      var docenteCheck = docentes.find(function(d) { return d.ID === docenteId; });
+      if (docenteCheck) {
+        var cursosQueDicta = (docenteCheck.CursosQueDicta || '').split(',').map(function(c) { return c.trim(); });
+        if (!cursosQueDicta.includes(codigoCurso)) {
+          return { success: false, message: 'El docente ' + docenteCheck.Nombre + ' no está habilitado para dictar el curso ' + codigoCurso };
+        }
+      }
+    }
+    
+    var docentes2 = getDocentes();
+    var docente = docentes2.find(function(d) { return d.ID === docenteId; });
+    var docenteAnterior = docenteAnteriorId ? docentes2.find(function(d) { return d.ID === docenteAnteriorId; }) : null;
+    
+    for (var i = 1; i < data.length; i++) {
+      if (data[i][0] === codigoSeccion) {
+        sheet.getRange(i + 1, 6).setValue(docenteId);
+        sheet.getRange(i + 1, 7).setValue(docente ? docente.Nombre : '');
+        Logger.log('✅ [asignarDocenteSeccion] ' + codigoSeccion + ' -> ' + (docente ? docente.Nombre : 'Sin asignar'));
+        
+        // Remover docente anterior de Calendar y agregar nuevo
+        if (docenteAnterior && docenteAnterior.Email && docenteAnterior.ID !== docenteId) {
+          try {
+            removerDocenteDeEventosCalendar(codigoSeccion, docenteAnterior.Email);
+          } catch(calErr) {
+            Logger.log('⚠️ Error removiendo docente anterior de Calendar: ' + calErr.toString());
+          }
+        }
+        
+        if (docente && docente.Email) {
+          try {
+            agregarDocenteAEventosCalendar(codigoSeccion, docente.Email);
+          } catch(calErr) {
+            Logger.log('⚠️ Error agregando docente a Calendar (no bloquea): ' + calErr.toString());
+          }
+          // Agregar docente como co-host de Meet
+          try {
+            actualizarCohostMeet(codigoSeccion, docente.Email, docenteAnterior ? docenteAnterior.Email : '');
+          } catch(meetErr) {
+            Logger.log('⚠️ Error actualizando co-host Meet (no bloquea): ' + meetErr.toString());
+          }
+          // Agregar docente a Classroom
+          try {
+            agregarDocenteAClassroom(codigoSeccion, docente.Email);
+          } catch(crErr) {
+            Logger.log('⚠️ Error agregando docente a Classroom (no bloquea): ' + crErr.toString());
+          }
+        }
+        
+        return { success: true, message: 'Docente asignado correctamente' };
+      }
+    }
+    return { success: false, message: 'Sección no encontrada' };
+  } catch (error) {
+    Logger.log('❌ [asignarDocenteSeccion] ERROR: ' + error.toString());
+    return { success: false, message: error.toString() };
+  }
+}
+
+/**
+ * Remueve un docente de los eventos de Calendar de una sección
+ */
+function removerDocenteDeEventosCalendar(codigoSeccion, emailDocente) {
+  try {
+    if (!emailDocente) return;
+    Logger.log('🗑️ [removerDocenteEventos] seccion=' + codigoSeccion + ' email=' + emailDocente);
+    
+    var match = codigoSeccion.match(/(\d{2})(\d{2})-/);
+    if (!match) return;
+    
+    var mes = parseInt(match[1]) - 1;
+    var ano = 2000 + parseInt(match[2]);
+    var inicioMes = new Date(ano, mes, 1);
+    var finBusqueda = new Date(ano, mes + 3, 0, 23, 59, 59);
+    
+    var nombreBuscado = 'Clase ' + codigoSeccion;
+    
+    var events = Calendar.Events.list('primary', {
+      timeMin: inicioMes.toISOString(),
+      timeMax: finBusqueda.toISOString(),
+      q: nombreBuscado,
+      singleEvents: false,
+      maxResults: 50
+    });
+    
+    var removidos = 0;
+    if (events.items) {
+      events.items.forEach(function(ev) {
+        if (ev.summary && ev.summary.trim().indexOf(nombreBuscado) === 0) {
+          var attendees = ev.attendees || [];
+          var nuevosAttendees = attendees.filter(function(att) { return att.email !== emailDocente; });
+          if (nuevosAttendees.length < attendees.length) {
+            Calendar.Events.patch({ attendees: nuevosAttendees }, 'primary', ev.id, { sendUpdates: 'all' });
+            removidos++;
+          }
+        }
+      });
+    }
+    
+    Logger.log('✅ [removerDocenteEventos] Docente removido de ' + removidos + ' eventos');
+  } catch (error) {
+    Logger.log('⚠️ [removerDocenteEventos] Error: ' + error.toString());
+  }
+}
+
+/**
+ * Actualiza el co-host de Meet: remueve anterior y agrega nuevo
+ * Usa la API v2beta de Meet para asignar rol COHOST antes de que inicie la reunión
+ */
+function actualizarCohostMeet(codigoSeccion, emailNuevo, emailAnterior) {
+  try {
+    Logger.log('👨‍🏫 [actualizarCohostMeet] seccion=' + codigoSeccion + ' nuevo=' + emailNuevo + ' anterior=' + emailAnterior);
+    
+    var match = codigoSeccion.match(/(\d{2})(\d{2})-/);
+    if (!match) return;
+    
+    var mes = parseInt(match[1]) - 1;
+    var ano = 2000 + parseInt(match[2]);
+    var inicioMes = new Date(ano, mes, 1);
+    var finBusqueda = new Date(ano, mes + 3, 0, 23, 59, 59);
+    
+    var nombreBuscado = 'Clase ' + codigoSeccion;
+    
+    var events = Calendar.Events.list('primary', {
+      timeMin: inicioMes.toISOString(),
+      timeMax: finBusqueda.toISOString(),
+      q: nombreBuscado,
+      singleEvents: false,
+      maxResults: 50
+    });
+    
+    if (!events.items || events.items.length === 0) return;
+    
+    // Obtener el meeting code del primer evento
+    var evento = events.items[0];
+    if (!evento.conferenceData || !evento.conferenceData.entryPoints) return;
+    
+    var meetingCode = '';
+    evento.conferenceData.entryPoints.forEach(function(ep) {
+      if (ep.entryPointType === 'video' && ep.uri) {
+        var matchMeet = ep.uri.match(/meet\.google\.com\/([a-z]+-[a-z]+-[a-z]+)/);
+        if (matchMeet) meetingCode = matchMeet[1];
+      }
+    });
+    
+    if (!meetingCode) {
+      Logger.log('⚠️ [actualizarCohostMeet] No se encontró meeting code');
+      return;
+    }
+    
+    var token = ScriptApp.getOAuthToken();
+    
+    // Obtener el space name
+    var spaceUrl = 'https://meet.googleapis.com/v2/spaces/' + meetingCode.replace(/-/g, '');
+    var spaceResp = UrlFetchApp.fetch(spaceUrl, {
+      method: 'get',
+      headers: { Authorization: 'Bearer ' + token },
+      muteHttpExceptions: true
+    });
+    
+    if (spaceResp.getResponseCode() !== 200) {
+      // Intentar con formato con guiones
+      spaceUrl = 'https://meet.googleapis.com/v2/spaces/' + meetingCode;
+      spaceResp = UrlFetchApp.fetch(spaceUrl, {
+        method: 'get',
+        headers: { Authorization: 'Bearer ' + token },
+        muteHttpExceptions: true
+      });
+    }
+    
+    if (spaceResp.getResponseCode() !== 200) {
+      Logger.log('⚠️ [actualizarCohostMeet] No se pudo obtener space: ' + spaceResp.getResponseCode());
+      return;
+    }
+    
+    var spaceData = JSON.parse(spaceResp.getContentText());
+    var spaceName = spaceData.name; // formato: spaces/xxx
+    
+    // Remover co-host anterior (si existe)
+    if (emailAnterior) {
+      try {
+        // Listar miembros para encontrar al anterior
+        var listUrl = 'https://meet.googleapis.com/v2/' + spaceName + '/members';
+        var listResp = UrlFetchApp.fetch(listUrl, {
+          method: 'get',
+          headers: { Authorization: 'Bearer ' + token },
+          muteHttpExceptions: true
+        });
+        if (listResp.getResponseCode() === 200) {
+          var members = JSON.parse(listResp.getContentText()).members || [];
+          members.forEach(function(member) {
+            if (member.email === emailAnterior) {
+              var deleteUrl = 'https://meet.googleapis.com/v2/' + member.name;
+              UrlFetchApp.fetch(deleteUrl, {
+                method: 'delete',
+                headers: { Authorization: 'Bearer ' + token },
+                muteHttpExceptions: true
+              });
+              Logger.log('🗑️ [Meet] Co-host anterior removido: ' + emailAnterior);
+            }
+          });
+        }
+      } catch(delErr) {
+        Logger.log('⚠️ [Meet] Error removiendo co-host anterior: ' + delErr.toString());
+      }
+    }
+    
+    // Agregar nuevo co-host usando v2beta
+    if (emailNuevo) {
+      var createUrl = 'https://meet.googleapis.com/v2/' + spaceName + '/members';
+      var createResp = UrlFetchApp.fetch(createUrl, {
+        method: 'post',
+        contentType: 'application/json',
+        headers: { Authorization: 'Bearer ' + token },
+        payload: JSON.stringify({ email: emailNuevo, role: 'COHOST' }),
+        muteHttpExceptions: true
+      });
+      Logger.log('👨‍🏫 [Meet] Nuevo co-host ' + emailNuevo + ': ' + createResp.getResponseCode() + ' ' + createResp.getContentText().substring(0, 200));
+    }
+  } catch (error) {
+    Logger.log('⚠️ [actualizarCohostMeet] Error: ' + error.toString());
+  }
+}
+
+// ============================================
+// FUNCIONES DE CONFIGURACIÓN DE PREVIEW DE PLANTILLAS
+// ============================================
+
+/**
+ * Obtiene la configuración guardada de preview para una plantilla
+ * Retorna JSON string o null si no hay config guardada
+ */
+function obtenerConfigPreview(plantillaId) {
+  try {
+    Logger.log('🔍 [obtenerConfigPreview] plantillaId: ' + plantillaId);
+    if (!plantillaId) return null;
+    
+    var props = PropertiesService.getScriptProperties();
+    var saved = props.getProperty('PreviewConfig_' + plantillaId);
+    Logger.log('✅ [obtenerConfigPreview] Config encontrada: ' + (saved ? 'SÍ' : 'NO'));
+    return saved || null;
+  } catch (error) {
+    Logger.log('❌ [obtenerConfigPreview] ERROR: ' + error.toString());
+    return null;
+  }
+}
+
+/**
+ * Guarda la configuración de preview para una plantilla
+ */
+function guardarConfigPreview(plantillaId, configJson) {
+  try {
+    Logger.log('💾 [guardarConfigPreview] plantillaId: ' + plantillaId);
+    if (!plantillaId || !configJson) {
+      return { success: false, message: 'Parámetros requeridos' };
+    }
+    
+    var props = PropertiesService.getScriptProperties();
+    props.setProperty('PreviewConfig_' + plantillaId, configJson);
+    Logger.log('✅ [guardarConfigPreview] Config guardada para: ' + plantillaId);
+    return { success: true, message: 'Configuración guardada' };
+  } catch (error) {
+    Logger.log('❌ [guardarConfigPreview] ERROR: ' + error.toString());
+    return { success: false, message: error.toString() };
+  }
+}
+
+
+
+/**
+ * Genera estructura de carpetas en un Google Sheet
+ * (Movido desde GenerarEstructuraCarpetas.gs excluido)
+ */
+function generarEstructuraCarpetasDirecto() {
+  try {
+    Logger.log('=== generarEstructuraCarpetasDirecto ===');
+    
+    var sheet = SpreadsheetApp.create('📁 Estructura Carpetas - Shared Drive A');
+    var activeSheet = sheet.getActiveSheet();
+    activeSheet.setName('Estructura de Carpetas');
+    
+    // Configurar dimensiones
+    activeSheet.setColumnWidth(1, 50);
+    activeSheet.setColumnWidth(2, 400);
+    activeSheet.setColumnWidth(3, 200);
+    activeSheet.setColumnWidth(4, 150);
+    activeSheet.setColumnWidth(5, 100);
+    activeSheet.setFrozenRows(1);
+    
+    var estructura = [
+      { nivel: '', nombre: '📁 ESTRUCTURA DE CARPETAS - SHARED DRIVE A', descripcion: 'Organización de contenido empresarial', responsable: 'Admin', estado: 'Activo', tipo: 'header' },
+      { nivel: 'Nivel', nombre: 'Nombre de Carpeta', descripcion: 'Descripción y Propósito', responsable: 'Responsable', estado: 'Estado', tipo: 'subheader' },
+      { nivel: '1', nombre: '📚 01. ACADÉMICO', descripcion: 'Contenido educativo y cursos', responsable: 'Equipo Académico', estado: '✅ Activo', tipo: 'folder' },
+      { nivel: '2', nombre: '├── 📖 Cursos Activos', descripcion: 'Materiales de cursos en progreso', responsable: 'Coordinador Académico', estado: '✅ Activo', tipo: 'subfolder' },
+      { nivel: '3', nombre: '│   ├── 🔧 AWS Cloud Practitioner', descripcion: 'Material CLF-C01, labs, exámenes', responsable: 'John Doe', estado: '✅ Activo', tipo: 'course' },
+      { nivel: '3', nombre: '│   ├── ☁️ AWS Solutions Architect', descripcion: 'Material SAA-C03, proyectos, casos', responsable: 'Hector Pezóa', estado: '✅ Activo', tipo: 'course' },
+      { nivel: '3', nombre: '│   ├── 🐍 Python para Data Science', descripcion: 'Notebooks, datasets, proyectos', responsable: 'Equipo Data', estado: '✅ Activo', tipo: 'course' },
+      { nivel: '3', nombre: '│   └── 📊 Power BI Avanzado', descripcion: 'Dashboards, conectores, DAX', responsable: 'Especialista BI', estado: '✅ Activo', tipo: 'course' },
+      { nivel: '2', nombre: '├── 📋 Plantillas y Recursos', descripcion: 'Templates reutilizables', responsable: 'Diseño Instruccional', estado: '✅ Activo', tipo: 'subfolder' },
+      { nivel: '2', nombre: '├── 🎓 Certificaciones', descripcion: 'Certificados emitidos y plantillas', responsable: 'Registro Académico', estado: '✅ Activo', tipo: 'subfolder' },
+      { nivel: '2', nombre: '└── 📈 Evaluaciones', descripcion: 'Exámenes, rúbricas, resultados', responsable: 'Evaluación', estado: '✅ Activo', tipo: 'subfolder' },
+      { nivel: '1', nombre: '👥 02. RECURSOS HUMANOS', descripcion: 'Gestión de personal y docentes', responsable: 'RRHH', estado: '✅ Activo', tipo: 'folder' },
+      { nivel: '2', nombre: '├── 👨‍🏫 Docentes', descripcion: 'Perfiles, contratos, evaluaciones', responsable: 'Coordinador RRHH', estado: '✅ Activo', tipo: 'subfolder' },
+      { nivel: '3', nombre: '│   ├── 📄 Contratos y Acuerdos', descripcion: 'Documentos legales y términos', responsable: 'Legal', estado: '✅ Activo', tipo: 'document' },
+      { nivel: '3', nombre: '│   ├── 📸 Fotos y Perfiles', descripcion: 'Imágenes profesionales, CVs', responsable: 'Marketing', estado: '✅ Activo', tipo: 'document' },
+      { nivel: '3', nombre: '│   └── 📊 Evaluaciones Desempeño', descripcion: 'Feedback estudiantes, métricas', responsable: 'Calidad', estado: '✅ Activo', tipo: 'document' },
+      { nivel: '2', nombre: '├── 📋 Políticas y Procedimientos', descripcion: 'Manuales internos, guías', responsable: 'Administración', estado: '✅ Activo', tipo: 'subfolder' },
+      { nivel: '2', nombre: '└── 🎯 Capacitación Interna', descripcion: 'Formación para el equipo', responsable: 'Desarrollo', estado: '✅ Activo', tipo: 'subfolder' },
+      { nivel: '1', nombre: '📈 03. MARKETING Y VENTAS', descripcion: 'Materiales promocionales y comerciales', responsable: 'Marketing', estado: '✅ Activo', tipo: 'folder' },
+      { nivel: '2', nombre: '├── 🎨 Diseño Gráfico', descripcion: 'Logos, banners, plantillas visuales', responsable: 'Diseñador', estado: '✅ Activo', tipo: 'subfolder' },
+      { nivel: '2', nombre: '├── 📧 Email Marketing', descripcion: 'Plantillas de correo, campañas', responsable: 'Marketing Digital', estado: '✅ Activo', tipo: 'subfolder' },
+      { nivel: '2', nombre: '├── 📱 Redes Sociales', descripcion: 'Contenido para RRSS, calendarios', responsable: 'Community Manager', estado: '✅ Activo', tipo: 'subfolder' },
+      { nivel: '2', nombre: '└── 💰 Propuestas Comerciales', descripcion: 'Cotizaciones, presentaciones B2B', responsable: 'Ventas', estado: '✅ Activo', tipo: 'subfolder' },
+      { nivel: '1', nombre: '💼 04. ADMINISTRACIÓN', descripcion: 'Gestión operativa y financiera', responsable: 'Administración', estado: '✅ Activo', tipo: 'folder' },
+      { nivel: '2', nombre: '├── 💳 Finanzas', descripcion: 'Facturación, pagos, reportes', responsable: 'Contador', estado: '✅ Activo', tipo: 'subfolder' },
+      { nivel: '2', nombre: '├── 📊 Reportes y Analytics', descripcion: 'KPIs, dashboards, métricas', responsable: 'Analista', estado: '✅ Activo', tipo: 'subfolder' },
+      { nivel: '2', nombre: '├── 📋 Contratos y Legal', descripcion: 'Acuerdos, términos, compliance', responsable: 'Legal', estado: '✅ Activo', tipo: 'subfolder' },
+      { nivel: '2', nombre: '└── 🔧 Operaciones', descripcion: 'Procesos internos, workflows', responsable: 'Operaciones', estado: '✅ Activo', tipo: 'subfolder' },
+      { nivel: '1', nombre: '💻 05. TECNOLOGÍA', descripcion: 'Infraestructura y desarrollo', responsable: 'CTO', estado: '✅ Activo', tipo: 'folder' },
+      { nivel: '2', nombre: '├── 🌐 Plataforma LMS', descripcion: 'Código, documentación, backups', responsable: 'Dev Team', estado: '✅ Activo', tipo: 'subfolder' },
+      { nivel: '2', nombre: '├── 🔒 Seguridad y Backups', descripcion: 'Políticas, respaldos, auditorías', responsable: 'DevOps', estado: '✅ Activo', tipo: 'subfolder' },
+      { nivel: '2', nombre: '├── 📱 Apps y Herramientas', descripcion: 'Software interno, integraciones', responsable: 'Desarrollo', estado: '✅ Activo', tipo: 'subfolder' },
+      { nivel: '2', nombre: '└── 📚 Documentación Técnica', descripcion: 'APIs, manuales, arquitectura', responsable: 'Tech Lead', estado: '✅ Activo', tipo: 'subfolder' },
+      { nivel: '1', nombre: '🎯 06. PROYECTOS ESPECIALES', descripcion: 'Iniciativas temporales y estratégicas', responsable: 'PMO', estado: '🔄 En Desarrollo', tipo: 'folder' },
+      { nivel: '2', nombre: '├── 🚀 Nuevos Cursos 2026', descripcion: 'Desarrollo de contenido futuro', responsable: 'Innovación', estado: '🔄 En Desarrollo', tipo: 'subfolder' },
+      { nivel: '2', nombre: '├── 🤝 Alianzas Estratégicas', descripcion: 'Partnerships, colaboraciones', responsable: 'Business Dev', estado: '🔄 En Desarrollo', tipo: 'subfolder' },
+      { nivel: '2', nombre: '└── 🌍 Expansión Internacional', descripcion: 'Mercados nuevos, localización', responsable: 'Estrategia', estado: '📋 Planificado', tipo: 'subfolder' }
+    ];
+    
+    // Escribir datos
+    estructura.forEach(function(item, index) {
+      var row = index + 1;
+      activeSheet.getRange(row, 1).setValue(item.nivel);
+      activeSheet.getRange(row, 2).setValue(item.nombre);
+      activeSheet.getRange(row, 3).setValue(item.descripcion);
+      activeSheet.getRange(row, 4).setValue(item.responsable);
+      activeSheet.getRange(row, 5).setValue(item.estado);
+      activeSheet.getRange(row, 6).setValue(item.tipo);
+    });
+    
+    // Aplicar formato visual
+    var lastRow = activeSheet.getLastRow();
+    for (var i = 1; i <= lastRow; i++) {
+      var tipo = activeSheet.getRange(i, 6).getValue();
+      var range = activeSheet.getRange(i, 1, 1, 5);
+      
+      if (tipo === 'header') { range.setBackground('#1a73e8').setFontColor('#ffffff').setFontWeight('bold').setFontSize(14); }
+      else if (tipo === 'subheader') { range.setBackground('#4285f4').setFontColor('#ffffff').setFontWeight('bold').setFontSize(12); }
+      else if (tipo === 'folder') { range.setBackground('#e8f0fe').setFontWeight('bold').setFontSize(11); }
+      else if (tipo === 'subfolder') { range.setBackground('#f1f8ff').setFontSize(10); }
+      else if (tipo === 'course') { range.setBackground('#fff3e0').setFontSize(10); }
+      else if (tipo === 'document') { range.setBackground('#f9f9f9').setFontSize(10); }
+      
+      range.setBorder(true, true, true, true, false, false);
+    }
+    
+    activeSheet.hideColumns(6);
+    activeSheet.setRowHeights(1, lastRow, 25);
+    activeSheet.getRange(2, 1, lastRow - 1, 5).createFilter();
+    
+    Logger.log('✅ Estructura creada: ' + sheet.getUrl());
+    
+    return {
+      success: true,
+      url: String(sheet.getUrl()),
+      message: 'Estructura de carpetas creada exitosamente'
+    };
+    
+  } catch (error) {
+    Logger.log('❌ ERROR generarEstructuraCarpetasDirecto: ' + error.toString());
+    return {
+      success: false,
+      message: 'Error: ' + error.toString()
+    };
+  }
+}
+
+// ============================================
+// FUNCIONES DE VENTA - RESTAURADAS DESDE BACKUP
+// ============================================
+
+/**
+ * Busca un alumno por email
+ */
+function buscarAlumnoPorEmail(email) {
+  var sheet = getSheet(SHEETS.alumnos);
+  var data = sheet.getDataRange().getValues();
+  
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][2] && String(data[i][2]).toLowerCase() === email.toLowerCase()) {
+      return {
+        id: String(data[i][0]),
+        nombre: String(data[i][1]),
+        gmail: String(data[i][2]),
+        telefono: String(data[i][3]),
+        pais: String(data[i][4]),
+        linkedin: String(data[i][5])
+      };
+    }
+  }
+  return null;
+}
+
+/**
+ * Detecta país por prefijo telefónico
+ */
+function detectarPaisPorTelefono(telefono) {
+  if (!telefono) return 'Desconocido';
+  var tel = String(telefono).replace(/[\s\-\(\)]/g, '');
+  
+  var prefijos = {
+    '+51': 'Perú', '51': 'Perú', '+52': 'México', '52': 'México',
+    '+57': 'Colombia', '57': 'Colombia', '+56': 'Chile', '56': 'Chile',
+    '+54': 'Argentina', '54': 'Argentina', '+34': 'España', '34': 'España',
+    '+1': 'USA', '+55': 'Brasil', '55': 'Brasil', '+593': 'Ecuador', '593': 'Ecuador',
+    '+58': 'Venezuela', '58': 'Venezuela', '+598': 'Uruguay', '598': 'Uruguay',
+    '+595': 'Paraguay', '595': 'Paraguay', '+591': 'Bolivia', '591': 'Bolivia',
+    '+506': 'Costa Rica', '506': 'Costa Rica', '+507': 'Panamá', '507': 'Panamá',
+    '+502': 'Guatemala', '502': 'Guatemala', '+503': 'El Salvador', '503': 'El Salvador',
+    '+504': 'Honduras', '504': 'Honduras', '+505': 'Nicaragua', '505': 'Nicaragua',
+    '+809': 'República Dominicana', '809': 'República Dominicana'
+  };
+  
+  var keys = Object.keys(prefijos).sort(function(a, b) { return b.length - a.length; });
+  for (var k = 0; k < keys.length; k++) {
+    if (tel.startsWith(keys[k])) return prefijos[keys[k]];
+  }
+  return 'Desconocido';
+}
+
+/**
+ * Crea un nuevo alumno en la hoja
+ */
+function crearAlumno(data) {
+  var sheet = getSheet(SHEETS.alumnos);
+  var allData = sheet.getDataRange().getValues();
+  
+  // Generar ID único basado en el máximo ID existente
+  var maxNum = 0;
+  for (var i = 1; i < allData.length; i++) {
+    var id = String(allData[i][0] || '');
+    var match = id.match(/^A(\d+)$/);
+    if (match) {
+      var num = parseInt(match[1]);
+      if (num > maxNum) maxNum = num;
+    }
+  }
+  var newId = 'A' + String(maxNum + 1).padStart(4, '0');
+  Logger.log('📋 [crearAlumno] Nuevo ID generado: ' + newId + ' (maxExistente: A' + String(maxNum).padStart(4, '0') + ')');
+  
+  var pais = data.pais || detectarPaisPorTelefono(data.telefono);
+  
+  sheet.appendRow([
+    newId,
+    data.nombre,
+    data.gmail || data.email,
+    data.telefono,
+    pais,
+    data.linkedin || '',
+    new Date(),
+    data.esTest ? 'Sí' : 'No'
+  ]);
+  
+  return newId;
+}
+
+/**
+ * Valida que no exista matrícula duplicada
+ */
+function validarMatriculaDuplicada(alumnoId, codigoSeccion) {
+  try {
+    var sheet = getSheet('Matriculas');
+    var data = sheet.getDataRange().getValues();
+    
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][1]) === String(alumnoId) && String(data[i][2]) === String(codigoSeccion)) {
+        return { duplicada: true, mensaje: 'El alumno ya está matriculado en esta sección' };
+      }
+    }
+    return { duplicada: false };
+  } catch (error) {
+    Logger.log('ERROR en validarMatriculaDuplicada: ' + error.toString());
+    return { duplicada: false };
+  }
+}
+
+/**
+ * Valida precio mínimo de venta
+ */
+function validarPrecioVenta(precioVenta, codigosCursos) {
+  try {
+    var precioBaseTotal = 0;
+    codigosCursos.forEach(function(codigo) {
+      var curso = getCursoByCodigo(codigo);
+      if (curso) precioBaseTotal += parseFloat(curso.PrecioBase) || 0;
+    });
+    
+    var precioMinimo = precioBaseTotal * 0.5;
+    if (precioVenta < precioMinimo) {
+      return { valido: false, mensaje: 'El precio ($' + precioVenta + ') es menor al 50% del precio base ($' + precioBaseTotal.toFixed(2) + '). Mínimo: $' + precioMinimo.toFixed(2) };
+    }
+    return { valido: true };
+  } catch (error) {
+    Logger.log('ERROR en validarPrecioVenta: ' + error.toString());
+    return { valido: true };
+  }
+}
+
+/**
+ * Obtiene los cursos previos de un alumno a partir de sus matrículas.
+ * Retorna array de objetos {codigoCurso, nombreCurso} únicos.
+ */
+function getMatriculasAlumno(alumnoId) {
+  try {
+    var spreadsheet = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+    var matriculasSheet = spreadsheet.getSheetByName('Matriculas');
+    var seccionesSheet = spreadsheet.getSheetByName('Secciones');
+    var matData = matriculasSheet.getDataRange().getValues();
+    var secData = seccionesSheet.getDataRange().getValues();
+    
+    // Mapear secciones: codigo -> {codigoCursoBD, nombreCurso}
+    var seccionesMap = {};
+    for (var s = 1; s < secData.length; s++) {
+      var codSec = String(secData[s][0] || '');
+      if (codSec) {
+        seccionesMap[codSec] = {
+          codigoCursoBD: String(secData[s][19] || ''),
+          nombreCurso: String(secData[s][1] || '')
+        };
+      }
+    }
+    
+    var cursosMap = {};
+    
+    for (var i = 1; i < matData.length; i++) {
+      if (String(matData[i][1]) === String(alumnoId)) {
+        var codigoSeccion = String(matData[i][2] || '');
+        var secInfo = seccionesMap[codigoSeccion];
+        
+        var codigoCurso = '';
+        var nombreCurso = '';
+        
+        if (secInfo && secInfo.codigoCursoBD) {
+          codigoCurso = secInfo.codigoCursoBD;
+          nombreCurso = secInfo.nombreCurso;
+        } else {
+          // Fallback: extraer solo letras del código de sección
+          var match = codigoSeccion.match(/^([A-Z]+)/);
+          codigoCurso = match ? match[1] : codigoSeccion;
+          nombreCurso = codigoCurso;
+        }
+        
+        if (codigoCurso && !cursosMap[codigoCurso]) {
+          cursosMap[codigoCurso] = {
+            codigoCurso: codigoCurso,
+            nombreCurso: nombreCurso || codigoCurso
+          };
+        }
+      }
+    }
+    
+    return Object.keys(cursosMap).map(function(k) { return cursosMap[k]; });
+  } catch (error) {
+    Logger.log('ERROR en getMatriculasAlumno: ' + error.toString());
+    return [];
+  }
+}
+
+/**
+ * Activa acceso al simulador para un retake.
+ * Reutiliza el mismo patrón de API que saveVentaSimulador.
+ */
+function activarSimuladorRetake(data) {
+  try {
+    Logger.log('=== activarSimuladorRetake ===');
+    Logger.log('Datos: ' + JSON.stringify(data));
+    
+    var apiKey = PropertiesService.getScriptProperties().getProperty('API_KEY');
+    var apiUrl = 'https://YOUR_LAMBDA_ID.lambda-url.us-east-1.on.aws/';
+    
+    if (!apiKey) {
+      return { success: false, message: 'API_KEY no configurada en PropertiesService' };
+    }
+    
+    var password = 'Abc' + String(Math.floor(Math.random() * 9000) + 1000) + '!';
+    var meses = parseInt(data.meses) || 2;
+    var fechaInicio = new Date();
+    
+    var payload = {
+      studentEmail: data.email,
+      studentName: data.nombre,
+      password: password,
+      courseCode: data.cursoCode,
+      accessStartDate: Utilities.formatDate(fechaInicio, 'America/Lima', 'yyyy-MM-dd'),
+      accessDays: meses * 30
+    };
+    
+    var options = {
+      method: 'post',
+      contentType: 'application/json',
+      headers: { 'x-api-key': apiKey },
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    };
+    
+    var response = UrlFetchApp.fetch(apiUrl, options);
+    var code = response.getResponseCode();
+    Logger.log('📡 Simulador Retake API Response: ' + code + ' - ' + response.getContentText());
+    
+    if (code === 200 || code === 201) {
+      return { success: true, message: 'Simulador activado por ' + meses + ' meses' };
+    } else {
+      return { success: false, message: 'Error API simulador: ' + code + ' - ' + response.getContentText() };
+    }
+  } catch (error) {
+    Logger.log('ERROR en activarSimuladorRetake: ' + error.toString());
+    return { success: false, message: 'Error: ' + error.toString() };
+  }
+}
+
+/**
+ * Valida integridad referencial antes de guardar
+ */
+function validarDatosAntesDeSalvar(tipo, data) {
+  var errores = [];
+  try {
+    if (tipo === 'pago') {
+      if (!data.matriculaId) {
+        errores.push('ID de matrícula requerido');
+      } else {
+        var matriculasSheet = getSheet('Matriculas');
+        var matriculasData = matriculasSheet.getDataRange().getValues();
+        var existe = false;
+        for (var i = 1; i < matriculasData.length; i++) {
+          if (String(matriculasData[i][0]) === String(data.matriculaId)) { existe = true; break; }
+        }
+        if (!existe) errores.push('Matrícula ' + data.matriculaId + ' no existe');
+      }
+      if (!data.monto || parseFloat(data.monto) <= 0) errores.push('Monto debe ser mayor a 0');
+    }
+    return { valido: errores.length === 0, errores: errores };
+  } catch (error) {
+    return { valido: false, errores: ['Error en validación: ' + error.toString()] };
+  }
+}
+
+/**
+ * Obtiene pagos de una matrícula
+ */
+function getPagosByMatricula(matriculaId) {
+  var sheet = getSheet(SHEETS.pagos);
+  var data = sheet.getDataRange().getValues();
+  var pagos = [];
+  
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][1]) === String(matriculaId)) {
+      pagos.push({
+        ID: String(data[i][0]),
+        NumeroCuota: data[i][2],
+        Monto: parseFloat(data[i][3]) || 0,
+        MedioPago: String(data[i][4] || ''),
+        IDOperacion: String(data[i][6] || ''),
+        FechaPago: data[i][7] ? String(data[i][7]) : ''
+      });
+    }
+  }
+  return pagos;
+}
+
+/**
+ * Registra un pago
+ */
+function savePago(data) {
+  try {
+    Logger.log('=== savePago ===');
+    Logger.log('Datos: ' + JSON.stringify(data));
+    
+    var validacion = validarDatosAntesDeSalvar('pago', data);
+    if (!validacion.valido) {
+      Logger.log('❌ Validación fallida: ' + JSON.stringify(validacion.errores));
+      return { success: false, message: 'Validación fallida: ' + validacion.errores.join(', ') };
+    }
+    
+    var pagosSheet = getSheet(SHEETS.pagos);
+    var pagosAllData = pagosSheet.getDataRange().getValues();
+    var maxPagoNum = 0;
+    for (var pi = 1; pi < pagosAllData.length; pi++) {
+      var pMatch = String(pagosAllData[pi][0] || '').match(/^P(\d+)$/);
+      if (pMatch) { var pn = parseInt(pMatch[1]); if (pn > maxPagoNum) maxPagoNum = pn; }
+    }
+    var pagoId = 'P' + String(maxPagoNum + 1).padStart(6, '0');
+    
+    // Verificar saldo pendiente
+    var matriculasSheet = getSheet('Matriculas');
+    var matriculasData = matriculasSheet.getDataRange().getValues();
+    var saldoPendiente = 0;
+    
+    for (var i = 1; i < matriculasData.length; i++) {
+      if (String(matriculasData[i][0]) === String(data.matriculaId)) {
+        saldoPendiente = parseFloat(matriculasData[i][8]) || 0;
+        break;
+      }
+    }
+    
+    if (saldoPendiente <= 0) {
+      Logger.log('❌ Saldo pendiente es 0');
+      return { success: false, message: 'Esta matrícula ya está pagada (saldo: ' + saldoPendiente + ')' };
+    }
+    
+    var montoAplicar = parseFloat(data.monto);
+    var excedente = 0;
+    
+    if (montoAplicar > saldoPendiente && saldoPendiente > 0) {
+      excedente = montoAplicar - saldoPendiente;
+      montoAplicar = saldoPendiente;
+    }
+    
+    // Estructura: ID_Pago, ID_Matricula, Numero_Cuota, Monto, Medio_Pago, Tipo_Pago, ID_Operacion, Fecha_Pago, EsTest
+    pagosSheet.appendRow([
+      pagoId,
+      data.matriculaId,
+      data.numeroCuota,
+      montoAplicar,
+      data.medioPago,
+      data.tipoPago || 'Cuota',
+      data.idOperacion || '',
+      new Date(),
+      data.esTest ? 'Sí' : 'No'
+    ]);
+    
+    actualizarTotalesMatricula(data.matriculaId);
+    
+    if (excedente > 0) {
+      // Buscar la siguiente matrícula del mismo alumno con saldo pendiente
+      var alumnoIdExc = '';
+      for (var ex = 1; ex < matriculasData.length; ex++) {
+        if (String(matriculasData[ex][0]) === String(data.matriculaId)) {
+          alumnoIdExc = String(matriculasData[ex][1] || '');
+          break;
+        }
+      }
+      
+      var siguienteMatricula = '';
+      if (alumnoIdExc) {
+        for (var ex2 = 1; ex2 < matriculasData.length; ex2++) {
+          if (String(matriculasData[ex2][1]) === alumnoIdExc && 
+              String(matriculasData[ex2][0]) !== String(data.matriculaId) &&
+              (parseFloat(matriculasData[ex2][8]) || 0) > 0) {
+            siguienteMatricula = String(matriculasData[ex2][0]);
+            break;
+          }
+        }
+      }
+      
+      if (siguienteMatricula) {
+        Logger.log('💰 Excedente de $' + excedente.toFixed(2) + ' aplicado a ' + siguienteMatricula);
+        savePago({
+          matriculaId: siguienteMatricula,
+          numeroCuota: 1,
+          monto: excedente,
+          medioPago: data.medioPago,
+          idOperacion: data.idOperacion,
+          esTest: data.esTest || false,
+          _esExcedente: true
+        });
+      } else {
+        Logger.log('⚠️ Excedente de $' + excedente.toFixed(2) + ' sin matrícula destino');
+      }
+    }
+    
+    Logger.log('✅ Pago registrado: ' + pagoId);
+    
+    // Enviar email de confirmación de pago (solo si no es pago de migración ni excedente recursivo)
+    if (!data._esExcedente && (!data.tipoPago || data.tipoPago !== 'Cuota Inicial (migrada)')) {
+      try {
+        enviarEmailConfirmacionPagoAuto(data.matriculaId, parseFloat(data.monto));
+      } catch(emailErr) {
+        Logger.log('⚠️ Error enviando email confirmación (no bloquea): ' + emailErr.toString());
+      }
+    }
+    
+    return { success: true, message: 'Pago registrado', pagoId: pagoId };
+  } catch (error) {
+    Logger.log('❌ ERROR en savePago: ' + error.toString());
+    return { success: false, message: error.toString() };
+  }
+}
+
+/**
+ * Actualiza totales de una matrícula después de un pago
+ */
+function actualizarTotalesMatricula(matriculaId) {
+  // Intentar hasta 2 veces con espera entre intentos
+  for (var intento = 1; intento <= 2; intento++) {
+    try {
+      var matriculasSheet = getSheet('Matriculas');
+    var data = matriculasSheet.getDataRange().getValues();
+    var headers = data[0];
+    
+    var rowIndex = -1;
+    var precioTotal = 0;
+    
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][0]) === String(matriculaId)) {
+        rowIndex = i + 1;
+        precioTotal = parseFloat(data[i][3]) || 0;
+        break;
+      }
+    }
+    if (rowIndex === -1) return;
+    
+    var pagos = getPagosByMatricula(matriculaId);
+    var totalPagado = 0;
+    for (var p = 0; p < pagos.length; p++) {
+      totalPagado += pagos[p].Monto;
+    }
+    var saldoPendiente = Math.max(0, precioTotal - totalPagado);
+    
+    var estado = 'Pendiente';
+    if (totalPagado >= precioTotal && totalPagado > 0) estado = 'Pago Completo';
+    else if (totalPagado > 0) estado = 'Pago Pendiente';
+    
+    // Columnas fijas: Estado_Pago(5+1=6), Total_Pagado(6+1=7), Saldo_Pendiente(8+1=9)
+    matriculasSheet.getRange(rowIndex, 6).setValue(estado);
+    matriculasSheet.getRange(rowIndex, 7).setValue(totalPagado);
+    matriculasSheet.getRange(rowIndex, 9).setValue(saldoPendiente);
+    
+    // Si la matrícula quedó completamente pagada, compartir carpeta Drive
+    // Para Certify: gatillar recursos cuando pagó la parte del curso (precio - montoExamen)
+    var modalidadMat = String(data[rowIndex - 1][14] || 'Pro');
+    var montoExamenMat = (modalidadMat === 'Certify' || modalidadMat === 'Custom') ? (parseFloat(data[rowIndex - 1][15]) || 0) : 0;
+    var umbralRecursos = ((modalidadMat === 'Certify' || modalidadMat === 'Custom') && montoExamenMat > 0) ? (precioTotal - montoExamenMat) : precioTotal;
+    var recursosDesbloqueados = totalPagado >= umbralRecursos && totalPagado > 0;
+    
+    if (recursosDesbloqueados) {
+      try {
+        verificarYCompartirCarpetaPorPago(matriculaId);
+      } catch(shareErr) {
+        Logger.log('⚠️ Error compartiendo carpeta: ' + shareErr.toString());
+      }
+      try {
+        gatillarSimuladorPorPago(matriculaId);
+      } catch(simErr) {
+        Logger.log('⚠️ Error gatillando simulador: ' + simErr.toString());
+      }
+    }
+    
+    actualizarEstadoMatricula(matriculaId);
+    return; // Éxito, salir del loop
+  } catch (error) {
+    Logger.log('⚠️ [actualizarTotalesMatricula] Intento ' + intento + ' falló: ' + error.toString());
+    if (intento < 2) {
+      Logger.log('🔄 Reintentando en 2 segundos...');
+      Utilities.sleep(2000);
+    } else {
+      Logger.log('❌ ERROR en actualizarTotalesMatricula después de 2 intentos: ' + error.toString());
+    }
+  }
+  }
+}
+
+/**
+ * Actualiza Estado_Matricula basado en pagos
+ */
+function actualizarEstadoMatricula(matriculaId) {
+  try {
+    var sheet = getSheet('Matriculas');
+    var data = sheet.getDataRange().getValues();
+    var headers = data[0];
+    
+    var estadoIndex = -1;
+    for (var h = 0; h < headers.length; h++) {
+      if (String(headers[h]) === 'Estado_Matricula') { estadoIndex = h; break; }
+    }
+    if (estadoIndex === -1) return;
+    
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][0]) === String(matriculaId)) {
+        var estadoActual = String(data[i][estadoIndex] || '');
+        if (estadoActual.startsWith('Retirado')) return;
+        
+        var precioTotal = parseFloat(data[i][3]) || 0;
+        var totalPagado = parseFloat(data[i][6]) || 0;
+        
+        var nuevoEstado = 'Activa';
+        if (totalPagado >= precioTotal && totalPagado > 0) nuevoEstado = 'Pago Completo';
+        else if (totalPagado > 0) nuevoEstado = 'Pago Pendiente';
+        
+        sheet.getRange(i + 1, estadoIndex + 1).setValue(nuevoEstado);
+        return;
+      }
+    }
+  } catch (error) {
+    Logger.log('ERROR en actualizarEstadoMatricula: ' + error.toString());
+  }
+}
+
+/**
+ * Obtiene información de una sección por código
+ */
+function obtenerSeccionPorCodigo(codigoSeccion) {
+  try {
+    var seccionesSheet = getSheet(SHEETS.secciones);
+    var data = seccionesSheet.getDataRange().getValues();
+    
+    // Estructura fija: Codigo(0), NombreCurso(1), Tecnologia(2), Provider(3), Nivel(4), DocenteID(5), DocenteNombre(6), HorasTotales(7), Mes(8), Año(9), Frecuencia(10), PuestoEnMes(11), Estado(12), FechaInicio(13), FechaFin(14), Confirmada(15), FechaCreacion(16)
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][0]) === String(codigoSeccion)) {
+        // Formatear fecha de inicio legiblemente
+        var fechaRaw = data[i][13];
+        var fechaFormateada = '';
+        if (fechaRaw instanceof Date) {
+          var meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+          fechaFormateada = fechaRaw.getDate() + ' de ' + meses[fechaRaw.getMonth()] + ', ' + fechaRaw.getFullYear();
+        } else {
+          var parsed = new Date(fechaRaw);
+          if (!isNaN(parsed.getTime())) {
+            var meses2 = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+            fechaFormateada = parsed.getDate() + ' de ' + meses2[parsed.getMonth()] + ', ' + parsed.getFullYear();
+          } else {
+            fechaFormateada = String(fechaRaw || '');
+          }
+        }
+        
+        return {
+          Codigo: String(data[i][0]),
+          NombreCurso: String(data[i][1]),
+          Frecuencia: String(data[i][10] || ''),
+          FechaInicio: fechaFormateada,
+          FechaFin: String(data[i][14] || ''),
+          DocenteNombre: String(data[i][6] || ''),
+          CodigoCursoBD: String(data[i][19] || '')
+        };
+      }
+    }
+    return null;
+  } catch (error) {
+    Logger.log('ERROR en obtenerSeccionPorCodigo: ' + error.toString());
+    return null;
+  }
+}
+
+/**
+ * Envía email de bienvenida automático al registrar una venta
+ * Usa la plantilla 'bienvenida' del sistema de plantillas
+ */
+function enviarEmailBienvenidaAutomatico(alumnoId, matriculaIds, esTest) {
+  try {
+    Logger.log('=== enviarEmailBienvenidaAutomatico ===');
+    Logger.log('AlumnoId: ' + alumnoId + ', MatriculaIds: ' + JSON.stringify(matriculaIds) + ', esTest: ' + esTest);
+    
+    // Obtener datos del alumno
+    var alumnosSheet = getSheet(SHEETS.alumnos);
+    var alumnosData = alumnosSheet.getDataRange().getValues();
+    var alumno = null;
+    
+    for (var i = 1; i < alumnosData.length; i++) {
+      if (String(alumnosData[i][0]) === String(alumnoId)) {
+        alumno = {
+          ID: String(alumnosData[i][0]),
+          Nombre: String(alumnosData[i][1]),
+          Gmail: String(alumnosData[i][2])
+        };
+        break;
+      }
+    }
+    
+    if (!alumno) {
+      Logger.log('❌ Alumno no encontrado: ' + alumnoId);
+      return { success: false, message: 'Alumno no encontrado' };
+    }
+    
+    if (!alumno.Gmail) {
+      Logger.log('❌ Alumno sin email: ' + alumnoId);
+      return { success: false, message: 'Alumno sin email' };
+    }
+    
+    Logger.log('✅ Alumno: ' + alumno.Nombre + ' (' + alumno.Gmail + ')');
+    
+    // Obtener datos de la primera matrícula para el curso
+    var matriculasSheet = getSheet('Matriculas');
+    var matriculasData = matriculasSheet.getDataRange().getValues();
+    var cursosIds = [];
+    var fechaInicio = '';
+    var frecuencia = '';
+    
+    // Recopilar TODOS los cursos de las matrículas
+    var modalidades = [];
+    for (var m = 0; m < matriculaIds.length; m++) {
+      for (var j = 1; j < matriculasData.length; j++) {
+        if (String(matriculasData[j][0]) === String(matriculaIds[m])) {
+          var codigoSeccion = String(matriculasData[j][2]);
+          var modalidadMat = String(matriculasData[j][14] || 'Pro');
+          modalidades.push(modalidadMat);
+          var seccionInfo = obtenerSeccionPorCodigo(codigoSeccion);
+          if (seccionInfo) {
+            var codigoCursoBD = seccionInfo.CodigoCursoBD || '';
+            if (codigoCursoBD && cursosIds.indexOf(codigoCursoBD) === -1) {
+              cursosIds.push(codigoCursoBD);
+            }
+            if (!fechaInicio) fechaInicio = seccionInfo.FechaInicio;
+            if (!frecuencia) frecuencia = seccionInfo.Frecuencia;
+          }
+          break;
+        }
+      }
+    }
+    
+    // Fallback: extraer código de curso del código de sección si no hay CodigoCursoBD
+    if (cursosIds.length === 0) {
+      for (var m2 = 0; m2 < matriculaIds.length; m2++) {
+        for (var j2 = 1; j2 < matriculasData.length; j2++) {
+          if (String(matriculasData[j2][0]) === String(matriculaIds[m2])) {
+            var codSec = String(matriculasData[j2][2]);
+            var match = codSec.match(/^([A-Z]+\d*)/);
+            if (match && cursosIds.indexOf(match[1]) === -1) {
+              cursosIds.push(match[1]);
+            }
+            break;
+          }
+        }
+      }
+    }
+    
+    Logger.log('Cursos encontrados: ' + JSON.stringify(cursosIds) + ', Fecha: ' + fechaInicio + ', Frecuencia: ' + frecuencia);
+    
+    // Preparar parámetros para la plantilla de bienvenida (múltiples cursos separados por coma)
+    // Determinar modalidad dominante (Certify > Pro > Basic)
+    var modalidadDominante = 'Pro';
+    if (modalidades.indexOf('Certify') !== -1) {
+      modalidadDominante = 'Certify';
+    } else if (modalidades.indexOf('Basic') !== -1 && modalidades.indexOf('Pro') === -1) {
+      modalidadDominante = 'Basic';
+    }
+    Logger.log('📋 Modalidades: ' + JSON.stringify(modalidades) + ', Dominante: ' + modalidadDominante);
+    
+    var parametros = {
+      curso: cursosIds.join(','),
+      alumno_nombre: alumno.Nombre,
+      nombre_alumno: alumno.Nombre,
+      fecha_inicio: fechaInicio || 'Por confirmar',
+      frecuencia: frecuencia || 'Por confirmar',
+      alumno_id: alumnoId,
+      email_alumno: alumno.Gmail,
+      modalidad: modalidadDominante
+    };
+    
+    Logger.log('Parámetros plantilla: ' + JSON.stringify(parametros));
+    
+    // Enviar usando el sistema de plantillas existente
+    var resultado = enviarPlantilla('bienvenida', parametros);
+    
+    Logger.log('Resultado envío: ' + JSON.stringify(resultado));
+    return resultado;
+    
+  } catch (error) {
+    Logger.log('❌ ERROR en enviarEmailBienvenidaAutomatico: ' + error.toString());
+    return { success: false, message: error.toString() };
+  }
+}
+
+/**
+ * Guarda una venta completa (llamada desde el frontend)
+ */
+function saveVenta(data) {
+  try {
+    Logger.log('=== saveVenta ===');
+    Logger.log('Datos: ' + JSON.stringify(data));
+    
+    var alumnoId;
+    
+    // Si ya se seleccionó un alumno existente, usar ese ID
+    if (data.alumnoId) {
+      alumnoId = data.alumnoId;
+    } else {
+      // Buscar por email o crear nuevo
+      var alumno = buscarAlumnoPorEmail(data.gmail);
+      if (alumno) {
+        alumnoId = alumno.id;
+      } else {
+        alumnoId = crearAlumno({
+          nombre: data.nombre,
+          gmail: data.gmail,
+          telefono: data.telefono,
+          pais: data.pais,
+          linkedin: data.linkedin,
+          esTest: data.esTest || false
+        });
+      }
+    }
+    
+    Logger.log('AlumnoId: ' + alumnoId);
+    
+    // Validar matrículas duplicadas
+    for (var s = 0; s < data.secciones.length; s++) {
+      var validacion = validarMatriculaDuplicada(alumnoId, data.secciones[s]);
+      if (validacion.duplicada) {
+        return { success: false, message: validacion.mensaje + ' (' + data.secciones[s] + ')' };
+      }
+    }
+    
+    // Validar precio mínimo (skip para retakes)
+    if (!data.esRetake) {
+      var codigosCursos = data.secciones.map(function(sec) {
+        var match = sec.match(/^([A-Z]+\d{0,3})/);
+        return match ? match[1] : '';
+      }).filter(function(c) { return c; });
+      
+      var validacionPrecio = validarPrecioVenta(parseFloat(data.precioTotal), codigosCursos);
+      if (!validacionPrecio.valido) {
+        return { success: false, message: validacionPrecio.mensaje };
+      }
+    }
+    
+    var matriculasSheet = getSheet('Matriculas');
+    var matAllData = matriculasSheet.getDataRange().getValues();
+    var maxMatNum = 0;
+    for (var mi = 1; mi < matAllData.length; mi++) {
+      var matMatch = String(matAllData[mi][0] || '').match(/^M(\d+)$/);
+      if (matMatch) { var mn = parseInt(matMatch[1]); if (mn > maxMatNum) maxMatNum = mn; }
+    }
+    var matriculaIds = [];
+    var precioTotal = parseFloat(data.precioTotal);
+    var precioPorSeccion = precioTotal / data.secciones.length;
+    
+    // Generar ID_Venta
+    var idVenta = 'V' + String(Date.now()).slice(-8);
+    Logger.log('📋 ID_Venta generado: ' + idVenta);
+    
+    data.secciones.forEach(function(seccion, index) {
+      maxMatNum++;
+      var matriculaId = 'M' + String(maxMatNum).padStart(5, '0');
+      matriculaIds.push(matriculaId);
+      
+      // Estructura: ID_Matricula, ID_Alumno, Codigo_Seccion, Precio_Venta, Incluye_Examen, Estado_Pago, Total_Pagado, Estado_Matricula, Saldo_Pendiente, Fecha_Matricula, Observaciones, EsTest, ID_Venta
+      matriculasSheet.appendRow([
+        matriculaId,
+        alumnoId,
+        seccion,
+        precioPorSeccion,
+        data.incluyeExamen ? 'Sí' : 'No',
+        'Pendiente',
+        0,
+        'Pendiente',
+        precioPorSeccion,
+        new Date(),
+        data.observaciones || '',
+        data.esTest ? 'Sí' : 'No',
+        idVenta,
+        (data.fechasComprometidas && data.fechasComprometidas[index]) ? data.fechasComprometidas[index] : '',
+        (data.modalidades && data.modalidades[index]) ? data.modalidades[index] : 'Pro',
+        (data.montosExamen && data.montosExamen[index]) ? data.montosExamen[index] : ''
+      ]);
+      
+      registrarLog('CREAR', 'Matriculas', matriculaId, 'Alumno: ' + alumnoId + ', Sección: ' + seccion + ', Precio: $' + precioPorSeccion.toFixed(2));
+    });
+    
+    Logger.log('Matrículas creadas: ' + JSON.stringify(matriculaIds));
+    
+    // Registrar venta en hoja Ventas
+    try {
+      var spreadsheetV = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+      var ventasSheet = spreadsheetV.getSheetByName('Ventas');
+      if (!ventasSheet) {
+        ventasSheet = spreadsheetV.insertSheet('Ventas');
+        ventasSheet.appendRow(['ID_Venta', 'ID_Alumno', 'Fecha', 'PrecioTotal', 'TipoPago', 'CantidadCursos', 'MedioPago', 'ID_Operacion', 'Secciones', 'EsTest']);
+        Logger.log('✅ Hoja Ventas creada');
+      }
+      ventasSheet.appendRow([
+        idVenta,
+        alumnoId,
+        new Date(),
+        precioTotal,
+        data.tipoPago,
+        data.secciones.length,
+        data.medioPago,
+        data.idOperacion || '',
+        data.secciones.join(', '),
+        data.esTest ? 'Sí' : 'No'
+      ]);
+      Logger.log('✅ Venta registrada: ' + idVenta);
+    } catch(ventaErr) {
+      Logger.log('⚠️ Error registrando venta (no bloquea): ' + ventaErr.toString());
+    }
+    
+    // Guardar cuotas programadas ANTES de registrar pagos (para que el email de confirmación las muestre)
+    if (data.tipoPago === 'fraccionado' && data.cuotasDetalle && data.cuotasDetalle.length > 0) {
+      try {
+        guardarCuotasProgramadas(idVenta, data.cuotasDetalle);
+        Logger.log('✅ Cuotas programadas guardadas para venta ' + idVenta);
+      } catch(cuotasErr) {
+        Logger.log('⚠️ Error guardando cuotas programadas (no bloquea): ' + cuotasErr.toString());
+      }
+    }
+    
+    // Registrar pagos según tipo
+    if (data.tipoPago === 'completo') {
+      var montoPorMatricula = precioTotal / matriculaIds.length;
+      matriculaIds.forEach(function(matriculaId) {
+        savePago({
+          matriculaId: matriculaId,
+          numeroCuota: 1,
+          monto: montoPorMatricula,
+          medioPago: data.medioPago,
+          idOperacion: data.idOperacion,
+          esTest: data.esTest || false
+        });
+      });
+    } else if (data.tipoPago === 'fraccionado' && data.montoPrimeraCuota > 0) {
+      distribuirPagoEntreCursos(matriculaIds, data.montoPrimeraCuota, data.medioPago, data.idOperacion, data.esTest || false);
+    }
+    
+    // Retornar éxito inmediatamente al operador
+    Logger.log('✅ Venta registrada (fase 1 completada)');
+    
+    // Ejecutar acciones secundarias (email, Calendar, Classroom) sin bloquear
+    try {
+      ejecutarAccionesSecundariasVenta(alumnoId, matriculaIds, data);
+    } catch(secErr) {
+      Logger.log('⚠️ Error en acciones secundarias (no bloquea): ' + secErr.toString());
+    }
+    
+    return { success: true, message: 'Venta registrada exitosamente' + (data.esTest ? ' (MODO TEST)' : ''), alumnoId: alumnoId };
+  } catch (error) {
+    Logger.log('❌ ERROR en saveVenta: ' + error.toString());
+    return { success: false, message: error.toString() };
+  }
+}
+
+/**
+ * Ejecuta acciones secundarias de una venta (email, Calendar, Classroom).
+ * Se ejecuta después de retornar éxito al operador.
+ */
+function ejecutarAccionesSecundariasVenta(alumnoId, matriculaIds, data) {
+  // Enviar email de bienvenida automático
+  try {
+    enviarEmailBienvenidaAutomatico(alumnoId, matriculaIds, data.esTest);
+    Logger.log('✅ Email de bienvenida enviado');
+  } catch (emailError) {
+    Logger.log('⚠️ Error enviando email de bienvenida: ' + emailError.toString());
+  }
+  
+  // Agregar alumno a eventos de Calendar de cada sección
+  try {
+    var emailAlumno = data.gmail || '';
+    if (emailAlumno) {
+      data.secciones.forEach(function(seccion) {
+        agregarAlumnoAEventosCalendar(seccion, emailAlumno);
+      });
+      Logger.log('✅ Alumno agregado a eventos de Calendar');
+    }
+  } catch (calError) {
+    Logger.log('⚠️ Error agregando alumno a Calendar: ' + calError.toString());
+  }
+  
+  // Agregar alumno a Classroom de cada sección
+  try {
+    var emailAlumnoCR = data.gmail || '';
+    if (emailAlumnoCR) {
+      data.secciones.forEach(function(seccion) {
+        agregarAlumnoAClassroom(seccion, emailAlumnoCR);
+      });
+      Logger.log('✅ Alumno agregado a Classroom');
+    }
+  } catch (crError) {
+    Logger.log('⚠️ Error agregando alumno a Classroom: ' + crError.toString());
+  }
+}
+
+/**
+ * Limpia todos los registros de prueba (test)
+ */
+function limpiarRegistrosTest() {
+  try {
+    Logger.log('=== limpiarRegistrosTest ===');
+    var pagosEliminados = 0, matriculasEliminadas = 0, alumnosEliminados = 0;
+    
+    // 1. Eliminar pagos test
+    var pagosSheet = getSheet(SHEETS.pagos);
+    if (pagosSheet) {
+      var pagosData = pagosSheet.getDataRange().getValues();
+      var headers = pagosData[0];
+      var esTestIdx = -1;
+      for (var h = 0; h < headers.length; h++) { if (String(headers[h]) === 'EsTest') { esTestIdx = h; break; } }
+      
+      if (esTestIdx !== -1) {
+        var filas = [];
+        for (var i = 1; i < pagosData.length; i++) {
+          if (pagosData[i][esTestIdx] === 'Sí') filas.push(i + 1);
+        }
+        filas.sort(function(a, b) { return b - a; });
+        for (var f = 0; f < filas.length; f++) { pagosSheet.deleteRow(filas[f]); pagosEliminados++; }
+      }
+    }
+    
+    // 2. Remover alumnos test de eventos Calendar y eliminar matrículas test
+    var matriculasSheet = getSheet('Matriculas');
+    if (matriculasSheet) {
+      var matData = matriculasSheet.getDataRange().getValues();
+      var matHeaders = matData[0];
+      var matTestIdx = -1;
+      for (var mh = 0; mh < matHeaders.length; mh++) { if (String(matHeaders[mh]) === 'EsTest') { matTestIdx = mh; break; } }
+      
+      if (matTestIdx !== -1) {
+        // Primero remover de Calendar
+        try {
+          var alumnosSheetCal = getSheet(SHEETS.alumnos);
+          var alDataCal = alumnosSheetCal ? alumnosSheetCal.getDataRange().getValues() : [];
+          var emailMapCal = {};
+          for (var ec = 1; ec < alDataCal.length; ec++) { emailMapCal[String(alDataCal[ec][0])] = String(alDataCal[ec][2] || ''); }
+          
+          for (var mt = 1; mt < matData.length; mt++) {
+            if (matData[mt][matTestIdx] === 'Sí') {
+              var emailTest = emailMapCal[String(matData[mt][1])] || '';
+              var secTest = String(matData[mt][2] || '');
+              if (emailTest && secTest) {
+                try { removerInvitadoDeEventosCalendar(secTest, emailTest); } catch(ce) {}
+              }
+            }
+          }
+        } catch(calClean) {
+          Logger.log('⚠️ Error removiendo de Calendar: ' + calClean.toString());
+        }
+        
+        var matFilas = [];
+        for (var mi = 1; mi < matData.length; mi++) {
+          if (matData[mi][matTestIdx] === 'Sí') matFilas.push(mi + 1);
+        }
+        matFilas.sort(function(a, b) { return b - a; });
+        for (var mf = 0; mf < matFilas.length; mf++) { matriculasSheet.deleteRow(matFilas[mf]); matriculasEliminadas++; }
+      }
+    }
+    
+    // 3. Eliminar alumnos test
+    var alumnosSheet = getSheet(SHEETS.alumnos);
+    if (alumnosSheet) {
+      var alData = alumnosSheet.getDataRange().getValues();
+      var alHeaders = alData[0];
+      var alTestIdx = -1;
+      for (var ah = 0; ah < alHeaders.length; ah++) { if (String(alHeaders[ah]) === 'EsTest') { alTestIdx = ah; break; } }
+      
+      if (alTestIdx !== -1) {
+        var alFilas = [];
+        for (var ai = 1; ai < alData.length; ai++) {
+          if (alData[ai][alTestIdx] === 'Sí') alFilas.push(ai + 1);
+        }
+        alFilas.sort(function(a, b) { return b - a; });
+        for (var af = 0; af < alFilas.length; af++) { alumnosSheet.deleteRow(alFilas[af]); alumnosEliminados++; }
+      }
+    }
+    
+    var total = pagosEliminados + matriculasEliminadas + alumnosEliminados;
+    
+    // 4. Eliminar cuotas programadas de ventas test
+    var cuotasEliminadas = 0;
+    try {
+      var spreadsheet = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+      var cuotasSheet = spreadsheet.getSheetByName('CuotasProgramadas');
+      if (cuotasSheet) {
+        // Obtener IDs de venta de matrículas test (antes de borrarlas ya las borramos, así que buscar cuotas huérfanas)
+        // Buscar cuotas cuyo ID_Venta no tenga matrículas asociadas
+        var matSheet2 = spreadsheet.getSheetByName('Matriculas');
+        var ventasActivas = {};
+        if (matSheet2) {
+          var matData2 = matSheet2.getDataRange().getValues();
+          for (var mv = 1; mv < matData2.length; mv++) {
+            var vId = String(matData2[mv][12] || '');
+            if (vId) ventasActivas[vId] = true;
+          }
+        }
+        
+        var cuotasData = cuotasSheet.getDataRange().getValues();
+        var cuotasFilas = [];
+        for (var ci = 1; ci < cuotasData.length; ci++) {
+          var ventaId = String(cuotasData[ci][0] || '');
+          if (ventaId && !ventasActivas[ventaId]) {
+            cuotasFilas.push(ci + 1);
+          }
+        }
+        cuotasFilas.sort(function(a, b) { return b - a; });
+        for (var cf = 0; cf < cuotasFilas.length; cf++) {
+          cuotasSheet.deleteRow(cuotasFilas[cf]);
+          cuotasEliminadas++;
+        }
+      }
+    } catch(cuotasErr) {
+      Logger.log('⚠️ Error limpiando cuotas: ' + cuotasErr.toString());
+    }
+    
+    total += cuotasEliminadas;
+    
+    // 5. Eliminar ventas test
+    var ventasEliminadas = 0;
+    try {
+      var ssV = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+      var ventasSheet = ssV.getSheetByName('Ventas');
+      if (ventasSheet) {
+        var vData = ventasSheet.getDataRange().getValues();
+        var vFilas = [];
+        for (var vi = 1; vi < vData.length; vi++) {
+          if (String(vData[vi][9] || '') === 'Sí') vFilas.push(vi + 1);
+        }
+        vFilas.sort(function(a, b) { return b - a; });
+        for (var vf = 0; vf < vFilas.length; vf++) { ventasSheet.deleteRow(vFilas[vf]); ventasEliminadas++; }
+      }
+    } catch(ventErr) {
+      Logger.log('⚠️ Error limpiando ventas: ' + ventErr.toString());
+    }
+    
+    total += ventasEliminadas;
+    
+    // 6. Eliminar ventas de simulador test
+    var simsEliminados = 0;
+    try {
+      var ssS = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+      var simSheet = ssS.getSheetByName('VentasSimulador');
+      if (simSheet) {
+        var simData = simSheet.getDataRange().getValues();
+        var simFilas = [];
+        for (var si = 1; si < simData.length; si++) {
+          if (String(simData[si][11] || '') === 'Sí') simFilas.push(si + 1);
+        }
+        simFilas.sort(function(a, b) { return b - a; });
+        for (var sf = 0; sf < simFilas.length; sf++) { simSheet.deleteRow(simFilas[sf]); simsEliminados++; }
+      }
+    } catch(simErr) {
+      Logger.log('⚠️ Error limpiando simuladores: ' + simErr.toString());
+    }
+    
+    total += simsEliminados;
+    var msg = '✅ Limpieza completada. Eliminados: ' + total + ' (' + alumnosEliminados + ' alumnos, ' + matriculasEliminadas + ' matrículas, ' + pagosEliminados + ' pagos, ' + cuotasEliminadas + ' cuotas, ' + ventasEliminadas + ' ventas, ' + simsEliminados + ' simuladores)';
+    Logger.log(msg);
+    return { success: true, message: msg };
+  } catch (error) {
+    Logger.log('❌ ERROR en limpiarRegistrosTest: ' + error.toString());
+    return { success: false, message: 'Error al limpiar: ' + error.toString() };
+  }
+}
+
+/**
+ * MIGRACIÓN: Corrige headers y valores de la hoja Secciones
+ * - Renombra headers de Calendar a DriveFolderId y CodigoCursoBD
+ * - Cambia FALSE a No en columna EsTest
+ * - Limpia headers de columnas U, V, W (Calendar no usadas)
+ * EJECUTAR UNA SOLA VEZ desde el editor de Apps Script
+ */
+function migrarHeadersYEsTestSecciones() {
+  try {
+    Logger.log('🔧 [migrarHeadersYEsTestSecciones] INICIANDO MIGRACIÓN');
+    
+    var sheet = getSheet(SHEETS.secciones);
+    if (!sheet) {
+      Logger.log('❌ No se pudo acceder a la hoja de secciones');
+      return { success: false, message: 'No se pudo acceder a la hoja' };
+    }
+    
+    var data = sheet.getDataRange().getValues();
+    Logger.log('🔧 Total filas: ' + data.length + ', Total columnas: ' + data[0].length);
+    
+    // Paso 1: Renombrar headers (fila 1)
+    var headersActuales = data[0];
+    Logger.log('🔧 Headers actuales S-W: ' + headersActuales[18] + ', ' + headersActuales[19] + ', ' + headersActuales[20] + ', ' + headersActuales[21] + ', ' + headersActuales[22]);
+    
+    // S (col 19) = DriveFolderId
+    sheet.getRange(1, 19).setValue('DriveFolderId');
+    // T (col 20) = CodigoCursoBD
+    sheet.getRange(1, 20).setValue('CodigoCursoBD');
+    // U (col 21) = vaciar
+    sheet.getRange(1, 21).setValue('');
+    // V (col 22) = vaciar
+    sheet.getRange(1, 22).setValue('');
+    // W (col 23) = vaciar
+    sheet.getRange(1, 23).setValue('');
+    
+    Logger.log('✅ Headers renombrados');
+    
+    // Paso 2: Cambiar FALSE a No en columna EsTest (R = col 18, índice 17)
+    var cambios = 0;
+    for (var i = 1; i < data.length; i++) {
+      var valorEsTest = String(data[i][17] || '').trim();
+      if (valorEsTest === 'FALSE' || valorEsTest === 'false' || valorEsTest === '') {
+        sheet.getRange(i + 1, 18).setValue('No');
+        cambios++;
+      }
+    }
+    
+    Logger.log('✅ EsTest corregido: ' + cambios + ' filas cambiadas de FALSE/vacío a No');
+    
+    // Paso 3: Limpiar datos de Calendar en columnas U, V, W (por si acaso)
+    var lastRow = sheet.getLastRow();
+    if (lastRow > 1) {
+      sheet.getRange(2, 21, lastRow - 1, 3).clearContent();
+      Logger.log('✅ Columnas U, V, W limpiadas');
+    }
+    
+    var msg = 'Migración completada: headers renombrados, ' + cambios + ' valores EsTest corregidos, columnas Calendar limpiadas';
+    Logger.log('✅ [migrarHeadersYEsTestSecciones] ' + msg);
+    return { success: true, message: msg };
+  } catch (error) {
+    Logger.log('❌ [migrarHeadersYEsTestSecciones] ERROR: ' + error.toString());
+    return { success: false, message: error.toString() };
+  }
+}
+
+/**
+ * MIGRACIÓN: Llena la columna CodigoCursoBD (T, col 20) para secciones existentes
+ * Busca el código del curso en la BD de Cursos por NombreCurso
+ * EJECUTAR UNA SOLA VEZ desde el editor de Apps Script
+ */
+function migrarCodigoCursoBDSecciones() {
+  try {
+    Logger.log('🔧 [migrarCodigoCursoBDSecciones] INICIANDO');
+    
+    var sheet = getSheet(SHEETS.secciones);
+    if (!sheet) return { success: false, message: 'No se pudo acceder a Secciones' };
+    
+    var cursos = getCursos();
+    if (!cursos || cursos.length === 0) return { success: false, message: 'No se pudieron obtener cursos' };
+    
+    Logger.log('🔧 Cursos disponibles: ' + cursos.length);
+    
+    var data = sheet.getDataRange().getValues();
+    var actualizados = 0;
+    var noEncontrados = [];
+    
+    for (var i = 1; i < data.length; i++) {
+      var codigoCursoBDActual = String(data[i][19] || '').trim();
+      
+      // Solo llenar si está vacío
+      if (!codigoCursoBDActual) {
+        var nombreCurso = String(data[i][1] || '').trim();
+        var codigoSeccion = String(data[i][0] || '').trim();
+        
+        // Buscar por nombre de curso en la BD
+        var cursoEncontrado = cursos.find(function(c) { return c.Nombre === nombreCurso; });
+        
+        if (cursoEncontrado) {
+          sheet.getRange(i + 1, 20).setValue(cursoEncontrado.Codigo);
+          actualizados++;
+          Logger.log('✅ ' + codigoSeccion + ' -> CodigoCursoBD: ' + cursoEncontrado.Codigo);
+        } else {
+          noEncontrados.push(codigoSeccion + ' (' + nombreCurso + ')');
+          Logger.log('⚠️ No se encontró curso para: ' + codigoSeccion + ' - ' + nombreCurso);
+        }
+      }
+    }
+    
+    var msg = 'Migración completada: ' + actualizados + ' secciones actualizadas';
+    if (noEncontrados.length > 0) msg += '. No encontrados: ' + noEncontrados.join(', ');
+    Logger.log('✅ [migrarCodigoCursoBDSecciones] ' + msg);
+    return { success: true, message: msg, actualizados: actualizados, noEncontrados: noEncontrados };
+  } catch (error) {
+    Logger.log('❌ [migrarCodigoCursoBDSecciones] ERROR: ' + error.toString());
+    return { success: false, message: error.toString() };
+  }
+}
+
+/**
+ * DIAGNÓSTICO: Lista qué carpeta Drive le correspondería a cada sección sin DriveFolderId
+ * NO modifica nada, solo reporta en los logs
+ * EJECUTAR desde el editor de Apps Script y revisar logs
+ */
+function diagnosticoCarpetasDriveSecciones() {
+  try {
+    Logger.log('🔍 [diagnosticoCarpetasDrive] INICIANDO DIAGNÓSTICO');
+    
+    var sheet = getSheet(SHEETS.secciones);
+    if (!sheet) return { success: false, message: 'No se pudo acceder a Secciones' };
+    
+    var data = sheet.getDataRange().getValues();
+    var resultados = [];
+    
+    for (var i = 1; i < data.length; i++) {
+      var codigo = String(data[i][0] || '');
+      var nombreCurso = String(data[i][1] || '');
+      var provider = String(data[i][3] || '');
+      var frecuencia = String(data[i][10] || '');
+      var driveFolderId = String(data[i][18] || '').trim();
+      var codigoCursoBD = String(data[i][19] || '').trim();
+      
+      var nombreCarpetaEsperado = codigo + ' ' + nombreCurso + ' ' + frecuencia;
+      var rutaEsperada = 'My Drive/A. ACADÉMICA/Contenido Académico/Classroom/' + provider + '/' + codigoCursoBD + '/' + nombreCarpetaEsperado;
+      
+      var estado = '';
+      var folderIdEncontrado = '';
+      
+      if (driveFolderId) {
+        // Ya tiene vinculada
+        estado = '✅ YA VINCULADA';
+        folderIdEncontrado = driveFolderId;
+      } else {
+        // Buscar si existe en Drive
+        if (provider && codigoCursoBD) {
+          folderIdEncontrado = buscarCarpetaExistente(provider, codigoCursoBD, nombreCarpetaEsperado);
+          if (folderIdEncontrado) {
+            estado = '🟡 EXISTE EN DRIVE (no vinculada)';
+          } else {
+            estado = '🔴 NO EXISTE - se crearía nueva';
+          }
+        } else {
+          estado = '⚠️ DATOS INCOMPLETOS (provider=' + provider + ', codigoCurso=' + codigoCursoBD + ')';
+        }
+      }
+      
+      var linea = codigo + ' | ' + estado + ' | Ruta: ' + rutaEsperada;
+      if (folderIdEncontrado && !driveFolderId) linea += ' | FolderID: ' + folderIdEncontrado;
+      
+      Logger.log(linea);
+      resultados.push({
+        codigo: codigo,
+        estado: estado,
+        ruta: rutaEsperada,
+        folderIdEncontrado: folderIdEncontrado || ''
+      });
+    }
+    
+    var vinculadas = resultados.filter(function(r) { return r.estado.indexOf('YA VINCULADA') !== -1; }).length;
+    var existenSinVincular = resultados.filter(function(r) { return r.estado.indexOf('EXISTE EN DRIVE') !== -1; }).length;
+    var noExisten = resultados.filter(function(r) { return r.estado.indexOf('NO EXISTE') !== -1; }).length;
+    var incompletas = resultados.filter(function(r) { return r.estado.indexOf('INCOMPLETOS') !== -1; }).length;
+    
+    var resumen = 'Total: ' + resultados.length + ' | ✅ Vinculadas: ' + vinculadas + ' | 🟡 Existen sin vincular: ' + existenSinVincular + ' | 🔴 No existen: ' + noExisten + ' | ⚠️ Incompletas: ' + incompletas;
+    Logger.log('📊 RESUMEN: ' + resumen);
+    
+    return { success: true, message: resumen, resultados: resultados };
+  } catch (error) {
+    Logger.log('❌ [diagnosticoCarpetasDrive] ERROR: ' + error.toString());
+    return { success: false, message: error.toString() };
+  }
+}
+
+/**
+ * MIGRACIÓN: Crea registros retroactivos en hoja Pagos para matrículas
+ * que tienen TotalPagado > 0 pero no tienen pagos registrados correspondientes.
+ * EJECUTAR UNA SOLA VEZ desde el editor de Apps Script.
+ */
+function migrarPagosFaltantes() {
+  try {
+    Logger.log('🔧 [migrarPagosFaltantes] INICIANDO MIGRACIÓN');
+    
+    var spreadsheet = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+    var matriculasSheet = spreadsheet.getSheetByName('Matriculas');
+    var pagosSheet = spreadsheet.getSheetByName('Pagos');
+    
+    if (!matriculasSheet || !pagosSheet) {
+      Logger.log('❌ Hojas no encontradas');
+      return;
+    }
+    
+    var matData = matriculasSheet.getDataRange().getValues();
+    var pagosData = pagosSheet.getDataRange().getValues();
+    
+    // Sumar pagos existentes por matrícula
+    var sumasPagos = {};
+    for (var p = 1; p < pagosData.length; p++) {
+      var matId = String(pagosData[p][1] || '');
+      var monto = parseFloat(pagosData[p][3]) || 0;
+      sumasPagos[matId] = (sumasPagos[matId] || 0) + monto;
+    }
+    
+    var migradas = 0;
+    var correctas = 0;
+    var sinPago = 0;
+    var lastPagoRow = pagosSheet.getLastRow();
+    
+    for (var i = 1; i < matData.length; i++) {
+      var matriculaId = String(matData[i][0] || '');
+      var totalPagado = parseFloat(matData[i][6]) || 0;
+      var fechaMatricula = matData[i][9] || new Date();
+      var esTest = String(matData[i][11] || 'No');
+      
+      if (totalPagado <= 0) {
+        sinPago++;
+        continue;
+      }
+      
+      var sumaPagos = sumasPagos[matriculaId] || 0;
+      var diferencia = totalPagado - sumaPagos;
+      
+      if (diferencia <= 0.01) {
+        correctas++;
+        continue;
+      }
+      
+      // Crear registro retroactivo
+      lastPagoRow++;
+      var pagoId = 'PMIG' + String(lastPagoRow).padStart(4, '0');
+      
+      pagosSheet.appendRow([
+        pagoId,
+        matriculaId,
+        0,
+        diferencia,
+        'Migración',
+        'Cuota Inicial (migrada)',
+        '',
+        fechaMatricula,
+        esTest === 'Sí' ? 'Sí' : 'No'
+      ]);
+      
+      migradas++;
+      Logger.log('✅ Migrada: ' + matriculaId + ' - $' + diferencia.toFixed(2) + ' (TotalPagado=' + totalPagado + ', SumaPagos=' + sumaPagos + ')');
+    }
+    
+    var resumen = '🔧 MIGRACIÓN COMPLETADA: ' + migradas + ' migradas, ' + correctas + ' ya correctas, ' + sinPago + ' sin pagos';
+    Logger.log(resumen);
+    return resumen;
+    
+  } catch (error) {
+    Logger.log('❌ [migrarPagosFaltantes] ERROR: ' + error.toString());
+    Logger.log('❌ Stack: ' + error.stack);
+    return 'ERROR: ' + error.toString();
+  }
+}
+
+/**
+ * RECONCILIACIÓN: Recalcula EstadoPago, TotalPagado y SaldoPendiente
+ * de TODAS las matrículas basándose en la hoja Pagos como fuente de verdad.
+ * EJECUTAR desde el editor de Apps Script.
+ */
+function reconciliarEstadosPago() {
+  try {
+    Logger.log('🔧 [reconciliarEstadosPago] INICIANDO');
+    
+    var spreadsheet = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+    var matriculasSheet = spreadsheet.getSheetByName('Matriculas');
+    var pagosSheet = spreadsheet.getSheetByName('Pagos');
+    
+    if (!matriculasSheet || !pagosSheet) {
+      Logger.log('❌ Hojas no encontradas');
+      return 'ERROR: Hojas no encontradas';
+    }
+    
+    var matData = matriculasSheet.getDataRange().getValues();
+    var pagosData = pagosSheet.getDataRange().getValues();
+    
+    // Sumar pagos por matrícula desde hoja Pagos
+    var sumasPagos = {};
+    for (var p = 1; p < pagosData.length; p++) {
+      var matId = String(pagosData[p][1] || '');
+      var monto = parseFloat(pagosData[p][3]) || 0;
+      sumasPagos[matId] = (sumasPagos[matId] || 0) + monto;
+    }
+    
+    var corregidas = 0;
+    var yaCorrectas = 0;
+    var retiradas = 0;
+    
+    for (var i = 1; i < matData.length; i++) {
+      var matriculaId = String(matData[i][0] || '');
+      var precioTotal = parseFloat(matData[i][3]) || 0;
+      var estadoPagoActual = String(matData[i][5] || '');
+      var totalPagadoActual = parseFloat(matData[i][6]) || 0;
+      var estadoMatricula = String(matData[i][7] || '');
+      var saldoActual = parseFloat(matData[i][8]) || 0;
+      
+      // No tocar matrículas retiradas
+      if (estadoMatricula.indexOf('Retirado') === 0) {
+        retiradas++;
+        continue;
+      }
+      
+      var totalPagadoReal = sumasPagos[matriculaId] || 0;
+      var saldoReal = Math.max(0, precioTotal - totalPagadoReal);
+      
+      var estadoCorrecto = 'Pendiente';
+      if (totalPagadoReal >= precioTotal && totalPagadoReal > 0) estadoCorrecto = 'Pago Completo';
+      else if (totalPagadoReal > 0) estadoCorrecto = 'Pago Pendiente';
+      
+      // Verificar si hay diferencia
+      var hayDiferencia = (Math.abs(totalPagadoActual - totalPagadoReal) > 0.01) ||
+                          (Math.abs(saldoActual - saldoReal) > 0.01) ||
+                          (estadoPagoActual !== estadoCorrecto);
+      
+      if (hayDiferencia) {
+        var fila = i + 1;
+        matriculasSheet.getRange(fila, 6).setValue(estadoCorrecto);
+        matriculasSheet.getRange(fila, 7).setValue(totalPagadoReal);
+        matriculasSheet.getRange(fila, 9).setValue(saldoReal);
+        
+        corregidas++;
+        Logger.log('✅ ' + matriculaId + ': Estado=' + estadoPagoActual + '->' + estadoCorrecto + 
+          ' Pagado=' + totalPagadoActual + '->' + totalPagadoReal + 
+          ' Saldo=' + saldoActual + '->' + saldoReal);
+      } else {
+        yaCorrectas++;
+      }
+    }
+    
+    var resumen = '🔧 RECONCILIACIÓN COMPLETADA: ' + corregidas + ' corregidas, ' + yaCorrectas + ' ya correctas, ' + retiradas + ' retiradas (no tocadas)';
+    Logger.log(resumen);
+    return resumen;
+    
+  } catch (error) {
+    Logger.log('❌ [reconciliarEstadosPago] ERROR: ' + error.toString());
+    return 'ERROR: ' + error.toString();
+  }
+}
+
+/**
+ * Envía email de confirmación de pago automáticamente
+ * Se llama desde savePago y distribuirPagoEntreCursos
+ */
+function enviarEmailConfirmacionPagoAuto(matriculaId, montoPagado) {
+  try {
+    Logger.log('📧 [emailConfirmacionPago] matricula=' + matriculaId + ' monto=' + montoPagado);
+    
+    var spreadsheet = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+    var matriculasSheet = spreadsheet.getSheetByName('Matriculas');
+    var alumnosSheet = spreadsheet.getSheetByName('Alumnos');
+    
+    if (!matriculasSheet || !alumnosSheet) return;
+    
+    var matData = matriculasSheet.getDataRange().getValues();
+    var alumnoId = '';
+    var seccion = '';
+    
+    for (var i = 1; i < matData.length; i++) {
+      if (String(matData[i][0]) === String(matriculaId)) {
+        alumnoId = String(matData[i][1] || '');
+        seccion = String(matData[i][2] || '');
+        break;
+      }
+    }
+    
+    if (!alumnoId) return;
+    
+    var alumnosData = alumnosSheet.getDataRange().getValues();
+    var nombre = '';
+    var email = '';
+    
+    for (var j = 1; j < alumnosData.length; j++) {
+      if (String(alumnosData[j][0]) === alumnoId) {
+        nombre = String(alumnosData[j][1] || '');
+        email = String(alumnosData[j][2] || '');
+        break;
+      }
+    }
+    
+    if (!email) {
+      Logger.log('⚠️ [emailConfirmacionPago] Alumno sin email: ' + alumnoId);
+      return;
+    }
+    
+    var parametros = {
+      alumno_nombre: nombre,
+      email_alumno: email,
+      matricula_id: matriculaId,
+      monto_pago: String(montoPagado)
+    };
+    
+    // Buscar todas las secciones de la misma venta para mostrar todos los cursos
+    var idVenta = '';
+    var todasSecciones = [];
+    for (var k = 1; k < matData.length; k++) {
+      if (String(matData[k][0]) === String(matriculaId)) {
+        idVenta = String(matData[k][12] || '');
+        break;
+      }
+    }
+    if (idVenta) {
+      for (var v = 1; v < matData.length; v++) {
+        if (String(matData[v][12]) === idVenta) {
+          var sec = String(matData[v][2] || '');
+          if (sec && todasSecciones.indexOf(sec) === -1) todasSecciones.push(sec);
+        }
+      }
+    }
+    if (todasSecciones.length === 0) todasSecciones.push(seccion);
+    parametros.todas_secciones = todasSecciones.join(', ');
+    
+    var resultado = enviarPlantilla('confirmacion-pago', parametros);
+    Logger.log('📧 [emailConfirmacionPago] Resultado: ' + JSON.stringify(resultado));
+    
+  } catch (error) {
+    Logger.log('⚠️ [emailConfirmacionPago] Error (no bloquea): ' + error.toString());
+  }
+}
+
+// ============================================
+// GOOGLE CALENDAR - Eventos de secciones
+// ============================================
+
+/**
+ * Calcula las fechas y horarios de todas las sesiones de una sección
+ */
+function calcularSesiones(fechaInicio, frecuencia, horasTotales) {
+  var sesiones = [];
+  var fecha = new Date(fechaInicio);
+  var horasRestantes = parseFloat(horasTotales) || 0;
+  
+  if (horasRestantes <= 0) return sesiones;
+  
+  // Definir días válidos y horarios según frecuencia
+  var config = {};
+  if (frecuencia === 'L-M-V') {
+    config.dias = [1, 3, 5]; // Lun, Mié, Vie
+    config.horarios = { 1: {h:19,m:0,dur:3}, 3: {h:19,m:0,dur:3}, 5: {h:19,m:0,dur:3} };
+  } else if (frecuencia === 'M-J-S') {
+    config.dias = [2, 4, 6]; // Mar, Jue, Sáb
+    config.horarios = { 2: {h:19,m:0,dur:3}, 4: {h:19,m:0,dur:3}, 6: {h:10,m:0,dur:3} };
+  } else if (frecuencia === 'Solo-Sabados' || frecuencia === 'Sólo sábados') {
+    config.dias = [6]; // Sáb
+    config.horarios = { 6: {h:14,m:0,dur:5} };
+  } else {
+    Logger.log('⚠️ Frecuencia no reconocida: ' + frecuencia);
+    return sesiones;
+  }
+  
+  // La primera clase es exactamente en fechaInicio
+  var diaInicio = fecha.getDay();
+  var horario = config.horarios[diaInicio];
+  if (horario) {
+    var duracion = Math.min(horario.dur, horasRestantes);
+    sesiones.push({ fecha: new Date(fecha), horaInicio: horario.h, minInicio: horario.m, duracion: duracion });
+    horasRestantes -= duracion;
+  }
+  
+  // Avanzar al siguiente día válido
+  fecha.setDate(fecha.getDate() + 1);
+  var maxIteraciones = 365;
+  var iter = 0;
+  
+  while (horasRestantes > 0 && iter < maxIteraciones) {
+    var dia = fecha.getDay();
+    var hor = config.horarios[dia];
+    if (hor) {
+      var dur = Math.min(hor.dur, horasRestantes);
+      sesiones.push({ fecha: new Date(fecha), horaInicio: hor.h, minInicio: hor.m, duracion: dur });
+      horasRestantes -= dur;
+    }
+    fecha.setDate(fecha.getDate() + 1);
+    iter++;
+  }
+  
+  return sesiones;
+}
+
+/**
+ * Crea eventos en Google Calendar para una sección
+ * Retorna array de eventIds creados
+ */
+function crearEventosCalendarSeccion(codigoSeccion) {
+  try {
+    Logger.log('📅 [crearEventosCalendar] INICIO - seccion=' + codigoSeccion);
+    
+    var spreadsheet = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+    var seccionesSheet = spreadsheet.getSheetByName('Secciones');
+    var secData = seccionesSheet.getDataRange().getValues();
+    
+    // Buscar la sección
+    var seccion = null;
+    for (var i = 1; i < secData.length; i++) {
+      if (String(secData[i][0]) === codigoSeccion) {
+        seccion = {
+          codigo: String(secData[i][0]),
+          nombre: String(secData[i][1]),
+          docenteId: String(secData[i][5]),
+          horasTotales: parseFloat(secData[i][7]) || 0,
+          frecuencia: String(secData[i][10]),
+          fechaInicio: secData[i][13]
+        };
+        break;
+      }
+    }
+    
+    if (!seccion) return { success: false, message: 'Sección no encontrada' };
+    if (!seccion.fechaInicio || seccion.fechaInicio === '') return { success: false, message: 'La sección no tiene fecha de inicio. Asígnala primero.' };
+    
+    var fechaInicio = new Date(seccion.fechaInicio);
+    if (isNaN(fechaInicio.getTime())) return { success: false, message: 'Fecha de inicio inválida' };
+    if (!seccion.frecuencia) return { success: false, message: 'Sin frecuencia asignada' };
+    if (seccion.horasTotales <= 0) return { success: false, message: 'Sin horas totales' };
+    
+    // Calcular cantidad de sesiones y RRULE
+    var rrule = '';
+    var horaInicio = 19;
+    var minInicio = 0;
+    var duracionHoras = 3;
+    var totalSesiones = 0;
+    
+    if (seccion.frecuencia === 'L-M-V') {
+      duracionHoras = 3;
+      totalSesiones = Math.ceil(seccion.horasTotales / duracionHoras);
+      rrule = 'RRULE:FREQ=WEEKLY;BYDAY=MO,WE,FR;COUNT=' + totalSesiones;
+      horaInicio = 19; minInicio = 0;
+    } else if (seccion.frecuencia === 'M-J-S') {
+      duracionHoras = 3;
+      totalSesiones = Math.ceil(seccion.horasTotales / duracionHoras);
+      rrule = 'RRULE:FREQ=WEEKLY;BYDAY=TU,TH,SA;COUNT=' + totalSesiones;
+      horaInicio = 19; minInicio = 0;
+    } else if (seccion.frecuencia === 'Solo-Sabados' || seccion.frecuencia === 'Sólo sábados') {
+      duracionHoras = 5;
+      totalSesiones = Math.ceil(seccion.horasTotales / duracionHoras);
+      rrule = 'RRULE:FREQ=WEEKLY;BYDAY=SA;COUNT=' + totalSesiones;
+      horaInicio = 14; minInicio = 0;
+    } else {
+      return { success: false, message: 'Frecuencia no reconocida: ' + seccion.frecuencia };
+    }
+    
+    Logger.log('📅 Sesiones: ' + totalSesiones + ', RRULE: ' + rrule);
+    
+    var nombreEvento = 'Clase ' + seccion.codigo + ' ' + seccion.nombre + ' ' + seccion.frecuencia;
+    
+    // Construir invitados
+    var attendees = [];
+    
+    // Docente
+    if (seccion.docenteId) {
+      var docentesSheet = spreadsheet.getSheetByName('Docentes');
+      var docData = docentesSheet.getDataRange().getValues();
+      for (var d = 1; d < docData.length; d++) {
+        if (String(docData[d][0]) === seccion.docenteId) {
+          var emailDoc = String(docData[d][2] || '');
+          if (emailDoc) attendees.push({ email: emailDoc });
+          break;
+        }
+      }
+    }
+    
+    // Alumnos matriculados
+    var matriculasSheet = spreadsheet.getSheetByName('Matriculas');
+    var matData = matriculasSheet.getDataRange().getValues();
+    var alumnosSheet = spreadsheet.getSheetByName('Alumnos');
+    var almData = alumnosSheet.getDataRange().getValues();
+    var alumnosMap = {};
+    for (var a = 1; a < almData.length; a++) {
+      alumnosMap[String(almData[a][0])] = String(almData[a][2] || '');
+    }
+    for (var m = 1; m < matData.length; m++) {
+      if (String(matData[m][2]) === codigoSeccion) {
+        var emailAl = alumnosMap[String(matData[m][1])] || '';
+        if (emailAl) attendees.push({ email: emailAl });
+      }
+    }
+    
+    // Crear fecha/hora de inicio en formato RFC3339 (GMT-5 = America/Lima)
+    var startDate = new Date(fechaInicio);
+    startDate.setHours(horaInicio, minInicio, 0, 0);
+    var endDate = new Date(startDate);
+    endDate.setHours(startDate.getHours() + duracionHoras);
+    
+    // Crear evento recurrente con Calendar Advanced API
+    var event = {
+      summary: nombreEvento,
+      start: {
+        dateTime: startDate.toISOString(),
+        timeZone: 'America/Lima'
+      },
+      end: {
+        dateTime: endDate.toISOString(),
+        timeZone: 'America/Lima'
+      },
+      recurrence: [rrule],
+      attendees: attendees,
+      guestsCanModify: true,
+      guestsCanInviteOthers: false,
+      guestsCanSeeOtherGuests: false,
+      conferenceData: {
+        createRequest: {
+          requestId: codigoSeccion + '-series',
+          conferenceSolutionKey: { type: 'hangoutsMeet' }
+        }
+      }
+    };
+    
+    var createdEvent = Calendar.Events.insert(event, 'primary', { conferenceDataVersion: 1, sendUpdates: 'all' });
+    Logger.log('✅ Serie recurrente creada: ' + createdEvent.id + ' con ' + totalSesiones + ' eventos');
+    
+    // Configurar Meet access type como RESTRICTED (solo invitados entran sin tocar)
+    try {
+      var meetCode = '';
+      if (createdEvent.conferenceData && createdEvent.conferenceData.entryPoints) {
+        for (var ep = 0; ep < createdEvent.conferenceData.entryPoints.length; ep++) {
+          var uri = createdEvent.conferenceData.entryPoints[ep].uri || '';
+          var matchMeet = uri.match(/meet\.google\.com\/([a-z]+-[a-z]+-[a-z]+)/);
+          if (matchMeet) {
+            meetCode = matchMeet[1];
+            break;
+          }
+        }
+      }
+      
+      if (meetCode) {
+        Logger.log('🔒 [Meet] Configurando RESTRICTED para meeting: ' + meetCode);
+        // Primero GET para obtener el space name real
+        var getUrl = 'https://meet.googleapis.com/v2/spaces/' + meetCode;
+        var getOptions = {
+          method: 'get',
+          headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
+          muteHttpExceptions: true
+        };
+        var getResp = UrlFetchApp.fetch(getUrl, getOptions);
+        
+        if (getResp.getResponseCode() === 200) {
+          var spaceData = JSON.parse(getResp.getContentText());
+          var spaceName = spaceData.name;
+          
+          // Configurar RESTRICTED + grabación automática
+          var meetUrl = 'https://meet.googleapis.com/v2/' + spaceName + '?updateMask=config.accessType,config.artifactConfig.recordingConfig.autoRecordingGeneration';
+          var meetPayload = { 
+            config: { 
+              accessType: 'RESTRICTED',
+              artifactConfig: {
+                recordingConfig: {
+                  autoRecordingGeneration: 'ON'
+                }
+              }
+            } 
+          };
+          var meetOptions = {
+            method: 'patch',
+            contentType: 'application/json',
+            headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
+            payload: JSON.stringify(meetPayload),
+            muteHttpExceptions: true
+          };
+          var meetResponse = UrlFetchApp.fetch(meetUrl, meetOptions);
+          Logger.log('🔒 [Meet] RESTRICTED + AutoRecord configurado: ' + meetResponse.getResponseCode());
+          
+          // Nota: Co-host por API no disponible para cuentas externas.
+          // El docente es agregado como attendee del evento y con moderation ON 
+          // el organizador puede promoverlo a co-host desde la reunión.
+          try {
+            // Habilitar moderación para que el organizador pueda asignar co-hosts manualmente
+            var modUrl = 'https://meet.googleapis.com/v2/' + spaceName + '?updateMask=config.moderation';
+            var modResp = UrlFetchApp.fetch(modUrl, {
+              method: 'patch',
+              contentType: 'application/json',
+              headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
+              payload: JSON.stringify({ config: { moderation: 'ON' } }),
+              muteHttpExceptions: true
+            });
+            Logger.log('👨‍🏫 [Meet] Moderation ON: ' + modResp.getResponseCode());
+          } catch(modErr) {
+            Logger.log('⚠️ [Meet] Error configurando moderation: ' + modErr.toString());
+          }
+        } else {
+          Logger.log('⚠️ [Meet] GET space falló: ' + getResp.getResponseCode());
+        }
+      } else {
+        Logger.log('⚠️ [Meet] No se encontró meeting code en entryPoints');
+      }
+    } catch(meetErr) {
+      Logger.log('⚠️ [Meet] Error configurando RESTRICTED (no bloquea): ' + meetErr.toString());
+    }
+    
+    // Guardar CalendarEventId en la hoja Secciones (col 21)
+    try {
+      for (var si = 1; si < secData.length; si++) {
+        if (String(secData[si][0]) === codigoSeccion) {
+          seccionesSheet.getRange(si + 1, 21).setValue(createdEvent.id);
+          Logger.log('✅ CalendarEventId guardado en fila ' + (si + 1));
+          break;
+        }
+      }
+    } catch(saveErr) {
+      Logger.log('⚠️ Error guardando CalendarEventId: ' + saveErr.toString());
+    }
+    
+    // Para M-J-S: modificar las instancias del sábado para cambiar horario a 10:00-13:00
+    if (seccion.frecuencia === 'M-J-S') {
+      try {
+        Utilities.sleep(2000); // Esperar a que Google procese la serie
+        var instances = Calendar.Events.instances(createdEvent.id, 'primary', { maxResults: totalSesiones + 5 });
+        var sabadosModificados = 0;
+        
+        if (instances.items) {
+          instances.items.forEach(function(inst) {
+            var instDate = new Date(inst.start.dateTime);
+            if (instDate.getDay() === 6) { // Sábado
+              inst.start.dateTime = inst.start.dateTime.replace(/T\d{2}:\d{2}/, 'T10:00');
+              inst.end.dateTime = inst.end.dateTime.replace(/T\d{2}:\d{2}/, 'T13:00');
+              Calendar.Events.update(inst, 'primary', inst.id);
+              sabadosModificados++;
+            }
+          });
+        }
+        Logger.log('✅ Sábados modificados a 10:00-13:00: ' + sabadosModificados);
+      } catch(sabErr) {
+        Logger.log('⚠️ Error modificando sábados: ' + sabErr.toString());
+      }
+    }
+    
+    return { success: true, message: 'Serie de ' + totalSesiones + ' eventos creada en Google Calendar', sesiones: totalSesiones };
+    
+  } catch (error) {
+    Logger.log('❌ [crearEventosCalendar] ERROR: ' + error.toString());
+    Logger.log('❌ Stack: ' + error.stack);
+    return { success: false, message: error.toString() };
+  }
+}
+
+/**
+ * Busca si ya existen eventos de una sección en Google Calendar
+ */
+function buscarEventosCalendarSeccion(codigoSeccion) {
+  try {
+    Logger.log('🔍 [buscarEventosCalendar] seccion=' + codigoSeccion);
+    
+    var match = codigoSeccion.match(/(\d{2})(\d{2})-/);
+    if (!match) {
+      return { encontrados: false, cantidad: 0 };
+    }
+    
+    var mes = parseInt(match[1]) - 1;
+    var ano = 2000 + parseInt(match[2]);
+    var inicioMes = new Date(ano, mes, 1);
+    var finBusqueda = new Date(ano, mes + 3, 0, 23, 59, 59);
+    var nombreBuscado = 'Clase ' + codigoSeccion;
+    
+    var events = Calendar.Events.list('primary', {
+      timeMin: inicioMes.toISOString(),
+      timeMax: finBusqueda.toISOString(),
+      q: nombreBuscado,
+      singleEvents: false,
+      maxResults: 50
+    });
+    
+    var eventId = '';
+    var encontrados = 0;
+    if (events.items) {
+      events.items.forEach(function(ev) {
+        if (ev.summary && ev.summary.trim().indexOf(nombreBuscado) === 0 && ev.status !== 'cancelled') {
+          encontrados++;
+          if (!eventId) eventId = ev.id;
+        }
+      });
+    }
+    
+    // Si no encontró con singleEvents:false, buscar con singleEvents:true (eventos de otros organizadores)
+    if (encontrados === 0) {
+      var events2 = Calendar.Events.list('primary', {
+        timeMin: inicioMes.toISOString(),
+        timeMax: finBusqueda.toISOString(),
+        q: nombreBuscado,
+        singleEvents: true,
+        maxResults: 50
+      });
+      if (events2.items) {
+        events2.items.forEach(function(ev) {
+          if (ev.summary && ev.summary.trim().indexOf(nombreBuscado) === 0 && ev.status !== 'cancelled') {
+            encontrados++;
+            if (!eventId && ev.recurringEventId) eventId = ev.recurringEventId;
+          }
+        });
+      }
+    }
+    
+    Logger.log('🔍 [buscarEventosCalendar] Encontrados: ' + encontrados + ' eventId: ' + eventId);
+    return { encontrados: encontrados > 0, cantidad: encontrados, eventId: eventId };
+    
+  } catch (error) {
+    Logger.log('❌ [buscarEventosCalendar] ERROR: ' + error.toString());
+    return { encontrados: false, cantidad: 0, error: error.toString() };
+  }
+}
+
+function buscarOCrearEventosCalendar(codigoSeccion) {
+  try {
+    var busqueda = buscarEventosCalendarSeccion(codigoSeccion);
+    
+    if (busqueda.encontrados) {
+      // Guardar el eventId en la hoja si lo encontró
+      if (busqueda.eventId) {
+        try {
+          var ss = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+          var secSheet = ss.getSheetByName('Secciones');
+          var secData = secSheet.getDataRange().getValues();
+          for (var i = 1; i < secData.length; i++) {
+            if (String(secData[i][0]) === codigoSeccion) {
+              secSheet.getRange(i + 1, 21).setValue(busqueda.eventId);
+              break;
+            }
+          }
+        } catch(saveErr) {}
+      }
+      return { success: true, yaExistian: true, message: 'Ya existen ' + busqueda.cantidad + ' eventos para ' + codigoSeccion, eventId: busqueda.eventId };
+    }
+    
+    var resultado = crearEventosCalendarSeccion(codigoSeccion);
+    if (resultado.success) {
+      resultado.yaExistian = false;
+    }
+    return resultado;
+    
+  } catch (error) {
+    Logger.log('❌ [buscarOCrearEventos] ERROR: ' + error.toString());
+    return { success: false, message: error.toString() };
+  }
+}
+
+/**
+ * Agrega un alumno a todos los eventos de Calendar de una sección
+ * Llamado al matricular un alumno
+ */
+function agregarAlumnoAEventosCalendar(codigoSeccion, emailAlumno) {
+  try {
+    if (!emailAlumno) return;
+    Logger.log('📅 [agregarAlumnoEventos] seccion=' + codigoSeccion + ' email=' + emailAlumno);
+    
+    var match = codigoSeccion.match(/(\d{2})(\d{2})-/);
+    if (!match) return;
+    
+    var mes = parseInt(match[1]) - 1;
+    var ano = 2000 + parseInt(match[2]);
+    var inicioMes = new Date(ano, mes, 1);
+    var finBusqueda = new Date(ano, mes + 3, 0, 23, 59, 59);
+    
+    var nombreBuscado = 'Clase ' + codigoSeccion;
+    
+    // Buscar el evento recurrente padre usando Calendar API
+    var events = Calendar.Events.list('primary', {
+      timeMin: inicioMes.toISOString(),
+      timeMax: finBusqueda.toISOString(),
+      q: nombreBuscado,
+      singleEvents: false,
+      maxResults: 50
+    });
+    
+    var agregados = 0;
+    if (events.items) {
+      events.items.forEach(function(ev) {
+        if (ev.summary && ev.summary.trim().indexOf(nombreBuscado) === 0 && ev.recurrence) {
+          // Es el evento padre recurrente - agregar invitado
+          var attendees = ev.attendees || [];
+          var yaExiste = attendees.some(function(att) { return att.email === emailAlumno; });
+          if (!yaExiste) {
+            attendees.push({ email: emailAlumno });
+            Calendar.Events.patch({ attendees: attendees }, 'primary', ev.id, { sendUpdates: 'all' });
+            agregados++;
+          }
+        }
+      });
+    }
+    
+    Logger.log('✅ [agregarAlumnoEventos] Alumno agregado a ' + agregados + ' series');
+  } catch (error) {
+    Logger.log('⚠️ [agregarAlumnoEventos] Error (no bloquea): ' + error.toString());
+  }
+}
+
+/**
+ * Sincroniza TODOS los alumnos matriculados de una sección con su evento de Calendar.
+ * Agrega como attendees a los que falten. Útil para secciones creadas antes de la integración.
+ * Ejecutar desde el editor: sincronizarAlumnosCalendar('DVA0426-A')
+ */
+function sincronizarAlumnosCalendar(codigoSeccion) {
+  try {
+    Logger.log('🔄 [sincronizarCalendar] Iniciando para sección: ' + codigoSeccion);
+    
+    var ss = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+    var matSheet = ss.getSheetByName('Matriculas');
+    var almSheet = ss.getSheetByName('Alumnos');
+    var matData = matSheet.getDataRange().getValues();
+    var almData = almSheet.getDataRange().getValues();
+    
+    // Mapear alumnoId -> email
+    var emailMap = {};
+    for (var a = 1; a < almData.length; a++) {
+      emailMap[String(almData[a][0])] = String(almData[a][2] || '');
+    }
+    
+    // Obtener emails de todos los matriculados en esta sección
+    var emailsAlumnos = [];
+    for (var i = 1; i < matData.length; i++) {
+      if (String(matData[i][2]) === codigoSeccion) {
+        var email = emailMap[String(matData[i][1])] || '';
+        if (email && emailsAlumnos.indexOf(email) === -1) {
+          emailsAlumnos.push(email);
+        }
+      }
+    }
+    
+    Logger.log('📋 Alumnos encontrados: ' + emailsAlumnos.length + ' -> ' + emailsAlumnos.join(', '));
+    
+    if (emailsAlumnos.length === 0) {
+      Logger.log('⚠️ No hay alumnos matriculados en ' + codigoSeccion);
+      return 'No hay alumnos en ' + codigoSeccion;
+    }
+    
+    // Buscar evento recurrente padre
+    var match = codigoSeccion.match(/(\d{2})(\d{2})-/);
+    if (!match) {
+      Logger.log('⚠️ No se pudo parsear código de sección');
+      return 'Código de sección inválido';
+    }
+    
+    var mes = parseInt(match[1]) - 1;
+    var ano = 2000 + parseInt(match[2]);
+    var inicioMes = new Date(ano, mes, 1);
+    var finBusqueda = new Date(ano, mes + 3, 0, 23, 59, 59);
+    var nombreBuscado = 'Clase ' + codigoSeccion;
+    
+    var events = Calendar.Events.list('primary', {
+      timeMin: inicioMes.toISOString(),
+      timeMax: finBusqueda.toISOString(),
+      q: nombreBuscado,
+      singleEvents: false,
+      maxResults: 50
+    });
+    
+    var agregados = 0;
+    var yaExistentes = 0;
+    
+    if (events.items) {
+      events.items.forEach(function(ev) {
+        if (ev.summary && ev.summary.trim().indexOf(nombreBuscado) === 0 && ev.recurrence) {
+          var attendees = ev.attendees || [];
+          var emailsExistentes = attendees.map(function(att) { return att.email; });
+          
+          emailsAlumnos.forEach(function(emailAlumno) {
+            if (emailsExistentes.indexOf(emailAlumno) === -1) {
+              attendees.push({ email: emailAlumno });
+              agregados++;
+              Logger.log('➕ Agregando: ' + emailAlumno);
+            } else {
+              yaExistentes++;
+            }
+          });
+          
+          if (agregados > 0) {
+            Calendar.Events.patch({ attendees: attendees }, 'primary', ev.id, { sendUpdates: 'all' });
+            Logger.log('✅ Evento actualizado con ' + agregados + ' nuevos attendees');
+          }
+        }
+      });
+    }
+    
+    var resultado = 'Sección ' + codigoSeccion + ': ' + agregados + ' alumnos agregados, ' + yaExistentes + ' ya estaban';
+    Logger.log('✅ [sincronizarCalendar] ' + resultado);
+    return resultado;
+  } catch (error) {
+    Logger.log('❌ [sincronizarCalendar] ERROR: ' + error.toString());
+    return 'Error: ' + error.toString();
+  }
+}
+
+/**
+ * Sincroniza alumnos de TODAS las secciones activas con Calendar.
+ * Ejecutar desde el editor.
+ */
+function sincronizarTodosAlumnosCalendar() {
+  var ss = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+  var secSheet = ss.getSheetByName('Secciones');
+  var secData = secSheet.getDataRange().getValues();
+  
+  var resultados = [];
+  for (var i = 1; i < secData.length; i++) {
+    var codigo = String(secData[i][0] || '');
+    var estado = String(secData[i][12] || '');
+    var calendarId = String(secData[i][20] || '');
+    
+    if (codigo && estado !== 'Finalizada' && estado !== 'Cancelada' && calendarId) {
+      Logger.log('🔄 Procesando sección: ' + codigo);
+      var resultado = sincronizarAlumnosCalendar(codigo);
+      resultados.push(resultado);
+      Utilities.sleep(2000); // Evitar rate limits
+    }
+  }
+  
+  Logger.log('📋 Sincronización completa: ' + resultados.length + ' secciones procesadas');
+  return resultados.join('\n');
+}
+
+/**
+ * Configura Meet de todas las secciones activas: RESTRICTED + grabación automática + docente como co-host.
+ * EJECUTAR desde el editor para aplicar retroactivamente.
+ */
+function configurarMeetRestrictedTodas() {
+  var ss = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+  var secSheet = ss.getSheetByName('Secciones');
+  var secData = secSheet.getDataRange().getValues();
+  
+  var procesados = 0;
+  var errores = 0;
+  
+  for (var i = 1; i < secData.length; i++) {
+    var codigo = String(secData[i][0] || '');
+    var estado = String(secData[i][12] || '');
+    var calendarEventId = String(secData[i][20] || '');
+    
+    if (!codigo || !calendarEventId || estado === 'Finalizada' || estado === 'Cancelada') continue;
+    
+    try {
+      // Obtener el evento para extraer el meeting code del Meet link
+      var ev = Calendar.Events.get('primary', calendarEventId);
+      var meetCode = '';
+      
+      // Extraer meeting code del entryPoint URI (meet.google.com/xxx-yyyy-zzz)
+      if (ev.conferenceData && ev.conferenceData.entryPoints) {
+        for (var ep = 0; ep < ev.conferenceData.entryPoints.length; ep++) {
+          var uri = ev.conferenceData.entryPoints[ep].uri || '';
+          var match2 = uri.match(/meet\.google\.com\/([a-z]+-[a-z]+-[a-z]+)/);
+          if (match2) {
+            meetCode = match2[1];
+            break;
+          }
+        }
+      }
+      
+      if (meetCode) {
+        // Primero obtener el space name real via GET
+        var getUrl = 'https://meet.googleapis.com/v2/spaces/' + meetCode;
+        var getOptions = {
+          method: 'get',
+          headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
+          muteHttpExceptions: true
+        };
+        var getResp = UrlFetchApp.fetch(getUrl, getOptions);
+        
+        if (getResp.getResponseCode() === 200) {
+          var spaceData = JSON.parse(getResp.getContentText());
+          var spaceName = spaceData.name; // formato: spaces/xxxxx
+          Logger.log('📋 ' + codigo + ' -> Space name: ' + spaceName + ', meetCode: ' + meetCode);
+          
+          // Configurar RESTRICTED + grabación automática
+          var meetUrl = 'https://meet.googleapis.com/v2/' + spaceName + '?updateMask=config.accessType,config.artifactConfig.recordingConfig.autoRecordingGeneration';
+          var meetPayload = { 
+            config: { 
+              accessType: 'RESTRICTED',
+              artifactConfig: {
+                recordingConfig: {
+                  autoRecordingGeneration: 'ON'
+                }
+              }
+            } 
+          };
+          var meetOptions = {
+            method: 'patch',
+            contentType: 'application/json',
+            headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
+            payload: JSON.stringify(meetPayload),
+            muteHttpExceptions: true
+          };
+          var resp = UrlFetchApp.fetch(meetUrl, meetOptions);
+          var code = resp.getResponseCode();
+          
+          if (code === 200) {
+            Logger.log('✅ ' + codigo + ' -> RESTRICTED + AutoRecord (space: ' + spaceName + ')');
+            procesados++;
+          } else {
+            Logger.log('⚠️ ' + codigo + ' -> PATCH HTTP ' + code + ': ' + resp.getContentText().substring(0, 200));
+            errores++;
+          }
+          
+          // Agregar docente como co-host
+          try {
+            var docenteId = String(secData[i][5] || '');
+            if (docenteId) {
+              var docSheet = ss.getSheetByName('Docentes');
+              var docData = docSheet.getDataRange().getValues();
+              var emailDocente = '';
+              for (var dd = 1; dd < docData.length; dd++) {
+                if (String(docData[dd][0]) === docenteId) {
+                  emailDocente = String(docData[dd][2] || '');
+                  break;
+                }
+              }
+              if (emailDocente) {
+                var cohostUrl = 'https://meet.googleapis.com/v2/' + spaceName + '/members';
+                var cohostPayload = { email: emailDocente, role: 'COHOST' };
+                var cohostOptions = {
+                  method: 'post',
+                  contentType: 'application/json',
+                  headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
+                  payload: JSON.stringify(cohostPayload),
+                  muteHttpExceptions: true
+                };
+                var cohostResp = UrlFetchApp.fetch(cohostUrl, cohostOptions);
+                Logger.log('👨‍🏫 ' + codigo + ' -> Co-host ' + emailDocente + ': ' + cohostResp.getResponseCode());
+              }
+            }
+          } catch(cohostErr) {
+            Logger.log('⚠️ ' + codigo + ' -> Error co-host: ' + cohostErr.toString());
+          }
+        } else {
+          Logger.log('⚠️ ' + codigo + ' -> GET space HTTP ' + getResp.getResponseCode() + ': ' + getResp.getContentText().substring(0, 200));
+          errores++;
+        }
+      } else {
+        Logger.log('⚠️ ' + codigo + ' -> Sin meeting code en entryPoints');
+      }
+      
+      Utilities.sleep(1000);
+    } catch(e) {
+      Logger.log('❌ ' + codigo + ' -> Error: ' + e.toString());
+      errores++;
+    }
+  }
+  
+  var resultado = 'Meet RESTRICTED: ' + procesados + ' configurados, ' + errores + ' errores';
+  Logger.log('📋 ' + resultado);
+  return resultado;
+}
+
+/**
+ * Agrega docente como co-host a todos los eventos de una sección
+ * Llamado al asignar docente
+ */
+function agregarDocenteAEventosCalendar(codigoSeccion, emailDocente) {
+  try {
+    if (!emailDocente) return;
+    Logger.log('📅 [agregarDocenteEventos] seccion=' + codigoSeccion + ' email=' + emailDocente);
+    
+    var match = codigoSeccion.match(/(\d{2})(\d{2})-/);
+    if (!match) return;
+    
+    var mes = parseInt(match[1]) - 1;
+    var ano = 2000 + parseInt(match[2]);
+    var inicioMes = new Date(ano, mes, 1);
+    var finBusqueda = new Date(ano, mes + 3, 0, 23, 59, 59);
+    
+    var nombreBuscado = 'Clase ' + codigoSeccion;
+    
+    var events = Calendar.Events.list('primary', {
+      timeMin: inicioMes.toISOString(),
+      timeMax: finBusqueda.toISOString(),
+      q: nombreBuscado,
+      singleEvents: false,
+      maxResults: 50
+    });
+    
+    var agregados = 0;
+    if (events.items) {
+      events.items.forEach(function(ev) {
+        if (ev.summary && ev.summary.trim().indexOf(nombreBuscado) === 0 && ev.recurrence) {
+          var attendees = ev.attendees || [];
+          var yaExiste = attendees.some(function(att) { return att.email === emailDocente; });
+          if (!yaExiste) {
+            attendees.push({ email: emailDocente });
+            Calendar.Events.patch({ attendees: attendees }, 'primary', ev.id, { sendUpdates: 'all' });
+            agregados++;
+          }
+        }
+      });
+    }
+    
+    Logger.log('✅ [agregarDocenteEventos] Docente agregado a ' + agregados + ' series');
+  } catch (error) {
+    Logger.log('⚠️ [agregarDocenteEventos] Error (no bloquea): ' + error.toString());
+  }
+}
+
+// ============================================
+// CUOTAS PROGRAMADAS
+// ============================================
+
+/**
+ * Guarda las cuotas programadas para una venta (compartidas entre matrículas)
+ * cuotas = [{numero: 1, monto: 50, fechaVencimiento: ''}, ...]
+ */
+function guardarCuotasProgramadas(idVenta, cuotas) {
+  try {
+    Logger.log('📋 [guardarCuotasProgramadas] venta=' + idVenta + ' cuotas=' + cuotas.length);
+    
+    var spreadsheet = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+    var sheet = spreadsheet.getSheetByName('CuotasProgramadas');
+    
+    // Crear hoja si no existe
+    if (!sheet) {
+      sheet = spreadsheet.insertSheet('CuotasProgramadas');
+      sheet.appendRow(['ID_Venta', 'NumeroCuota', 'MontoProgramado', 'FechaVencimiento', 'Estado']);
+      Logger.log('✅ Hoja CuotasProgramadas creada');
+    }
+    
+    cuotas.forEach(function(c) {
+      sheet.appendRow([
+        idVenta,
+        c.numero,
+        parseFloat(c.monto) || 0,
+        c.fechaVencimiento || '',
+        c.numero === 1 ? 'Pagada' : 'Pendiente'
+      ]);
+    });
+    
+    Logger.log('✅ [guardarCuotasProgramadas] ' + cuotas.length + ' cuotas guardadas para venta ' + idVenta);
+  } catch (error) {
+    Logger.log('⚠️ [guardarCuotasProgramadas] Error: ' + error.toString());
+  }
+}
+
+/**
+ * Obtiene cuotas programadas por ID_Venta
+ */
+function getCuotasProgramadasPorVenta(idVenta) {
+  try {
+    var spreadsheet = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+    var sheet = spreadsheet.getSheetByName('CuotasProgramadas');
+    if (!sheet) return [];
+    
+    var data = sheet.getDataRange().getValues();
+    var cuotas = [];
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][0]) === String(idVenta)) {
+        cuotas.push({
+          numero: parseInt(data[i][1]) || 0,
+          monto: parseFloat(data[i][2]) || 0,
+          fechaVencimiento: data[i][3] instanceof Date ? (String(data[i][3].getDate()).padStart(2,'0') + '/' + String(data[i][3].getMonth()+1).padStart(2,'0') + '/' + data[i][3].getFullYear()) : String(data[i][3] || ''),
+          estado: String(data[i][4] || 'Pendiente')
+        });
+      }
+    }
+    return cuotas;
+  } catch (error) {
+    Logger.log('⚠️ [getCuotasProgramadasPorVenta] Error: ' + error.toString());
+    return [];
+  }
+}
+
+/**
+ * Obtiene cuotas programadas por ID_Matricula (busca el ID_Venta de la matrícula)
+ */
+function getCuotasProgramadas(matriculaId) {
+  try {
+    var spreadsheet = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+    var matSheet = spreadsheet.getSheetByName('Matriculas');
+    if (!matSheet) return [];
+    
+    var matData = matSheet.getDataRange().getValues();
+    var idVenta = '';
+    for (var i = 1; i < matData.length; i++) {
+      if (String(matData[i][0]) === String(matriculaId)) {
+        idVenta = String(matData[i][12] || '');
+        break;
+      }
+    }
+    
+    if (!idVenta) return [];
+    return getCuotasProgramadasPorVenta(idVenta);
+  } catch (error) {
+    Logger.log('⚠️ [getCuotasProgramadas] Error: ' + error.toString());
+    return [];
+  }
+}
+
+/**
+ * MIGRACIÓN: Asigna ID_Venta a matrículas existentes y crea hoja Ventas
+ * Agrupa por AlumnoID + FechaMatricula (mismo día). Sin fecha = un grupo por alumno.
+ * EJECUTAR UNA SOLA VEZ desde el editor de Apps Script.
+ */
+function migrarIdVentaYCrearHojaVentas() {
+  try {
+    Logger.log('🔧 [migrarIdVenta] INICIANDO');
+    
+    var spreadsheet = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+    var matriculasSheet = spreadsheet.getSheetByName('Matriculas');
+    
+    if (!matriculasSheet) {
+      Logger.log('❌ Hoja Matriculas no encontrada');
+      return 'ERROR: Hoja Matriculas no encontrada';
+    }
+    
+    // Crear hoja Ventas si no existe
+    var ventasSheet = spreadsheet.getSheetByName('Ventas');
+    if (!ventasSheet) {
+      ventasSheet = spreadsheet.insertSheet('Ventas');
+      ventasSheet.appendRow(['ID_Venta', 'ID_Alumno', 'Fecha', 'PrecioTotal', 'TipoPago', 'CantidadCursos', 'MedioPago', 'ID_Operacion', 'Secciones', 'EsTest']);
+      Logger.log('✅ Hoja Ventas creada');
+    }
+    
+    var matData = matriculasSheet.getDataRange().getValues();
+    
+    // Agrupar matrículas
+    var grupos = {};
+    var ventaCounter = 0;
+    
+    for (var i = 1; i < matData.length; i++) {
+      var matriculaId = String(matData[i][0] || '');
+      var alumnoId = String(matData[i][1] || '');
+      var idVentaExistente = String(matData[i][12] || '');
+      
+      // Si ya tiene ID_Venta, saltar
+      if (idVentaExistente) continue;
+      
+      var fechaRaw = matData[i][9];
+      var fechaKey = '';
+      
+      if (fechaRaw && fechaRaw instanceof Date) {
+        fechaKey = fechaRaw.getFullYear() + '-' + String(fechaRaw.getMonth() + 1).padStart(2, '0') + '-' + String(fechaRaw.getDate()).padStart(2, '0');
+      } else if (fechaRaw && String(fechaRaw).trim() !== '') {
+        var parsed = new Date(fechaRaw);
+        if (!isNaN(parsed.getTime())) {
+          fechaKey = parsed.getFullYear() + '-' + String(parsed.getMonth() + 1).padStart(2, '0') + '-' + String(parsed.getDate()).padStart(2, '0');
+        }
+      }
+      
+      // Clave de agrupación: alumno + fecha (o alumno + 'SIN_FECHA')
+      var grupoKey = alumnoId + '|' + (fechaKey || 'SIN_FECHA');
+      
+      if (!grupos[grupoKey]) {
+        grupos[grupoKey] = {
+          alumnoId: alumnoId,
+          fecha: fechaKey || '',
+          filas: [],
+          secciones: [],
+          precioTotal: 0,
+          esTest: 'No'
+        };
+      }
+      
+      grupos[grupoKey].filas.push(i);
+      grupos[grupoKey].secciones.push(String(matData[i][2] || ''));
+      grupos[grupoKey].precioTotal += parseFloat(matData[i][3]) || 0;
+      if (String(matData[i][11] || '') === 'Sí') grupos[grupoKey].esTest = 'Sí';
+    }
+    
+    // Asignar ID_Venta a cada grupo y crear registro en Ventas
+    var gruposCreados = 0;
+    var matriculasActualizadas = 0;
+    
+    for (var key in grupos) {
+      var grupo = grupos[key];
+      ventaCounter++;
+      var idVenta = 'VMIG' + String(ventaCounter).padStart(5, '0');
+      
+      // Actualizar ID_Venta en cada matrícula del grupo (col 13 = index 12 + 1)
+      grupo.filas.forEach(function(fila) {
+        matriculasSheet.getRange(fila + 1, 13).setValue(idVenta);
+        matriculasActualizadas++;
+      });
+      
+      // Crear registro en hoja Ventas
+      ventasSheet.appendRow([
+        idVenta,
+        grupo.alumnoId,
+        grupo.fecha ? new Date(grupo.fecha) : '',
+        grupo.precioTotal,
+        'Desconocido',
+        grupo.secciones.length,
+        '',
+        '',
+        grupo.secciones.join(', '),
+        grupo.esTest
+      ]);
+      
+      gruposCreados++;
+      Logger.log('✅ ' + idVenta + ': alumno=' + grupo.alumnoId + ' cursos=' + grupo.secciones.length + ' total=$' + grupo.precioTotal.toFixed(2));
+    }
+    
+    var resumen = '🔧 MIGRACIÓN COMPLETADA: ' + gruposCreados + ' ventas creadas, ' + matriculasActualizadas + ' matrículas actualizadas';
+    Logger.log(resumen);
+    return resumen;
+    
+  } catch (error) {
+    Logger.log('❌ [migrarIdVenta] ERROR: ' + error.toString());
+    Logger.log('❌ Stack: ' + error.stack);
+    return 'ERROR: ' + error.toString();
+  }
+}
+
+/**
+ * Corrige headers de la hoja Ventas. EJECUTAR UNA SOLA VEZ.
+ */
+function corregirHeadersVentas() {
+  var spreadsheet = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+  var sheet = spreadsheet.getSheetByName('Ventas');
+  if (!sheet) return 'Hoja no encontrada';
+  var headers = ['ID_Venta', 'ID_Alumno', 'Fecha', 'PrecioTotal', 'TipoPago', 'CantidadCursos', 'MedioPago', 'ID_Operacion', 'Secciones', 'EsTest'];
+  for (var i = 0; i < headers.length; i++) {
+    sheet.getRange(1, i + 1).setValue(headers[i]);
+  }
+  Logger.log('✅ Headers corregidos');
+  return 'Headers corregidos';
+}
+
+/**
+ * Obtiene las ventas de un alumno para mostrar en Mantenimiento
+ */
+function obtenerVentasAlumno(alumnoId) {
+  try {
+    var spreadsheet = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+    var matSheet = spreadsheet.getSheetByName('Matriculas');
+    var matData = matSheet.getDataRange().getValues();
+    
+    // Agrupar matrículas por ID_Venta
+    var ventasMap = {};
+    for (var i = 1; i < matData.length; i++) {
+      if (String(matData[i][1]) === alumnoId) {
+        var idVenta = String(matData[i][12] || 'SIN_VENTA_' + matData[i][0]);
+        if (!ventasMap[idVenta]) {
+          ventasMap[idVenta] = { idVenta: idVenta, secciones: [], precioTotal: 0, cantidadMatriculas: 0 };
+        }
+        ventasMap[idVenta].secciones.push(String(matData[i][2] || ''));
+        ventasMap[idVenta].precioTotal += parseFloat(matData[i][3]) || 0;
+        ventasMap[idVenta].cantidadMatriculas++;
+      }
+    }
+    
+    var ventas = [];
+    for (var key in ventasMap) {
+      var v = ventasMap[key];
+      v.secciones = v.secciones.join(', ');
+      ventas.push(v);
+    }
+    
+    return ventas;
+  } catch (error) {
+    Logger.log('❌ [obtenerVentasAlumno] ERROR: ' + error.toString());
+    return [];
+  }
+}
+
+/**
+ * Elimina una venta completa: matrículas, pagos, cuotas, venta, eventos Calendar
+ */
+function eliminarVentaCompleta(idVenta, alumnoId) {
+  try {
+    Logger.log('🗑️ [eliminarVentaCompleta] INICIO - venta=' + idVenta + ' alumno=' + alumnoId);
+    
+    var spreadsheet = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+    var matSheet = spreadsheet.getSheetByName('Matriculas');
+    var pagosSheet = spreadsheet.getSheetByName('Pagos');
+    var ventasSheet = spreadsheet.getSheetByName('Ventas');
+    var cuotasSheet = spreadsheet.getSheetByName('CuotasProgramadas');
+    var alumnosSheet = spreadsheet.getSheetByName('Alumnos');
+    
+    var matData = matSheet.getDataRange().getValues();
+    
+    // Encontrar matrículas de esta venta y sus secciones
+    var matriculaIds = [];
+    var secciones = [];
+    for (var i = 1; i < matData.length; i++) {
+      if (String(matData[i][12]) === idVenta) {
+        matriculaIds.push(String(matData[i][0]));
+        var sec = String(matData[i][2] || '');
+        if (sec && secciones.indexOf(sec) === -1) secciones.push(sec);
+      }
+    }
+    
+    Logger.log('🗑️ Matrículas a eliminar: ' + JSON.stringify(matriculaIds));
+    Logger.log('🗑️ Secciones: ' + JSON.stringify(secciones));
+    
+    // 1. Eliminar pagos de estas matrículas
+    var pagosEliminados = 0;
+    if (pagosSheet) {
+      var pagosData = pagosSheet.getDataRange().getValues();
+      var filasP = [];
+      for (var p = 1; p < pagosData.length; p++) {
+        if (matriculaIds.indexOf(String(pagosData[p][1])) !== -1) filasP.push(p + 1);
+      }
+      filasP.sort(function(a, b) { return b - a; });
+      filasP.forEach(function(f) { pagosSheet.deleteRow(f); pagosEliminados++; });
+    }
+    
+    // 2. Eliminar cuotas programadas
+    var cuotasEliminadas = 0;
+    if (cuotasSheet) {
+      var cuotasData = cuotasSheet.getDataRange().getValues();
+      var filasC = [];
+      for (var c = 1; c < cuotasData.length; c++) {
+        if (String(cuotasData[c][0]) === idVenta) filasC.push(c + 1);
+      }
+      filasC.sort(function(a, b) { return b - a; });
+      filasC.forEach(function(f) { cuotasSheet.deleteRow(f); cuotasEliminadas++; });
+    }
+    
+    // 3. Eliminar matrículas
+    var matFilas = [];
+    for (var m = 1; m < matData.length; m++) {
+      if (String(matData[m][12]) === idVenta) matFilas.push(m + 1);
+    }
+    matFilas.sort(function(a, b) { return b - a; });
+    matFilas.forEach(function(f) { matSheet.deleteRow(f); });
+    
+    // 4. Eliminar registro de venta
+    var ventaEliminada = false;
+    if (ventasSheet) {
+      var ventasData = ventasSheet.getDataRange().getValues();
+      for (var v = ventasData.length - 1; v >= 1; v--) {
+        if (String(ventasData[v][0]) === idVenta) {
+          ventasSheet.deleteRow(v + 1);
+          ventaEliminada = true;
+          break;
+        }
+      }
+    }
+    
+    // 5. Remover alumno de eventos de Calendar y Classroom de las secciones
+    try {
+      var almDataCal = alumnosSheet.getDataRange().getValues();
+      var emailAlumnoCal = '';
+      for (var ac = 1; ac < almDataCal.length; ac++) {
+        if (String(almDataCal[ac][0]) === alumnoId) { emailAlumnoCal = String(almDataCal[ac][2] || ''); break; }
+      }
+      if (emailAlumnoCal) {
+        secciones.forEach(function(sec) {
+          removerInvitadoDeEventosCalendar(sec, emailAlumnoCal);
+        });
+        Logger.log('✅ Alumno removido de eventos Calendar');
+      }
+    } catch(calErr) {
+      Logger.log('⚠️ Error removiendo de Calendar (no bloquea): ' + calErr.toString());
+    }
+    
+    // 5b. Eliminar beneficios custom si existen
+    try {
+      var benefSheet = spreadsheet.getSheetByName('BeneficiosCustom');
+      if (benefSheet) {
+        var benefData = benefSheet.getDataRange().getValues();
+        var benefFilas = [];
+        for (var bf = 1; bf < benefData.length; bf++) {
+          if (matriculaIds.indexOf(String(benefData[bf][0])) !== -1) benefFilas.push(bf + 1);
+        }
+        benefFilas.sort(function(a, b) { return b - a; });
+        benefFilas.forEach(function(f) { benefSheet.deleteRow(f); });
+        if (benefFilas.length > 0) Logger.log('🗑️ ' + benefFilas.length + ' beneficios custom eliminados');
+      }
+    } catch(benefErr) {
+      Logger.log('⚠️ Error eliminando beneficios custom: ' + benefErr.toString());
+    }
+    
+    // 6. Verificar si el alumno tiene otras matrículas; si no, eliminar alumno
+    var alumnoEliminado = false;
+    var matDataActual = matSheet.getDataRange().getValues();
+    var tieneOtrasMatriculas = false;
+    for (var a = 1; a < matDataActual.length; a++) {
+      if (String(matDataActual[a][1]) === alumnoId) { tieneOtrasMatriculas = true; break; }
+    }
+    if (!tieneOtrasMatriculas && alumnosSheet) {
+      var almData = alumnosSheet.getDataRange().getValues();
+      for (var al = almData.length - 1; al >= 1; al--) {
+        if (String(almData[al][0]) === alumnoId) {
+          alumnosSheet.deleteRow(al + 1);
+          alumnoEliminado = true;
+          Logger.log('🗑️ Alumno eliminado: ' + alumnoId);
+          break;
+        }
+      }
+    }
+    
+    var msg = '✅ Venta ' + idVenta + ' eliminada: ' + matriculaIds.length + ' matrículas, ' + pagosEliminados + ' pagos, ' + cuotasEliminadas + ' cuotas';
+    if (ventaEliminada) msg += ', registro de venta';
+    if (alumnoEliminado) msg += ', alumno ' + alumnoId + ' (sin otras matrículas)';
+    
+    Logger.log(msg);
+    return { success: true, message: msg };
+  } catch (error) {
+    Logger.log('❌ [eliminarVentaCompleta] ERROR: ' + error.toString());
+    return { success: false, message: error.toString() };
+  }
+}
+
+/**
+ * Remueve un invitado de todos los eventos de Calendar de una sección
+ */
+function removerInvitadoDeEventosCalendar(codigoSeccion, emailInvitado) {
+  try {
+    if (!emailInvitado || !codigoSeccion) return;
+    Logger.log('📅 [removerInvitado] seccion=' + codigoSeccion + ' email=' + emailInvitado);
+    
+    var match = codigoSeccion.match(/(\d{2})(\d{2})-/);
+    if (!match) return;
+    
+    var mes = parseInt(match[1]) - 1;
+    var ano = 2000 + parseInt(match[2]);
+    var inicioMes = new Date(ano, mes, 1);
+    var finBusqueda = new Date(ano, mes + 3, 0, 23, 59, 59);
+    var nombreBuscado = 'Clase ' + codigoSeccion;
+    
+    var events = Calendar.Events.list('primary', {
+      timeMin: inicioMes.toISOString(),
+      timeMax: finBusqueda.toISOString(),
+      q: nombreBuscado,
+      singleEvents: false,
+      maxResults: 50
+    });
+    
+    var removidos = 0;
+    if (events.items) {
+      events.items.forEach(function(ev) {
+        if (ev.summary && ev.summary.trim().indexOf(nombreBuscado) === 0 && ev.recurrence) {
+          var attendees = ev.attendees || [];
+          var nuevos = attendees.filter(function(att) { return att.email !== emailInvitado; });
+          if (nuevos.length < attendees.length) {
+            Calendar.Events.patch({ attendees: nuevos }, 'primary', ev.id, { sendUpdates: 'all' });
+            removidos++;
+          }
+        }
+      });
+    }
+    
+    Logger.log('✅ [removerInvitado] Removido de ' + removidos + ' series');
+  } catch (error) {
+    Logger.log('⚠️ [removerInvitado] Error (no bloquea): ' + error.toString());
+  }
+}
+
+/**
+ * Corrige la sección de una matrícula sin restricción de curso.
+ * Para errores de asignación. También actualiza Calendar.
+ */
+function corregirSeccionMatricula(matriculaId, seccionActual, nuevaSeccion, enviarEmail) {
+  try {
+    Logger.log('🔀 [corregirSeccion] ' + matriculaId + ': ' + seccionActual + ' -> ' + nuevaSeccion + ' enviarEmail=' + enviarEmail);
+    
+    var spreadsheet = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+    var matSheet = spreadsheet.getSheetByName('Matriculas');
+    var matData = matSheet.getDataRange().getValues();
+    
+    var fila = -1;
+    var alumnoId = '';
+    for (var i = 1; i < matData.length; i++) {
+      if (String(matData[i][0]) === matriculaId) {
+        fila = i + 1;
+        alumnoId = String(matData[i][1] || '');
+        break;
+      }
+    }
+    
+    if (fila === -1) return { success: false, message: 'Matrícula no encontrada' };
+    
+    var secSheet = spreadsheet.getSheetByName('Secciones');
+    var secData = secSheet.getDataRange().getValues();
+    var seccionExiste = false;
+    var nombreCursoNuevo = '';
+    for (var s = 1; s < secData.length; s++) {
+      if (String(secData[s][0]) === nuevaSeccion) { seccionExiste = true; nombreCursoNuevo = String(secData[s][1] || ''); break; }
+    }
+    if (!seccionExiste) return { success: false, message: 'La sección ' + nuevaSeccion + ' no existe' };
+    
+    matSheet.getRange(fila, 3).setValue(nuevaSeccion);
+    
+    // Actualizar Calendar
+    var almSheet = spreadsheet.getSheetByName('Alumnos');
+    var almData = almSheet.getDataRange().getValues();
+    var emailAlumno = '';
+    var nombreAlumno = '';
+    for (var a = 1; a < almData.length; a++) {
+      if (String(almData[a][0]) === alumnoId) {
+        emailAlumno = String(almData[a][2] || '');
+        nombreAlumno = String(almData[a][1] || '');
+        break;
+      }
+    }
+    
+    try {
+      if (emailAlumno) {
+        removerInvitadoDeEventosCalendar(seccionActual, emailAlumno);
+        agregarAlumnoAEventosCalendar(nuevaSeccion, emailAlumno);
+      }
+    } catch(calErr) {
+      Logger.log('⚠️ Error actualizando Calendar: ' + calErr.toString());
+    }
+    
+    // Enviar email si se solicitó
+    if (enviarEmail && emailAlumno) {
+      try {
+        enviarPlantilla('cambio-seccion', {
+          alumno_nombre: nombreAlumno,
+          email_alumno: emailAlumno,
+          seccion_actual: seccionActual,
+          seccion_nueva: nuevaSeccion,
+          curso: nombreCursoNuevo
+        });
+        Logger.log('📧 Email de cambio de sección enviado a ' + emailAlumno);
+      } catch(emailErr) {
+        Logger.log('⚠️ Error enviando email: ' + emailErr.toString());
+      }
+    }
+    
+    registrarLog('CORREGIR_SECCION', 'Matriculas', matriculaId, 'De ' + seccionActual + ' a ' + nuevaSeccion + ' (corrección sin restricción de curso)');
+    
+    var msg = 'Matrícula ' + matriculaId + ' movida de ' + seccionActual + ' a ' + nuevaSeccion;
+    Logger.log('✅ [corregirSeccion] ' + msg);
+    return { success: true, message: msg };
+  } catch (error) {
+    Logger.log('❌ [corregirSeccion] ERROR: ' + error.toString());
+    return { success: false, message: error.toString() };
+  }
+}
+
+/**
+ * Corrige la modalidad de una matrícula (Basic/Pro/Certify).
+ * Ajusta precio, monto examen, acceso a simulador y puede reenviar email.
+ */
+function corregirModalidadMatricula(matriculaId, nuevaMod, nuevoPrecio, nuevoMontoEx, fechaFinSim, reenviarEmail) {
+  try {
+    Logger.log('🎯 [corregirModalidad] ' + matriculaId + ' -> ' + nuevaMod + ' precio=' + nuevoPrecio + ' examen=' + nuevoMontoEx);
+    
+    var spreadsheet = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+    var matSheet = spreadsheet.getSheetByName('Matriculas');
+    var matData = matSheet.getDataRange().getValues();
+    
+    var fila = -1;
+    var matriculaRow = null;
+    for (var i = 1; i < matData.length; i++) {
+      if (String(matData[i][0]) === matriculaId) {
+        fila = i + 1;
+        matriculaRow = matData[i];
+        break;
+      }
+    }
+    
+    if (fila === -1) return { success: false, message: 'Matrícula no encontrada' };
+    
+    var modalidadAnterior = String(matriculaRow[14] || 'Pro');
+    var precioAnterior = parseFloat(matriculaRow[3]) || 0;
+    var alumnoId = String(matriculaRow[1] || '');
+    var seccion = String(matriculaRow[2] || '');
+    var totalPagado = parseFloat(matriculaRow[6]) || 0;
+    
+    // Actualizar Modalidad (col O = 15), MontoExamen (col P = 16), Precio (col D = 4), Saldo (col I = 9)
+    matSheet.getRange(fila, 15).setValue(nuevaMod);
+    matSheet.getRange(fila, 16).setValue(nuevaMod === 'Certify' ? nuevoMontoEx : '');
+    matSheet.getRange(fila, 4).setValue(nuevoPrecio);
+    matSheet.getRange(fila, 9).setValue(Math.max(0, nuevoPrecio - totalPagado));
+    
+    // Recalcular estado de pago
+    var nuevoEstadoPago = 'Pendiente';
+    if (totalPagado >= nuevoPrecio && totalPagado > 0) nuevoEstadoPago = 'Pago Completo';
+    else if (totalPagado > 0) nuevoEstadoPago = 'Pago Pendiente';
+    matSheet.getRange(fila, 6).setValue(nuevoEstadoPago);
+    
+    // Obtener datos del alumno
+    var almSheet = spreadsheet.getSheetByName('Alumnos');
+    var almData = almSheet.getDataRange().getValues();
+    var emailAlumno = '';
+    var nombreAlumno = '';
+    for (var a = 1; a < almData.length; a++) {
+      if (String(almData[a][0]) === alumnoId) {
+        nombreAlumno = String(almData[a][1] || '');
+        emailAlumno = String(almData[a][2] || '');
+        break;
+      }
+    }
+    
+    // Gatillar simulador si nueva modalidad es Pro/Certify y cumple umbral de pago
+    var simuladorMsg = '';
+    if (nuevaMod === 'Pro' || nuevaMod === 'Certify') {
+      var umbralRecursos = (nuevaMod === 'Certify' && nuevoMontoEx > 0) ? (nuevoPrecio - nuevoMontoEx) : nuevoPrecio;
+      if (totalPagado >= umbralRecursos && totalPagado > 0) {
+        try {
+          var diasAcceso = nuevaMod === 'Certify' ? 120 : 60;
+          if (fechaFinSim) {
+            var fechaFin = new Date(fechaFinSim);
+            var hoy = new Date();
+            var diff = Math.floor((fechaFin - hoy) / (1000 * 60 * 60 * 24));
+            if (diff > 0) diasAcceso = diff;
+          }
+          gatillarSimuladorConDias(matriculaId, diasAcceso);
+          simuladorMsg = ' | Simulador: ' + diasAcceso + ' días';
+        } catch(simErr) {
+          Logger.log('⚠️ Error gatillando simulador: ' + simErr.toString());
+          simuladorMsg = ' | Error simulador: ' + simErr.toString();
+        }
+        // Compartir carpeta Drive
+        try {
+          verificarYCompartirCarpetaPorPago(matriculaId);
+          simuladorMsg += ' | Drive compartido';
+        } catch(driveErr) {
+          Logger.log('⚠️ Error compartiendo Drive: ' + driveErr.toString());
+        }
+      } else {
+        simuladorMsg = ' | Simulador: pendiente (pagado $' + totalPagado.toFixed(2) + ' de umbral $' + umbralRecursos.toFixed(2) + ')';
+      }
+    }
+    
+    // Reenviar email de bienvenida si se solicitó
+    if (reenviarEmail && emailAlumno) {
+      try {
+        enviarEmailBienvenidaAutomatico(alumnoId, [matriculaId], false);
+        Logger.log('📧 Email de bienvenida reenviado a ' + emailAlumno);
+      } catch(emailErr) {
+        Logger.log('⚠️ Error reenviando email: ' + emailErr.toString());
+      }
+    }
+    
+    registrarLog('CORREGIR_MODALIDAD', 'Matriculas', matriculaId, 
+      'De ' + modalidadAnterior + ' a ' + nuevaMod + ' | Precio: $' + precioAnterior + ' → $' + nuevoPrecio + 
+      (nuevaMod === 'Certify' ? ' | Examen: $' + nuevoMontoEx : '') + simuladorMsg);
+    
+    var msg = 'Modalidad actualizada: ' + modalidadAnterior + ' → ' + nuevaMod + 
+              ' | Precio: $' + precioAnterior.toFixed(2) + ' → $' + nuevoPrecio.toFixed(2) + simuladorMsg;
+    Logger.log('✅ [corregirModalidad] ' + msg);
+    return { success: true, message: msg };
+  } catch (error) {
+    Logger.log('❌ [corregirModalidad] ERROR: ' + error.toString());
+    return { success: false, message: error.toString() };
+  }
+}
+
+/**
+ * Gatilla creación de usuario en simulador con número específico de días.
+ */
+function gatillarSimuladorConDias(matriculaId, diasAcceso) {
+  var ss = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+  var matSheet = ss.getSheetByName('Matriculas');
+  var matData = matSheet.getDataRange().getValues();
+  
+  for (var i = 1; i < matData.length; i++) {
+    if (String(matData[i][0]) === String(matriculaId)) {
+      var alumnoId = String(matData[i][1] || '');
+      var seccion = String(matData[i][2] || '');
+      
+      var almSheet = ss.getSheetByName('Alumnos');
+      var almData = almSheet.getDataRange().getValues();
+      var email = '', nombre = '';
+      for (var a = 1; a < almData.length; a++) {
+        if (String(almData[a][0]) === alumnoId) {
+          nombre = String(almData[a][1] || '');
+          email = String(almData[a][2] || '');
+          break;
+        }
+      }
+      if (!email) return;
+      
+      var secSheet = ss.getSheetByName('Secciones');
+      var secData = secSheet.getDataRange().getValues();
+      var codigoCurso = '';
+      for (var s = 1; s < secData.length; s++) {
+        if (String(secData[s][0]) === seccion) {
+          codigoCurso = String(secData[s][19] || '');
+          break;
+        }
+      }
+      if (!codigoCurso) return;
+      
+      var password = 'Abc' + String(Math.floor(Math.random() * 9000) + 1000) + '!';
+      var apiKey = PropertiesService.getScriptProperties().getProperty('API_KEY');
+      var apiUrl = 'https://YOUR_LAMBDA_ID.lambda-url.us-east-1.on.aws/';
+      
+      if (apiKey) {
+        var payload = {
+          studentEmail: email,
+          studentName: nombre,
+          password: password,
+          courseCode: codigoCurso,
+          accessDays: diasAcceso
+        };
+        var options = {
+          method: 'post',
+          contentType: 'application/json',
+          headers: { 'x-api-key': apiKey },
+          payload: JSON.stringify(payload),
+          muteHttpExceptions: true
+        };
+        var response = UrlFetchApp.fetch(apiUrl, options);
+        Logger.log('📡 [simulador corregir] ' + codigoCurso + ' ' + diasAcceso + 'd -> ' + response.getResponseCode());
+      }
+      
+      // Enviar email con credenciales del simulador
+      try {
+        var fechaInicio = new Date();
+        var fechaFin = new Date();
+        fechaFin.setDate(fechaFin.getDate() + diasAcceso);
+        var fechaInicioStr = fechaInicio.getDate() + '/' + (fechaInicio.getMonth() + 1) + '/' + fechaInicio.getFullYear();
+        var fechaFinStr = fechaFin.getDate() + '/' + (fechaFin.getMonth() + 1) + '/' + fechaFin.getFullYear();
+        
+        enviarPlantilla('acceso-simulador', {
+          alumno_nombre: nombre,
+          email_alumno: email,
+          cursos_simulador: codigoCurso,
+          password: password,
+          fecha_inicio: fechaInicioStr,
+          fecha_fin: fechaFinStr
+        });
+        Logger.log('📧 Email de acceso a simulador enviado a ' + email);
+      } catch(emailErr) {
+        Logger.log('⚠️ Error enviando email simulador: ' + emailErr.toString());
+      }
+      
+      break;
+    }
+  }
+}
+
+/**
+ * Obtiene matrículas de un alumno con sus detalles completos (Modalidad, MontoExamen).
+ */
+function obtenerMatriculasPorAlumno(alumnoId) {
+  try {
+    var ss = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+    var matSheet = ss.getSheetByName('Matriculas');
+    var matData = matSheet.getDataRange().getValues();
+    
+    var matriculas = [];
+    for (var i = 1; i < matData.length; i++) {
+      if (String(matData[i][1]) === String(alumnoId)) {
+        matriculas.push({
+          ID: String(matData[i][0]),
+          AlumnoID: String(matData[i][1]),
+          Seccion: String(matData[i][2]),
+          Precio: parseFloat(matData[i][3]) || 0,
+          EstadoPago: String(matData[i][5] || ''),
+          TotalPagado: parseFloat(matData[i][6]) || 0,
+          SaldoPendiente: parseFloat(matData[i][8]) || 0,
+          Modalidad: String(matData[i][14] || 'Pro'),
+          MontoExamen: parseFloat(matData[i][15]) || 0
+        });
+      }
+    }
+    
+    return { matriculas: matriculas };
+  } catch (error) {
+    Logger.log('❌ [obtenerMatriculasPorAlumno] ERROR: ' + error.toString());
+    return { matriculas: [] };
+  }
+}
+
+/**
+ * Resetea la config guardada de una plantilla. EJECUTAR desde editor.
+ */
+function resetearConfigPlantilla(plantillaId) {
+  var props = PropertiesService.getScriptProperties();
+  props.deleteProperty('PreviewConfig_' + plantillaId);
+  Logger.log('✅ Config reseteada para: ' + plantillaId);
+  return 'Config reseteada para: ' + plantillaId;
+}
+
+/**
+ * Resetea configs guardadas de todas las plantillas excepto bienvenida.
+ * EJECUTAR UNA VEZ desde editor.
+ */
+function resetearConfigsPlantillasNoPersonalizadas() {
+  var props = PropertiesService.getScriptProperties();
+  var plantillas = ['recordatorio-pago', 'confirmacion-pago', 'cambio-seccion', 'cambio-inicio-seccion'];
+  plantillas.forEach(function(p) {
+    props.deleteProperty('PreviewConfig_' + p);
+    Logger.log('✅ Config reseteada: ' + p);
+  });
+  return 'Configs reseteadas: ' + plantillas.join(', ');
+}
+
+/**
+ * Agrega header CalendarEventId a la hoja Secciones (col 21). EJECUTAR UNA VEZ.
+ */
+function agregarHeaderCalendarEventId() {
+  var ss = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+  var sheet = ss.getSheetByName('Secciones');
+  if (!sheet) return 'Hoja no encontrada';
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  if (headers.length >= 21 && headers[20] === 'CalendarEventId') return 'Header ya existe';
+  sheet.getRange(1, 21).setValue('CalendarEventId');
+  Logger.log('✅ Header CalendarEventId agregado en col 21');
+  return 'Header agregado';
+}
+
+/**
+ * Busca y asigna CalendarEventId a todas las secciones que no lo tienen.
+ * EJECUTAR UNA VEZ desde el editor.
+ */
+function migrarCalendarEventIds() {
+  try {
+    Logger.log('🔧 [migrarCalendarEventIds] INICIANDO');
+    var ss = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+    var sheet = ss.getSheetByName('Secciones');
+    var data = sheet.getDataRange().getValues();
+    
+    var asignados = 0;
+    var noEncontrados = 0;
+    var yaAsignados = 0;
+    
+    for (var i = 1; i < data.length; i++) {
+      var codigo = String(data[i][0] || '');
+      var calId = String(data[i][20] || '');
+      
+      if (calId) { yaAsignados++; continue; }
+      if (!codigo) continue;
+      
+      var busqueda = buscarEventosCalendarSeccion(codigo);
+      if (busqueda.encontrados && busqueda.eventId) {
+        sheet.getRange(i + 1, 21).setValue(busqueda.eventId);
+        asignados++;
+        Logger.log('✅ ' + codigo + ' -> ' + busqueda.eventId);
+      } else {
+        noEncontrados++;
+        Logger.log('⚠️ ' + codigo + ' -> sin eventos');
+      }
+      
+      Utilities.sleep(500);
+    }
+    
+    var resumen = '🔧 Migración completada: ' + asignados + ' asignados, ' + yaAsignados + ' ya tenían, ' + noEncontrados + ' sin eventos';
+    Logger.log(resumen);
+    return resumen;
+  } catch (error) {
+    Logger.log('❌ ERROR: ' + error.toString());
+    return 'ERROR: ' + error.toString();
+  }
+}
+
+/**
+ * Diagnóstico: busca eventos de una sección con logs detallados.
+ * EJECUTAR desde editor para CLF0226-A
+ */
+function diagnosticoCalendarCLF0226() {
+  var codigo = 'CLF0226-A';
+  var mes = 1; // febrero = index 1 (0-indexed)
+  var ano = 2026;
+  var inicioMes = new Date(ano, mes, 1);
+  var finBusqueda = new Date(ano, mes + 3, 0, 23, 59, 59);
+  
+  Logger.log('Buscando: ' + codigo);
+  Logger.log('Rango: ' + inicioMes.toISOString() + ' a ' + finBusqueda.toISOString());
+  
+  // Búsqueda 1: sin filtro de texto
+  var events1 = Calendar.Events.list('primary', {
+    timeMin: inicioMes.toISOString(),
+    timeMax: finBusqueda.toISOString(),
+    singleEvents: false,
+    maxResults: 100
+  });
+  
+  Logger.log('Sin filtro q - Total eventos: ' + (events1.items ? events1.items.length : 0));
+  if (events1.items) {
+    events1.items.forEach(function(ev) {
+      Logger.log('  -> ' + ev.summary + ' | id=' + ev.id + ' | recurrence=' + (ev.recurrence ? 'SÍ' : 'NO'));
+    });
+  }
+  
+  // Búsqueda 2: con filtro q
+  var events2 = Calendar.Events.list('primary', {
+    timeMin: inicioMes.toISOString(),
+    timeMax: finBusqueda.toISOString(),
+    q: 'Clase CLF0226',
+    singleEvents: false,
+    maxResults: 100
+  });
+  
+  Logger.log('Con filtro q="Clase CLF0226" - Total: ' + (events2.items ? events2.items.length : 0));
+  if (events2.items) {
+    events2.items.forEach(function(ev) {
+      Logger.log('  -> ' + ev.summary);
+    });
+  }
+  
+  // Búsqueda 3: singleEvents true
+  var events3 = Calendar.Events.list('primary', {
+    timeMin: inicioMes.toISOString(),
+    timeMax: finBusqueda.toISOString(),
+    q: 'CLF0226',
+    singleEvents: true,
+    maxResults: 20
+  });
+  
+  Logger.log('singleEvents=true q="CLF0226" - Total: ' + (events3.items ? events3.items.length : 0));
+  if (events3.items) {
+    events3.items.forEach(function(ev) {
+      Logger.log('  -> ' + ev.summary + ' | recurringEventId=' + (ev.recurringEventId || 'N/A'));
+    });
+  }
+}
+
+// ============================================
+// COMPARTIR CARPETA DRIVE AL COMPLETAR PAGO
+// ============================================
+
+/**
+ * Comparte la carpeta Drive de una sección con un alumno como viewer
+ */
+function compartirCarpetaDriveConAlumno(codigoSeccion, emailAlumno) {
+  try {
+    if (!emailAlumno || !codigoSeccion) return;
+    Logger.log('📂 [compartirCarpeta] seccion=' + codigoSeccion + ' email=' + emailAlumno);
+    
+    var ss = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+    var secSheet = ss.getSheetByName('Secciones');
+    var secData = secSheet.getDataRange().getValues();
+    
+    var driveFolderId = '';
+    for (var i = 1; i < secData.length; i++) {
+      if (String(secData[i][0]) === codigoSeccion) {
+        driveFolderId = String(secData[i][18] || '');
+        break;
+      }
+    }
+    
+    if (!driveFolderId) {
+      Logger.log('⚠️ [compartirCarpeta] Sección sin carpeta Drive: ' + codigoSeccion);
+      return;
+    }
+    
+    var folder = DriveApp.getFolderById(driveFolderId);
+    
+    // Verificar si ya tiene acceso
+    var editors = folder.getEditors().map(function(u) { return u.getEmail(); });
+    var viewers = folder.getViewers().map(function(u) { return u.getEmail(); });
+    if (editors.indexOf(emailAlumno) !== -1 || viewers.indexOf(emailAlumno) !== -1) {
+      Logger.log('✅ [compartirCarpeta] Alumno ya tiene acceso: ' + emailAlumno);
+      return;
+    }
+    
+    folder.addViewer(emailAlumno);
+    Logger.log('✅ [compartirCarpeta] Carpeta compartida con ' + emailAlumno + ' como viewer');
+    
+    // Enviar email de acceso a material
+    try {
+      var nombreCursoMat = '';
+      for (var sc = 1; sc < secData.length; sc++) {
+        if (String(secData[sc][0]) === codigoSeccion) {
+          nombreCursoMat = String(secData[sc][1] || '');
+          break;
+        }
+      }
+      
+      // Obtener nombre del alumno
+      var ssAlm = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+      var almSheetMat = ssAlm.getSheetByName('Alumnos');
+      var almDataMat = almSheetMat.getDataRange().getValues();
+      var nombreAlumnoMat = '';
+      for (var am = 1; am < almDataMat.length; am++) {
+        if (String(almDataMat[am][2]) === emailAlumno) { nombreAlumnoMat = String(almDataMat[am][1] || ''); break; }
+      }
+      
+      var urlCarpeta = 'https://drive.google.com/drive/folders/' + driveFolderId;
+      enviarPlantilla('acceso-material', {
+        alumno_nombre: nombreAlumnoMat || emailAlumno,
+        email_alumno: emailAlumno,
+        nombre_curso: nombreCursoMat,
+        seccion: codigoSeccion,
+        url_carpeta: urlCarpeta
+      });
+      Logger.log('📧 Email de acceso a material enviado a ' + emailAlumno);
+    } catch(emailMatErr) {
+      Logger.log('⚠️ Error enviando email de material (no bloquea): ' + emailMatErr.toString());
+    }
+    
+  } catch (error) {
+    Logger.log('⚠️ [compartirCarpeta] Error (no bloquea): ' + error.toString());
+  }
+}
+
+/**
+ * Verifica si una matrícula está completamente pagada y comparte la carpeta si corresponde
+ * Llamar después de cada pago
+ */
+function verificarYCompartirCarpetaPorPago(matriculaId) {
+  try {
+    var ss = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+    var matSheet = ss.getSheetByName('Matriculas');
+    var almSheet = ss.getSheetByName('Alumnos');
+    var matData = matSheet.getDataRange().getValues();
+    var almData = almSheet.getDataRange().getValues();
+    
+    for (var i = 1; i < matData.length; i++) {
+      if (String(matData[i][0]) === String(matriculaId)) {
+        var saldo = parseFloat(matData[i][8]) || 0;
+        var precioMat = parseFloat(matData[i][3]) || 0;
+        var totalPagadoMat = parseFloat(matData[i][6]) || 0;
+        var modalidad = String(matData[i][14] || 'Pro');
+        var montoExamenMat = (modalidad === 'Certify') ? (parseFloat(matData[i][15]) || 0) : 0;
+        
+        // Para Certify/Custom con voucher: compartir cuando pagó la parte del curso (precio - examen)
+        // Para Pro/Basic: compartir cuando saldo = 0
+        var umbral = ((modalidad === 'Certify' || modalidad === 'Custom') && montoExamenMat > 0) ? (precioMat - montoExamenMat) : precioMat;
+        if (totalPagadoMat < umbral) return; // Aún no completó pago del curso
+        
+        // Para Custom: verificar si tiene beneficio Grabaciones o Material
+        if (modalidad === 'Custom') {
+          var benefSheetDrive = ss.getSheetByName('BeneficiosCustom');
+          if (benefSheetDrive) {
+            var benefDataDrive = benefSheetDrive.getDataRange().getValues();
+            var tieneDrive = false;
+            for (var bd = 1; bd < benefDataDrive.length; bd++) {
+              if (String(benefDataDrive[bd][0]) === String(matriculaId) && (String(benefDataDrive[bd][1]) === 'Grabaciones' || String(benefDataDrive[bd][1]) === 'Material')) {
+                tieneDrive = true; break;
+              }
+            }
+            if (!tieneDrive) return; // Custom sin acceso a Drive
+          }
+        }
+        
+        var alumnoId = String(matData[i][1] || '');
+        var seccion = String(matData[i][2] || '');
+        
+        // Buscar email del alumno
+        var email = '';
+        for (var a = 1; a < almData.length; a++) {
+          if (String(almData[a][0]) === alumnoId) {
+            email = String(almData[a][2] || '');
+            break;
+          }
+        }
+        
+        if (email && seccion) {
+          compartirCarpetaDriveConAlumno(seccion, email);
+          
+          // Compartir Banco de Preguntas solo para Pro/Certify/Custom con simulador
+          if (modalidad === 'Pro' || modalidad === 'Certify' || modalidad === 'Custom') {
+            try {
+              compartirBancoDePreguntas(seccion, email);
+            } catch(bpErr) {
+              Logger.log('⚠️ [verificarYCompartir] Error compartiendo Banco de Preguntas: ' + bpErr.toString());
+            }
+          } else {
+            Logger.log('📋 [verificarYCompartir] Modalidad ' + modalidad + ' - sin acceso a Banco de Preguntas');
+          }
+        }
+        break;
+      }
+    }
+  } catch (error) {
+    Logger.log('⚠️ [verificarYCompartir] Error: ' + error.toString());
+  }
+}
+
+/**
+ * Al crear carpeta Drive, compartir con alumnos que ya pagaron completamente
+ */
+function compartirCarpetaConAlumnosPagados(codigoSeccion) {
+  try {
+    Logger.log('📂 [compartirConPagados] seccion=' + codigoSeccion);
+    
+    var ss = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+    var matSheet = ss.getSheetByName('Matriculas');
+    var almSheet = ss.getSheetByName('Alumnos');
+    var matData = matSheet.getDataRange().getValues();
+    var almData = almSheet.getDataRange().getValues();
+    
+    var emailMap = {};
+    for (var a = 1; a < almData.length; a++) {
+      emailMap[String(almData[a][0])] = String(almData[a][2] || '');
+    }
+    
+    var compartidos = 0;
+    for (var i = 1; i < matData.length; i++) {
+      if (String(matData[i][2]) === codigoSeccion) {
+        var saldo = parseFloat(matData[i][8]) || 0;
+        if (saldo <= 0) {
+          var email = emailMap[String(matData[i][1])] || '';
+          var modalidad = String(matData[i][14] || 'Pro');
+          if (email) {
+            compartirCarpetaDriveConAlumno(codigoSeccion, email);
+            // Compartir Banco de Preguntas solo para Pro/Certify
+            if (modalidad === 'Pro' || modalidad === 'Certify') {
+              try { compartirBancoDePreguntas(codigoSeccion, email); } catch(bpE) {
+                Logger.log('⚠️ [compartirConPagados] Error BP: ' + bpE.toString());
+              }
+            }
+            compartidos++;
+          }
+        }
+      }
+    }
+    
+    Logger.log('📂 [compartirConPagados] ' + compartidos + ' alumnos con acceso');
+  } catch (error) {
+    Logger.log('⚠️ [compartirConPagados] Error: ' + error.toString());
+  }
+}
+
+/**
+ * Actualiza un campo de un alumno
+ */
+function updateAlumno(alumnoId, campo, valor) {
+  try {
+    Logger.log('✏️ [updateAlumno] ' + alumnoId + ' campo=' + campo + ' valor=' + valor);
+    var sheet = getSheet(SHEETS.alumnos);
+    var data = sheet.getDataRange().getValues();
+    
+    // Mapeo de campos a columnas (0-indexed)
+    var columnas = {
+      'Nombre': 1,
+      'Gmail': 2,
+      'Email': 2,
+      'Telefono': 3,
+      'Pais': 4,
+      'LinkedIn': 5
+    };
+    
+    var colIndex = columnas[campo];
+    if (colIndex === undefined) {
+      return { success: false, message: 'Campo no reconocido: ' + campo };
+    }
+    
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][0]) === String(alumnoId)) {
+        sheet.getRange(i + 1, colIndex + 1).setValue(valor);
+        Logger.log('✅ [updateAlumno] Actualizado');
+        return { success: true, message: 'Campo actualizado' };
+      }
+    }
+    
+    return { success: false, message: 'Alumno no encontrado' };
+  } catch (error) {
+    Logger.log('❌ [updateAlumno] ERROR: ' + error.toString());
+    return { success: false, message: error.toString() };
+  }
+}
+
+// ============================================
+// VENTA DE SIMULADORES
+// ============================================
+
+/**
+ * Registra una venta de simulador
+ */
+function saveVentaSimulador(data) {
+  try {
+    Logger.log('=== saveVentaSimulador ===');
+    Logger.log('Datos: ' + JSON.stringify(data));
+    
+    var alumnoId;
+    
+    if (data.alumnoId) {
+      alumnoId = data.alumnoId;
+    } else {
+      var alumno = buscarAlumnoPorEmail(data.gmail);
+      if (alumno) {
+        alumnoId = alumno.id;
+      } else {
+        alumnoId = crearAlumno({
+          nombre: data.nombre,
+          gmail: data.gmail,
+          telefono: data.telefono,
+          pais: data.pais,
+          linkedin: data.linkedin || '',
+          esTest: data.esTest || false
+        });
+      }
+    }
+    
+    Logger.log('AlumnoId: ' + alumnoId);
+    
+    // Generar password
+    var password = 'Abc' + String(Math.floor(Math.random() * 9000) + 1000) + '!';
+    
+    var ss = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+    var sheet = ss.getSheetByName('VentasSimulador');
+    if (!sheet) {
+      sheet = ss.insertSheet('VentasSimulador');
+      sheet.appendRow(['ID_VentaSim', 'ID_Alumno', 'Cursos', 'Meses', 'PrecioTotal', 'MedioPago', 'ID_Operacion', 'FechaVenta', 'FechaInicio', 'FechaFin', 'Password', 'EsTest']);
+      Logger.log('✅ Hoja VentasSimulador creada');
+    }
+    
+    var allData = sheet.getDataRange().getValues();
+    var maxNum = 0;
+    for (var i = 1; i < allData.length; i++) {
+      var match = String(allData[i][0] || '').match(/^VS(\d+)$/);
+      if (match) { var n = parseInt(match[1]); if (n > maxNum) maxNum = n; }
+    }
+    var ventaSimId = 'VS' + String(maxNum + 1).padStart(5, '0');
+    
+    var cursos = data.cursos || [];
+    var meses = parseInt(data.meses) || 1;
+    var precioTotal = cursos.length * meses * 14.90;
+    var fechaInicio = new Date();
+    var fechaFin = new Date();
+    fechaFin.setDate(fechaFin.getDate() + (meses * 30));
+    
+    sheet.appendRow([
+      ventaSimId,
+      alumnoId,
+      cursos.join(','),
+      meses,
+      precioTotal,
+      data.medioPago || '',
+      data.idOperacion || '',
+      new Date(),
+      fechaInicio,
+      fechaFin,
+      password,
+      data.esTest ? 'Sí' : 'No'
+    ]);
+    
+    Logger.log('✅ Venta simulador registrada: ' + ventaSimId);
+    
+    // Llamar API de AWS por cada curso
+    var apiKey = PropertiesService.getScriptProperties().getProperty('API_KEY');
+    var apiUrl = 'https://YOUR_LAMBDA_ID.lambda-url.us-east-1.on.aws/';
+    
+    var alumnoData = null;
+    var almSheet = ss.getSheetByName('Alumnos');
+    var almData = almSheet.getDataRange().getValues();
+    for (var a = 1; a < almData.length; a++) {
+      if (String(almData[a][0]) === alumnoId) {
+        alumnoData = { nombre: String(almData[a][1] || ''), email: String(almData[a][2] || '') };
+        break;
+      }
+    }
+    
+    if (alumnoData && apiKey) {
+      cursos.forEach(function(cursoCode) {
+        try {
+          var payload = {
+            studentEmail: alumnoData.email,
+            studentName: alumnoData.nombre,
+            password: password,
+            courseCode: cursoCode,
+            accessStartDate: Utilities.formatDate(fechaInicio, 'America/Lima', 'yyyy-MM-dd'),
+            accessDays: meses * 30
+          };
+          
+          var options = {
+            method: 'post',
+            contentType: 'application/json',
+            headers: { 'x-api-key': apiKey },
+            payload: JSON.stringify(payload),
+            muteHttpExceptions: true
+          };
+          
+          var response = UrlFetchApp.fetch(apiUrl, options);
+          Logger.log('📡 API Response for ' + cursoCode + ': ' + response.getResponseCode() + ' - ' + response.getContentText());
+        } catch(apiErr) {
+          Logger.log('⚠️ Error llamando API para ' + cursoCode + ': ' + apiErr.toString());
+        }
+      });
+    }
+    
+    // Enviar email con credenciales
+    if (alumnoData && alumnoData.email) {
+      try {
+        enviarPlantilla('acceso-simulador', {
+          alumno_nombre: alumnoData.nombre,
+          email_alumno: alumnoData.email,
+          cursos_simulador: cursos.join(', '),
+          password: password,
+          fecha_inicio: Utilities.formatDate(fechaInicio, 'America/Lima', 'dd/MM/yyyy'),
+          fecha_fin: Utilities.formatDate(fechaFin, 'America/Lima', 'dd/MM/yyyy'),
+          meses: String(meses)
+        });
+        Logger.log('📧 Email de acceso a simulador enviado');
+      } catch(emailErr) {
+        Logger.log('⚠️ Error enviando email simulador: ' + emailErr.toString());
+      }
+    }
+    
+    return { success: true, message: 'Venta de simulador registrada: ' + ventaSimId + ' ($' + precioTotal.toFixed(2) + ')', ventaSimId: ventaSimId };
+  } catch (error) {
+    Logger.log('❌ ERROR en saveVentaSimulador: ' + error.toString());
+    return { success: false, message: error.toString() };
+  }
+}
+
+/**
+ * Registra una venta custom con beneficios individuales por curso
+ */
+function saveVentaCustom(data) {
+  try {
+    Logger.log('=== saveVentaCustom ===');
+    Logger.log('Datos: ' + JSON.stringify(data));
+    
+    var alumnoId;
+    if (data.alumnoId) {
+      alumnoId = data.alumnoId;
+    } else {
+      var alumno = buscarAlumnoPorEmail(data.gmail);
+      if (alumno) {
+        alumnoId = alumno.id;
+      } else {
+        alumnoId = crearAlumno({
+          nombre: data.nombre,
+          gmail: data.gmail,
+          telefono: data.telefono,
+          pais: data.pais,
+          esTest: data.esTest || false
+        });
+      }
+    }
+    
+    Logger.log('AlumnoId: ' + alumnoId);
+    
+    var ss = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+    var matriculasSheet = ss.getSheetByName('Matriculas');
+    var matAllData = matriculasSheet.getDataRange().getValues();
+    var maxMatNum = 0;
+    for (var mi = 1; mi < matAllData.length; mi++) {
+      var matMatch = String(matAllData[mi][0] || '').match(/^M(\d+)$/);
+      if (matMatch) { var mn = parseInt(matMatch[1]); if (mn > maxMatNum) maxMatNum = mn; }
+    }
+    
+    var idVenta = 'VC' + String(Date.now()).slice(-8);
+    var precioTotal = parseFloat(data.precioTotal) || 0;
+    var precioPorCurso = data.cursos.length > 0 ? precioTotal / data.cursos.length : 0;
+    var matriculaIds = [];
+    
+    // Crear hoja BeneficiosCustom si no existe
+    var benefSheet = ss.getSheetByName('BeneficiosCustom');
+    if (!benefSheet) {
+      benefSheet = ss.insertSheet('BeneficiosCustom');
+      benefSheet.appendRow(['ID_Matricula', 'Beneficio', 'Meses', 'FechaInicio', 'MontoExamen', 'Sesiones', 'Seccion']);
+      Logger.log('✅ Hoja BeneficiosCustom creada');
+    }
+    
+    // Crear matrícula por cada curso
+    data.cursos.forEach(function(curso, index) {
+      maxMatNum++;
+      var matriculaId = 'M' + String(maxMatNum).padStart(5, '0');
+      matriculaIds.push(matriculaId);
+      
+      var montoExamen = curso.voucher ? (curso.voucherMonto || 0) : 0;
+      
+      matriculasSheet.appendRow([
+        matriculaId,
+        alumnoId,
+        curso.seccion || curso.codigo,
+        precioPorCurso,
+        curso.voucher ? 'Sí' : 'No',
+        'Pendiente',
+        0,
+        'Pendiente',
+        precioPorCurso,
+        new Date(),
+        data.observaciones || '',
+        data.esTest ? 'Sí' : 'No',
+        idVenta,
+        '',
+        'Custom',
+        montoExamen
+      ]);
+      
+      // Registrar beneficios en BeneficiosCustom
+      if (curso.grabaciones) benefSheet.appendRow([matriculaId, 'Grabaciones', '', '', '', '', curso.seccion]);
+      if (curso.material) benefSheet.appendRow([matriculaId, 'Material', '', '', '', '', curso.seccion]);
+      if (curso.simulador) benefSheet.appendRow([matriculaId, 'Simulador', curso.simMeses || 2, curso.simFechaInicio || '', '', '', '']);
+      if (curso.voucher) benefSheet.appendRow([matriculaId, 'Voucher', '', '', curso.voucherMonto || 0, '', '']);
+      if (curso.sesiones) benefSheet.appendRow([matriculaId, 'Sesiones1a1', '', '', '', curso.sesionesCantidad || 2, '']);
+      if (curso.classroom) benefSheet.appendRow([matriculaId, 'Classroom', '', '', '', '', curso.seccion]);
+      
+      // Invitar a Classroom si marcado
+      if (curso.classroom && curso.seccion) {
+        try { agregarAlumnoAClassroom(curso.seccion, data.gmail); } catch(clErr) {
+          Logger.log('⚠️ Error Classroom: ' + clErr.toString());
+        }
+      }
+      
+      Logger.log('✅ Matrícula custom creada: ' + matriculaId + ' curso=' + curso.codigo);
+    });
+    
+    // Registrar venta
+    try {
+      var ventasSheet = ss.getSheetByName('Ventas');
+      if (ventasSheet) {
+        ventasSheet.appendRow([idVenta, alumnoId, new Date(), precioTotal, 'completo', data.cursos.length, data.medioPago, data.idOperacion || '', matriculaIds.join(', '), data.esTest ? 'Sí' : 'No']);
+      }
+    } catch(ventaErr) {
+      Logger.log('⚠️ Error registrando venta: ' + ventaErr.toString());
+    }
+    
+    // Registrar pago completo
+    if (precioTotal > 0) {
+      var montoPorMat = precioTotal / matriculaIds.length;
+      matriculaIds.forEach(function(matId) {
+        savePago({
+          matriculaId: matId,
+          numeroCuota: 1,
+          monto: montoPorMat,
+          medioPago: data.medioPago,
+          idOperacion: data.idOperacion,
+          esTest: data.esTest || false
+        });
+      });
+    }
+    
+    // Enviar email de bienvenida custom
+    try {
+      enviarEmailBienvenidaAutomatico(alumnoId, matriculaIds, data.esTest);
+    } catch(emailErr) {
+      Logger.log('⚠️ Error email bienvenida: ' + emailErr.toString());
+    }
+    
+    Logger.log('✅ Venta custom completada: ' + idVenta + ' (' + matriculaIds.length + ' matrículas)');
+    return { success: true, message: 'Venta custom registrada: ' + idVenta + ' (' + matriculaIds.length + ' cursos, $' + precioTotal.toFixed(2) + ')' };
+  } catch (error) {
+    Logger.log('❌ ERROR en saveVentaCustom: ' + error.toString());
+    return { success: false, message: error.toString() };
+  }
+}
+
+/**
+ * Obtiene simuladores de un alumno
+ */
+function getSimuladoresAlumno(alumnoId) {
+  try {
+    var ss = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+    var sheet = ss.getSheetByName('VentasSimulador');
+    if (!sheet) return [];
+    
+    var data = sheet.getDataRange().getValues();
+    var sims = [];
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][1]) === String(alumnoId)) {
+        sims.push({
+          ID: String(data[i][0]),
+          Cursos: String(data[i][2]),
+          Meses: parseInt(data[i][3]) || 0,
+          PrecioTotal: parseFloat(data[i][4]) || 0,
+          FechaInicio: String(data[i][8] || ''),
+          FechaFin: String(data[i][9] || ''),
+          EsTest: String(data[i][11] || '')
+        });
+      }
+    }
+    return sims;
+  } catch(e) {
+    return [];
+  }
+}
+
+/**
+ * Inicializa la API Key del simulador. EJECUTAR UNA VEZ.
+ */
+function inicializarApiKeySimulador() {
+  PropertiesService.getScriptProperties().setProperty('API_KEY', 'YOUR_API_KEY_HERE');
+  Logger.log('✅ API Key guardada');
+  return 'API Key guardada';
+}
+
+// ============================================
+// GOOGLE CLASSROOM
+// ============================================
+
+/**
+ * Crea una clase en Google Classroom para una sección
+ */
+function crearClassroomSeccion(codigoSeccion) {
+  try {
+    Logger.log('🏫 [crearClassroom] INICIO - seccion=' + codigoSeccion);
+    
+    var ss = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+    var secSheet = ss.getSheetByName('Secciones');
+    var secData = secSheet.getDataRange().getValues();
+    
+    var seccion = null;
+    var filaSeccion = -1;
+    for (var i = 1; i < secData.length; i++) {
+      if (String(secData[i][0]) === codigoSeccion) {
+        seccion = {
+          codigo: String(secData[i][0]),
+          nombre: String(secData[i][1]),
+          docenteId: String(secData[i][5]),
+          classroomId: String(secData[i][21] || '')
+        };
+        filaSeccion = i;
+        break;
+      }
+    }
+    
+    if (!seccion) return { success: false, message: 'Sección no encontrada' };
+    if (seccion.classroomId) return { success: true, yaExistia: true, message: 'Classroom ya existe', classroomId: seccion.classroomId };
+    
+    var nombreClase = seccion.codigo + ' ' + seccion.nombre;
+    
+    // Crear clase
+    var course = Classroom.Courses.create({
+      name: nombreClase,
+      ownerId: 'me',
+      courseState: 'ACTIVE'
+    });
+    
+    Logger.log('✅ Clase creada: ' + course.id + ' - ' + nombreClase);
+    
+    // Guardar ClassroomId numérico en hoja (col 22) - la API necesita el ID numérico
+    secSheet.getRange(filaSeccion + 1, 22).setValue(course.id);
+    
+    // Agregar docente como teacher si existe
+    if (seccion.docenteId) {
+      try {
+        var docSheet = ss.getSheetByName('Docentes');
+        var docData = docSheet.getDataRange().getValues();
+        for (var d = 1; d < docData.length; d++) {
+          if (String(docData[d][0]) === seccion.docenteId) {
+            var emailDocente = String(docData[d][2] || '');
+            if (emailDocente) {
+              Classroom.Invitations.create({ courseId: course.id, userId: emailDocente, role: 'TEACHER' });
+              Logger.log('✅ Docente invitado como teacher: ' + emailDocente);
+            }
+            break;
+          }
+        }
+      } catch(docErr) {
+        Logger.log('⚠️ Error agregando docente: ' + docErr.toString());
+      }
+    }
+    
+    // Agregar alumnos matriculados como estudiantes
+    var matSheet = ss.getSheetByName('Matriculas');
+    var almSheet = ss.getSheetByName('Alumnos');
+    var matData = matSheet.getDataRange().getValues();
+    var almData = almSheet.getDataRange().getValues();
+    var emailMap = {};
+    for (var a = 1; a < almData.length; a++) {
+      emailMap[String(almData[a][0])] = String(almData[a][2] || '');
+    }
+    
+    var estudiantesAgregados = 0;
+    for (var m = 1; m < matData.length; m++) {
+      if (String(matData[m][2]) === codigoSeccion) {
+        var emailAlumno = emailMap[String(matData[m][1])] || '';
+        if (emailAlumno) {
+          try {
+            Classroom.Invitations.create({ courseId: course.id, userId: emailAlumno, role: 'STUDENT' });
+            estudiantesAgregados++;
+          } catch(stuErr) {
+            Logger.log('⚠️ Error invitando estudiante ' + emailAlumno + ': ' + stuErr.toString());
+          }
+        }
+      }
+    }
+    
+    Logger.log('✅ [crearClassroom] Clase creada con ' + estudiantesAgregados + ' estudiantes');
+    return { success: true, message: 'Classroom creado: ' + nombreClase + ' (' + estudiantesAgregados + ' estudiantes)', classroomId: course.id };
+    
+  } catch (error) {
+    Logger.log('❌ [crearClassroom] ERROR: ' + error.toString());
+    return { success: false, message: error.toString() };
+  }
+}
+
+/**
+ * Busca o crea Classroom para una sección
+ */
+function buscarOCrearClassroom(codigoSeccion) {
+  try {
+    var ss = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+    var secSheet = ss.getSheetByName('Secciones');
+    var secData = secSheet.getDataRange().getValues();
+    
+    for (var i = 1; i < secData.length; i++) {
+      if (String(secData[i][0]) === codigoSeccion) {
+        var classroomId = String(secData[i][21] || '');
+        if (classroomId) {
+          return { success: true, yaExistia: true, message: 'Classroom ya existe', classroomId: classroomId };
+        }
+        break;
+      }
+    }
+    
+    return crearClassroomSeccion(codigoSeccion);
+  } catch (error) {
+    return { success: false, message: error.toString() };
+  }
+}
+
+/**
+ * Agrega un alumno como estudiante a la clase de Classroom de una sección
+ */
+function agregarAlumnoAClassroom(codigoSeccion, emailAlumno) {
+  try {
+    if (!emailAlumno) return;
+    
+    var ss = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+    var secSheet = ss.getSheetByName('Secciones');
+    var secData = secSheet.getDataRange().getValues();
+    
+    var classroomId = '';
+    for (var i = 1; i < secData.length; i++) {
+      if (String(secData[i][0]) === codigoSeccion) {
+        classroomId = String(secData[i][21] || '');
+        break;
+      }
+    }
+    
+    if (!classroomId) return;
+    
+    Classroom.Invitations.create({ courseId: classroomId, userId: emailAlumno, role: 'STUDENT' });
+    Logger.log('✅ [agregarAlumnoClassroom] ' + emailAlumno + ' invitado a ' + codigoSeccion);
+  } catch (error) {
+    Logger.log('⚠️ [agregarAlumnoClassroom] Error (no bloquea): ' + error.toString());
+  }
+}
+
+/**
+ * Agrega un docente como teacher a la clase de Classroom
+ */
+function agregarDocenteAClassroom(codigoSeccion, emailDocente) {
+  try {
+    if (!emailDocente) return;
+    
+    var ss = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+    var secSheet = ss.getSheetByName('Secciones');
+    var secData = secSheet.getDataRange().getValues();
+    
+    var classroomId = '';
+    for (var i = 1; i < secData.length; i++) {
+      if (String(secData[i][0]) === codigoSeccion) {
+        classroomId = String(secData[i][21] || '');
+        break;
+      }
+    }
+    
+    if (!classroomId) return;
+    
+    Classroom.Invitations.create({ courseId: classroomId, userId: emailDocente, role: 'TEACHER' });
+    Logger.log('✅ [agregarDocenteClassroom] ' + emailDocente + ' invitado como teacher a ' + codigoSeccion);
+  } catch (error) {
+    Logger.log('⚠️ [agregarDocenteClassroom] Error (no bloquea): ' + error.toString());
+  }
+}
+
+/**
+ * Agrega header ClassroomId a la hoja Secciones (col 22). EJECUTAR UNA VEZ.
+ */
+function agregarHeaderClassroomId() {
+  var ss = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+  var sheet = ss.getSheetByName('Secciones');
+  if (!sheet) return 'Hoja no encontrada';
+  sheet.getRange(1, 22).setValue('ClassroomId');
+  Logger.log('✅ Header ClassroomId agregado en col 22');
+  return 'Header agregado';
+}
+
+/**
+ * Limpia CalendarEventIds cancelados de la BD. EJECUTAR desde editor.
+ */
+function limpiarCalendarIdsCancelados() {
+  var ss = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+  var secSheet = ss.getSheetByName('Secciones');
+  var secData = secSheet.getDataRange().getValues();
+  var limpiados = 0;
+  
+  for (var i = 1; i < secData.length; i++) {
+    var calEventId = String(secData[i][20] || '');
+    if (!calEventId) continue;
+    
+    try {
+      var ev = Calendar.Events.get('primary', calEventId);
+      if (ev.status === 'cancelled') {
+        secSheet.getRange(i + 1, 21).setValue('');
+        Logger.log('🧹 ' + secData[i][0] + ' -> CalendarEventId limpiado (evento cancelado)');
+        limpiados++;
+      }
+    } catch(e) {
+      // Si no se puede obtener, también limpiar
+      secSheet.getRange(i + 1, 21).setValue('');
+      Logger.log('🧹 ' + secData[i][0] + ' -> CalendarEventId limpiado (evento no encontrado)');
+      limpiados++;
+    }
+  }
+  
+  Logger.log('📋 Limpiados: ' + limpiados + ' CalendarEventIds inválidos');
+  return 'Limpiados ' + limpiados;
+}
+
+/**
+ * Diagnóstico Calendar para CLF0426-A. EJECUTAR desde editor.
+ */
+function diagnosticarCalendarCLF0426A() {
+  return diagnosticarCalendarSeccion('CLF0426-A');
+}
+
+/**
+ * Diagnóstico: muestra detalles de los eventos Calendar encontrados para una sección.
+ */
+function diagnosticarCalendarSeccion(codigoSeccion) {
+  var match = codigoSeccion.match(/(\d{2})(\d{2})-/);
+  if (!match) return 'Código inválido';
+  
+  var mes = parseInt(match[1]) - 1;
+  var ano = 2000 + parseInt(match[2]);
+  var inicioMes = new Date(ano, mes, 1);
+  var finBusqueda = new Date(ano, mes + 6, 0, 23, 59, 59);
+  var nombreBuscado = 'Clase ' + codigoSeccion;
+  
+  Logger.log('🔍 Buscando: "' + nombreBuscado + '" desde ' + inicioMes.toISOString() + ' hasta ' + finBusqueda.toISOString());
+  
+  // Buscar con singleEvents:false (series padre)
+  var events = Calendar.Events.list('primary', {
+    timeMin: inicioMes.toISOString(),
+    timeMax: finBusqueda.toISOString(),
+    q: nombreBuscado,
+    singleEvents: false,
+    maxResults: 50
+  });
+  
+  Logger.log('📋 Resultados (singleEvents=false): ' + (events.items ? events.items.length : 0));
+  if (events.items) {
+    events.items.forEach(function(ev) {
+      Logger.log('  ID: ' + ev.id);
+      Logger.log('  Summary: "' + ev.summary + '"');
+      Logger.log('  Status: ' + ev.status);
+      Logger.log('  Start: ' + JSON.stringify(ev.start));
+      Logger.log('  Recurrence: ' + JSON.stringify(ev.recurrence));
+      Logger.log('  HtmlLink: ' + ev.htmlLink);
+      Logger.log('  ---');
+    });
+  }
+  
+  // Buscar con singleEvents:true (instancias individuales)
+  var events2 = Calendar.Events.list('primary', {
+    timeMin: inicioMes.toISOString(),
+    timeMax: finBusqueda.toISOString(),
+    q: nombreBuscado,
+    singleEvents: true,
+    maxResults: 10
+  });
+  
+  Logger.log('📋 Resultados (singleEvents=true): ' + (events2.items ? events2.items.length : 0));
+  if (events2.items) {
+    events2.items.forEach(function(ev) {
+      Logger.log('  ID: ' + ev.id + ' | Status: ' + ev.status + ' | Summary: "' + ev.summary + '" | Start: ' + JSON.stringify(ev.start));
+    });
+  }
+  
+  // También verificar el eventId guardado en la BD
+  var ss = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+  var secSheet = ss.getSheetByName('Secciones');
+  var secData = secSheet.getDataRange().getValues();
+  for (var i = 1; i < secData.length; i++) {
+    if (String(secData[i][0]) === codigoSeccion) {
+      var savedEventId = String(secData[i][20] || '');
+      Logger.log('📋 CalendarEventId en BD: "' + savedEventId + '"');
+      if (savedEventId) {
+        try {
+          var savedEv = Calendar.Events.get('primary', savedEventId);
+          Logger.log('  Evento guardado - Status: ' + savedEv.status + ' | Summary: "' + savedEv.summary + '" | HtmlLink: ' + savedEv.htmlLink);
+        } catch(getErr) {
+          Logger.log('  ❌ Evento guardado NO encontrado: ' + getErr.toString());
+        }
+      }
+      break;
+    }
+  }
+  
+  return 'Ver logs';
+}
+
+/**
+ * Fuerza autorización de Classroom. EJECUTAR desde editor.
+ */
+function autorizarClassroom() {
+  var courses = Classroom.Courses.list({ pageSize: 1 });
+  Logger.log('✅ Classroom autorizado. Cursos: ' + (courses.courses ? courses.courses.length : 0));
+  return 'Classroom autorizado';
+}
+
+/**
+ * Fuerza autorización de Classroom Rosters. EJECUTAR desde editor.
+ */
+function autorizarClassroomRosters() {
+  // Listar cursos para obtener un ID
+  var courses = Classroom.Courses.list({ pageSize: 1 });
+  if (courses.courses && courses.courses.length > 0) {
+    var courseId = courses.courses[0].id;
+    var teachers = Classroom.Courses.Teachers.list(courseId);
+    Logger.log('✅ Rosters autorizado. Teachers: ' + (teachers.teachers ? teachers.teachers.length : 0));
+  }
+  return 'Classroom Rosters autorizado';
+}
+
+/**
+ * Busca Classrooms existentes y asigna ClassroomId a secciones. EJECUTAR UNA VEZ.
+ */
+function migrarClassroomIds() {
+  try {
+    Logger.log('🔧 [migrarClassroomIds] INICIANDO');
+    var ss = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+    var sheet = ss.getSheetByName('Secciones');
+    var data = sheet.getDataRange().getValues();
+    
+    // Obtener todos los cursos de Classroom
+    var allCourses = [];
+    var pageToken = '';
+    do {
+      var params = { pageSize: 100 };
+      if (pageToken) params.pageToken = pageToken;
+      var response = Classroom.Courses.list(params);
+      if (response.courses) allCourses = allCourses.concat(response.courses);
+      pageToken = response.nextPageToken || '';
+    } while (pageToken);
+    
+    Logger.log('📋 Total cursos en Classroom: ' + allCourses.length);
+    
+    var asignados = 0;
+    var yaAsignados = 0;
+    var noEncontrados = 0;
+    
+    for (var i = 1; i < data.length; i++) {
+      var codigo = String(data[i][0] || '');
+      var classroomId = String(data[i][21] || '');
+      
+      if (classroomId) { yaAsignados++; continue; }
+      if (!codigo) continue;
+      
+      // Buscar curso en Classroom cuyo nombre empiece con el código de sección
+      var encontrado = null;
+      for (var c = 0; c < allCourses.length; c++) {
+        var nombre = (allCourses[c].name || '').trim();
+        if (nombre.indexOf(codigo) === 0) {
+          encontrado = allCourses[c];
+          break;
+        }
+      }
+      
+      if (encontrado) {
+        sheet.getRange(i + 1, 22).setValue(encontrado.id);
+        asignados++;
+        Logger.log('✅ ' + codigo + ' -> ' + encontrado.id + ' (' + encontrado.name + ')');
+      } else {
+        noEncontrados++;
+      }
+      
+      Utilities.sleep(100);
+    }
+    
+    var resumen = '🔧 Migración completada: ' + asignados + ' asignados, ' + yaAsignados + ' ya tenían, ' + noEncontrados + ' sin Classroom';
+    Logger.log(resumen);
+    return resumen;
+  } catch (error) {
+    Logger.log('❌ ERROR: ' + error.toString());
+    return 'ERROR: ' + error.toString();
+  }
+}
+
+/**
+ * Agrega header FechaInicioComprometida a Matriculas (col 14). EJECUTAR UNA VEZ.
+ */
+function agregarHeaderFechaComprometida() {
+  var ss = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+  var sheet = ss.getSheetByName('Matriculas');
+  if (!sheet) return 'Hoja no encontrada';
+  sheet.getRange(1, 14).setValue('FechaInicioComprometida');
+  Logger.log('✅ Header FechaInicioComprometida agregado en col 14');
+  return 'Header agregado';
+}
+
+/**
+ * Fuerza autorización de UrlFetchApp. EJECUTAR desde editor.
+ */
+function autorizarUrlFetch() {
+  var response = UrlFetchApp.fetch('https://httpbin.org/get', { muteHttpExceptions: true });
+  Logger.log('✅ UrlFetchApp autorizado. Status: ' + response.getResponseCode());
+  return 'UrlFetchApp autorizado';
+}
+
+/**
+ * DIAGNÓSTICO: Prueba escritura de FechaInicio en una sección específica.
+ * NO envía emails, NO toca Calendar. Solo escribe y verifica.
+ * Ejecutar manualmente desde el editor de Apps Script.
+ */
+function diagnosticoFechaSeccion() {
+  var codigoSeccion = 'GCDL0626-A';
+  var nuevaFecha = '2026-06-05'; // La fecha que debería tener
+  
+  Logger.log('=== DIAGNÓSTICO FECHA SECCIÓN ===');
+  Logger.log('Sección: ' + codigoSeccion);
+  Logger.log('Fecha a escribir: ' + nuevaFecha);
+  
+  var ss = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+  var sheet = ss.getSheetByName('Secciones');
+  var data = sheet.getDataRange().getValues();
+  
+  // Buscar la sección
+  var filaIndex = -1;
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][0] || '').trim() === codigoSeccion) {
+      filaIndex = i;
+      break;
+    }
+  }
+  
+  if (filaIndex === -1) {
+    Logger.log('❌ Sección NO encontrada: ' + codigoSeccion);
+    Logger.log('Secciones disponibles (primeras 10):');
+    for (var x = 1; x < Math.min(data.length, 11); x++) {
+      Logger.log('  Fila ' + (x+1) + ': "' + String(data[x][0] || '') + '"');
+    }
+    return 'Sección no encontrada';
+  }
+  
+  Logger.log('✅ Sección encontrada en filaIndex=' + filaIndex + ' (fila hoja=' + (filaIndex + 1) + ')');
+  Logger.log('📋 Datos actuales de la fila:');
+  Logger.log('  Col A (0) Código: ' + String(data[filaIndex][0]));
+  Logger.log('  Col N (13) FechaInicio actual: ' + String(data[filaIndex][13]));
+  Logger.log('  Col N (13) Tipo: ' + (data[filaIndex][13] instanceof Date ? 'Date' : typeof data[filaIndex][13]));
+  if (data[filaIndex][13] instanceof Date) {
+    Logger.log('  Col N (13) ISO: ' + data[filaIndex][13].toISOString());
+  }
+  Logger.log('  Col I (8) Mes: ' + String(data[filaIndex][8]));
+  Logger.log('  Col J (9) Año: ' + String(data[filaIndex][9]));
+  
+  // Intentar escribir la fecha
+  var partesFecha = nuevaFecha.split('-');
+  var fechaLocal = new Date(parseInt(partesFecha[0]), parseInt(partesFecha[1]) - 1, parseInt(partesFecha[2]), 12, 0, 0);
+  Logger.log('📝 Escribiendo fecha: ' + fechaLocal.toString());
+  Logger.log('📝 En celda: fila=' + (filaIndex + 1) + ', col=14');
+  
+  sheet.getRange(filaIndex + 1, 14).setValue(fechaLocal);
+  SpreadsheetApp.flush();
+  Logger.log('✅ setValue + flush ejecutados');
+  
+  // Esperar y re-leer
+  Utilities.sleep(2000);
+  
+  var dataPost = sheet.getDataRange().getValues();
+  var fechaPost = dataPost[filaIndex][13];
+  Logger.log('📖 Re-lectura después de flush:');
+  Logger.log('  Col N (13) FechaInicio: ' + String(fechaPost));
+  Logger.log('  Col N (13) Tipo: ' + (fechaPost instanceof Date ? 'Date' : typeof fechaPost));
+  if (fechaPost instanceof Date) {
+    Logger.log('  Col N (13) ISO: ' + fechaPost.toISOString());
+    Logger.log('  Col N (13) Local: ' + fechaPost.toLocaleDateString());
+  }
+  
+  // Verificar si cambió
+  var exito = false;
+  if (fechaPost instanceof Date) {
+    var dia = fechaPost.getDate();
+    var mes = fechaPost.getMonth() + 1;
+    var anio = fechaPost.getFullYear();
+    exito = (dia === parseInt(partesFecha[2]) && mes === parseInt(partesFecha[1]) && anio === parseInt(partesFecha[0]));
+  }
+  
+  if (exito) {
+    Logger.log('🎉 ÉXITO: La fecha se escribió correctamente');
+  } else {
+    Logger.log('❌ FALLO: La fecha NO se escribió correctamente');
+    Logger.log('  Esperado: ' + nuevaFecha);
+    Logger.log('  Obtenido: ' + String(fechaPost));
+  }
+  
+  return exito ? 'ÉXITO - Fecha actualizada' : 'FALLO - Fecha no persistió';
+}
+
+// ============================================
+// LEADS KANBAN - Integración con Meta/WhatsApp
+// ============================================
+
+var LEADS_SHEET_ID = 'YOUR_LEADS_SPREADSHEET_ID';
+
+/**
+ * Obtiene todos los leads del sheet de Meta
+ */
+function getLeads(filtroAsesor) {
+  try {
+    var ss = SpreadsheetApp.openById(LEADS_SHEET_ID);
+    var sheet = ss.getSheets()[0];
+    var data = sheet.getDataRange().getValues();
+    var headers = data[0];
+    
+    var leads = [];
+    for (var i = 1; i < data.length; i++) {
+      var tel = String(data[i][1] || '');
+      if (!tel) continue;
+      
+      var asesor = String(data[i][6] || '');
+      if (filtroAsesor && filtroAsesor !== 'Todos' && asesor !== filtroAsesor) continue;
+      
+      var columna = String(data[i][13] || '');
+      
+      leads.push({
+        fila: i + 1,
+        timestamp: String(data[i][0] || ''),
+        telefono: tel,
+        provider: String(data[i][2] || ''),
+        curso: String(data[i][3] || ''),
+        cta: String(data[i][4] || ''),
+        medioPago: String(data[i][5] || ''),
+        asesor: asesor,
+        accion: String(data[i][7] || ''),
+        mensajesCliente: String(data[i][8] || ''),
+        ultimoMsgBot: String(data[i][9] || ''),
+        estadoBot: String(data[i][10] || ''),
+        llamada: String(data[i][11] || ''),
+        mensaje: String(data[i][12] || ''),
+        columna: columna
+      });
+    }
+    
+    return leads;
+  } catch (error) {
+    Logger.log('❌ [getLeads] ERROR: ' + error.toString());
+    return [];
+  }
+}
+
+/**
+ * Actualiza la columna del kanban de un lead (col N)
+ */
+function actualizarColumnaLead(fila, nuevaColumna) {
+  try {
+    var ss = SpreadsheetApp.openById(LEADS_SHEET_ID);
+    var sheet = ss.getSheets()[0];
+    sheet.getRange(fila, 14).setValue(nuevaColumna);
+    return { success: true };
+  } catch (error) {
+    return { success: false, message: error.toString() };
+  }
+}
+
+/**
+ * Actualiza el asesor de un lead
+ */
+function actualizarAsesorLead(fila, asesor) {
+  try {
+    var ss = SpreadsheetApp.openById(LEADS_SHEET_ID);
+    var sheet = ss.getSheets()[0];
+    sheet.getRange(fila, 7).setValue(asesor);
+    return { success: true };
+  } catch (error) {
+    return { success: false, message: error.toString() };
+  }
+}
+
+/**
+ * Actualiza el campo MENSAJE (col L/12) de un lead — usado para CONTACTADO/NO CONTACTO
+ */
+function actualizarMensajeLead(fila, valor) {
+  try {
+    var ss = SpreadsheetApp.openById(LEADS_SHEET_ID);
+    var sheet = ss.getSheets()[0];
+    sheet.getRange(fila, 13).setValue(valor); // Col M (índice 13, 1-based)
+    return { success: true };
+  } catch (error) {
+    return { success: false, message: error.toString() };
+  }
+}
+
+/**
+ * Migra leads existentes: asigna columna según ESTADO_BOT para los que no tienen col N.
+ * EJECUTAR UNA VEZ desde el editor.
+ */
+function migrarColumnasLeads() {
+  var ss = SpreadsheetApp.openById(LEADS_SHEET_ID);
+  var sheet = ss.getSheets()[0];
+  var data = sheet.getDataRange().getValues();
+  
+  var mapeo = {
+    'INICIO': 'NO_E_NUBE', 'NUBE_ELEGIDA': 'NO_E_NUBE', 'NO_E_NUBE': 'NO_E_NUBE',
+    'CERT_ELEGIDA': 'NO_E_CERT', 'NO_E_CERT': 'NO_E_CERT',
+    'TIEMPO_CURSO': 'NO_E_URGENCIA', 'NO_E_URGENCIA': 'NO_E_URGENCIA',
+    'ESPERANDO_DECISION': 'NO_CONFIRMO_MEET', 'NO_CONFIRMO_MEET': 'NO_CONFIRMO_MEET', 'MODALIDAD_ELEGIDA': 'NO_CONFIRMO_MEET',
+    'RECONFIRMO_MEET': 'RECONFIRMO_MEET',
+    'FINALIZADO': 'RECONFIRMO_MEET',
+    'CONFIRMO_MEET': 'CONFIRMO_MEET'
+  };
+  
+  var actualizados = 0;
+  for (var i = 1; i < data.length; i++) {
+    var colN = String(data[i][13] || '').trim();
+    // Migrar si col N está vacía o tiene valores del sistema anterior
+    var valoresAnteriores = ['Nuevo', 'Contactado', 'Visto', 'Pidio Costo', 'Pidió Costo', 'Meet Agendada', 'Convertido', 'Inicio', 'Cert Elegida', 'Tiempo Curso', 'Esperando', 'Finalizado', ''];
+    if (valoresAnteriores.indexOf(colN) !== -1) {
+      var estadoBot = String(data[i][10] || '').toUpperCase();
+      var nuevaColumna = mapeo[estadoBot] || 'NO_E_NUBE';
+      sheet.getRange(i + 1, 14).setValue(nuevaColumna);
+      actualizados++;
+    }
+  }
+  
+  // Actualizar header
+  sheet.getRange(1, 14).setValue('KANBA');
+  
+  Logger.log('✅ Migrados ' + actualizados + ' leads a nuevas columnas');
+  return 'Migrados ' + actualizados + ' leads';
+}
+
+/**
+ * Agrega header Columna al sheet de Meta (col N/14). EJECUTAR UNA VEZ.
+ */
+function agregarHeaderColumnaLeads() {
+  var ss = SpreadsheetApp.openById(LEADS_SHEET_ID);
+  var sheet = ss.getSheets()[0];
+  sheet.getRange(1, 14).setValue('KANBA');
+  Logger.log('✅ Header KANBA agregado');
+  return 'Header agregado';
+}
+
+/**
+ * MIGRACIÓN: Copia valores "CONTACTADO" de col L (12) a col M (13).
+ * EJECUTAR UNA VEZ antes de desplegar el nuevo código.
+ * No borra col L para no perder datos si algo falla.
+ */
+function migrarContactadoDeColLaColM() {
+  try {
+    var ss = SpreadsheetApp.openById(LEADS_SHEET_ID);
+    var sheet = ss.getSheets()[0];
+    var data = sheet.getDataRange().getValues();
+    
+    var migrados = 0;
+    for (var i = 1; i < data.length; i++) {
+      var valorL = String(data[i][11] || '').trim(); // Col L (índice 11)
+      var valorM = String(data[i][12] || '').trim(); // Col M (índice 12)
+      
+      // Solo copiar si col L tiene CONTACTADO y col M está vacía
+      if (valorL === 'CONTACTADO' && !valorM) {
+        sheet.getRange(i + 1, 13).setValue('CONTACTADO'); // Escribir en col M (1-based = 13)
+        migrados++;
+      }
+    }
+    
+    Logger.log('✅ [migrarContactadoDeColLaColM] Migrados: ' + migrados + ' de ' + (data.length - 1) + ' leads');
+    return { success: true, migrados: migrados, total: data.length - 1 };
+  } catch (error) {
+    Logger.log('❌ [migrarContactadoDeColLaColM] ERROR: ' + error.toString());
+    return { success: false, message: error.toString() };
+  }
+}
+
+/**
+ * Agrega headers Modalidad y MontoExamen a Matriculas. EJECUTAR UNA VEZ.
+ */
+function agregarHeadersModalidad() {
+  var ss = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+  var sheet = ss.getSheetByName('Matriculas');
+  sheet.getRange(1, 15).setValue('Modalidad');
+  sheet.getRange(1, 16).setValue('MontoExamen');
+  Logger.log('✅ Headers Modalidad y MontoExamen agregados');
+  return 'Headers agregados';
+}
+
+/**
+ * Agrega headers ConstanciaGenerada y ConstanciaEnviada a Matriculas. EJECUTAR UNA VEZ.
+ */
+function agregarHeadersConstancias() {
+  var ss = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+  var sheet = ss.getSheetByName('Matriculas');
+  sheet.getRange(1, 17).setValue('ConstanciaGenerada');
+  sheet.getRange(1, 18).setValue('ConstanciaEnviada');
+  Logger.log('✅ Headers ConstanciaGenerada y ConstanciaEnviada agregados');
+  return 'Headers agregados';
+}
+
+/**
+ * Actualiza beneficios de todos los cursos en la BD:
+ * 1. Reemplaza "(por un costo reducido)" por "por tres meses"
+ * 2. Agrega "Tutor Cloud Sabatino" si no existe
+ * EJECUTAR UNA VEZ desde el editor.
+ */
+function actualizarBeneficiosCursos() {
+  var ss = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+  var sheet = ss.getSheetByName('Cursos');
+  var data = sheet.getDataRange().getValues();
+  var beneficiosCol = 9; // Columna I = índice 8, pero getRange usa 1-based = 9
+  var cambios = 0;
+  
+  for (var i = 1; i < data.length; i++) {
+    var beneficios = String(data[i][8] || '');
+    if (!beneficios) continue;
+    
+    var original = beneficios;
+    
+    // 1. Reemplazar "(por un costo reducido)" por "por tres meses"
+    beneficios = beneficios.replace(/\(por un costo reducido\)/gi, 'por tres meses');
+    
+    // 2. Agregar "Tutor Cloud Sabatino" si no existe
+    if (beneficios.indexOf('Tutor Cloud Sabatino') === -1) {
+      beneficios = beneficios.trimRight();
+      if (beneficios && !beneficios.endsWith('\n')) {
+        beneficios += '\n';
+      }
+      beneficios += '✅ Tutor Cloud Sabatino';
+    }
+    
+    if (beneficios !== original) {
+      sheet.getRange(i + 1, beneficiosCol).setValue(beneficios);
+      cambios++;
+      Logger.log('✅ Curso ' + data[i][0] + ' actualizado');
+    }
+  }
+  
+  Logger.log('📋 Total cursos actualizados: ' + cambios);
+  return 'Actualizados ' + cambios + ' cursos';
+}
+
+/**
+ * Migra matrículas existentes sin modalidad a "Pro".
+ * EJECUTAR UNA VEZ desde el editor.
+ */
+function migrarModalidadExistentes() {
+  var ss = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+  var sheet = ss.getSheetByName('Matriculas');
+  var data = sheet.getDataRange().getValues();
+  var cambios = 0;
+  
+  for (var i = 1; i < data.length; i++) {
+    var modalidad = String(data[i][14] || '').trim();
+    if (!modalidad) {
+      sheet.getRange(i + 1, 15).setValue('Pro');
+      cambios++;
+    }
+  }
+  
+  Logger.log('✅ Migración completada: ' + cambios + ' matrículas actualizadas a Pro');
+  return 'Migradas ' + cambios + ' matrículas a Pro';
+}
+
+/**
+ * Gatilla acceso a simulador cuando una matrícula se completa (Pro=60 días, Certify=90 días)
+ */
+function gatillarSimuladorPorPago(matriculaId) {
+  try {
+    var ss = SpreadsheetApp.openById('YOUR_DATABASE_SPREADSHEET_ID');
+    var matSheet = ss.getSheetByName('Matriculas');
+    var matData = matSheet.getDataRange().getValues();
+    
+    for (var i = 1; i < matData.length; i++) {
+      if (String(matData[i][0]) === String(matriculaId)) {
+        var modalidad = String(matData[i][14] || 'Pro');
+        var saldo = parseFloat(matData[i][8]) || 0;
+        var precioMat = parseFloat(matData[i][3]) || 0;
+        var totalPagadoMat = parseFloat(matData[i][6]) || 0;
+        var montoExamenMat = (modalidad === 'Certify' || modalidad === 'Custom') ? (parseFloat(matData[i][15]) || 0) : 0;
+        
+        if (modalidad === 'Basic' || modalidad === 'Retake') return; // Basic y Retake no tienen simulador automático
+        
+        // Para Custom: verificar si tiene beneficio Simulador en BeneficiosCustom
+        if (modalidad === 'Custom') {
+          var benefSheet = ss.getSheetByName('BeneficiosCustom');
+          if (!benefSheet) return;
+          var benefData = benefSheet.getDataRange().getValues();
+          var tieneSimulador = false;
+          var simMeses = 2;
+          for (var b = 1; b < benefData.length; b++) {
+            if (String(benefData[b][0]) === String(matriculaId) && String(benefData[b][1]) === 'Simulador') {
+              tieneSimulador = true;
+              simMeses = parseInt(benefData[b][2]) || 2;
+              break;
+            }
+          }
+          if (!tieneSimulador) return; // Custom sin simulador
+        }
+        
+        // Para Certify/Custom con voucher: verificar si pagó la parte del curso (precio - examen)
+        // Para Pro: verificar si pagó todo (saldo = 0)
+        var umbral = ((modalidad === 'Certify' || modalidad === 'Custom') && montoExamenMat > 0) ? (precioMat - montoExamenMat) : precioMat;
+        if (totalPagadoMat < umbral) return; // Aún no completó pago del curso
+        
+        var alumnoId = String(matData[i][1] || '');
+        var seccion = String(matData[i][2] || '');
+        var diasAcceso = modalidad === 'Certify' ? 120 : (modalidad === 'Custom' ? (simMeses || 2) * 30 : 60);
+        
+        // Obtener email y nombre del alumno
+        var almSheet = ss.getSheetByName('Alumnos');
+        var almData = almSheet.getDataRange().getValues();
+        var email = '', nombre = '';
+        for (var a = 1; a < almData.length; a++) {
+          if (String(almData[a][0]) === alumnoId) {
+            nombre = String(almData[a][1] || '');
+            email = String(almData[a][2] || '');
+            break;
+          }
+        }
+        
+        if (!email) return;
+        
+        // Obtener código de curso de la sección
+        var secSheet = ss.getSheetByName('Secciones');
+        var secData = secSheet.getDataRange().getValues();
+        var codigoCurso = '';
+        for (var s = 1; s < secData.length; s++) {
+          if (String(secData[s][0]) === seccion) {
+            codigoCurso = String(secData[s][19] || '');
+            break;
+          }
+        }
+        
+        if (!codigoCurso) return;
+        
+        // Generar password y llamar API
+        var password = 'Abc' + String(Math.floor(Math.random() * 9000) + 1000) + '!';
+        var apiKey = PropertiesService.getScriptProperties().getProperty('API_KEY');
+        var apiUrl = 'https://YOUR_LAMBDA_ID.lambda-url.us-east-1.on.aws/';
+        
+        if (apiKey) {
+          try {
+            var payload = {
+              studentEmail: email,
+              studentName: nombre,
+              password: password,
+              courseCode: codigoCurso,
+              accessDays: diasAcceso
+            };
+            var options = {
+              method: 'post',
+              contentType: 'application/json',
+              headers: { 'x-api-key': apiKey },
+              payload: JSON.stringify(payload),
+              muteHttpExceptions: true
+            };
+            var response = UrlFetchApp.fetch(apiUrl, options);
+            var responseCode = response.getResponseCode();
+            Logger.log('📡 [gatillarSimulador] ' + codigoCurso + ' ' + diasAcceso + 'd -> ' + responseCode);
+            
+            // Parsear respuesta para determinar si es alumno nuevo o recompra
+            var studentCreated = true; // Por defecto asumimos nuevo
+            if (responseCode === 200 || responseCode === 201) {
+              try {
+                var respBody = JSON.parse(response.getContentText());
+                if (respBody.studentCreated === false) {
+                  studentCreated = false;
+                }
+                Logger.log('📡 [gatillarSimulador] studentCreated=' + studentCreated);
+              } catch(parseErr) {
+                Logger.log('⚠️ [gatillarSimulador] No se pudo parsear respuesta, asumiendo nuevo');
+              }
+            }
+            
+            // Enviar email según si es nuevo o recompra
+            try {
+              var fechaFin = new Date();
+              fechaFin.setDate(fechaFin.getDate() + diasAcceso);
+              
+              if (studentCreated) {
+                // Alumno nuevo: enviar credenciales con password
+                enviarPlantilla('acceso-simulador', {
+                  alumno_nombre: nombre,
+                  email_alumno: email,
+                  cursos_simulador: codigoCurso,
+                  password: password,
+                  fecha_inicio: Utilities.formatDate(new Date(), 'America/Lima', 'dd/MM/yyyy'),
+                  fecha_fin: Utilities.formatDate(fechaFin, 'America/Lima', 'dd/MM/yyyy'),
+                  meses: String(Math.round(diasAcceso / 30))
+                });
+                Logger.log('📧 Email simulador (NUEVO) enviado a ' + email);
+              } else {
+                // Recompra: indicar que use credenciales existentes
+                enviarPlantilla('acceso-simulador-recompra', {
+                  alumno_nombre: nombre,
+                  email_alumno: email,
+                  cursos_simulador: codigoCurso,
+                  fecha_inicio: Utilities.formatDate(new Date(), 'America/Lima', 'dd/MM/yyyy'),
+                  fecha_fin: Utilities.formatDate(fechaFin, 'America/Lima', 'dd/MM/yyyy'),
+                  meses: String(Math.round(diasAcceso / 30))
+                });
+                Logger.log('📧 Email simulador (RECOMPRA) enviado a ' + email);
+              }
+            } catch(emailErr) {
+              Logger.log('⚠️ Error email simulador: ' + emailErr.toString());
+            }
+            
+          } catch(apiErr) {
+            Logger.log('⚠️ [gatillarSimulador] Error API: ' + apiErr.toString());
+          }
+        }
+        
+        break;
+      }
+    }
+  } catch (error) {
+    Logger.log('⚠️ [gatillarSimulador] Error: ' + error.toString());
+  }
+}

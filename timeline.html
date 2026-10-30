@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Timeline Gantt - Educational CRM CRM</title>
+  <meta charset="utf-8">
+  <script>
+    window.APP_BASE_URL = '<?= baseUrl ?>';
+    window.APP_CONFIG = {
+      getPageUrl: function(page) {
+        return window.APP_BASE_URL + '?page=' + page;
+      }
+    };
+  </script>
+  <?!= include('styles') ?>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f8f9fa;
+    }
+    
+    .timeline-page {
+      display: flex;
+      height: calc(100vh - 120px);
+    }
+    
+    .timeline-sidebar {
+      width: 280px;
+      background: white;
+      border-right: 1px solid #e5e7eb;
+      padding: 20px;
+      overflow-y: auto;
+    }
+    
+    .timeline-sidebar h3 {
+      margin: 0 0 20px 0;
+      color: #1f2937;
+      font-size: 18px;
+    }
+    
+    .filter-group {
+      margin-bottom: 20px;
+    }
+    
+    .filter-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 500;
+      color: #374151;
+    }
+    
+    .filter-group select {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    
+    .checkbox-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+    
+    .checkbox-container input[type="checkbox"] {
+      margin: 0;
+    }
+    
+    .timeline-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: white;
+    }
+    
+    .timeline-controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px;
+      border-bottom: 1px solid #e5e7eb;
+      background: white;
+      flex-wrap: wrap;
+      gap: 15px;
+    }
+  </style>
+</head>
+<body>
+  <?!= includeWithCurrentPage('nav', currentPage) ?>
+  
+  <div class="timeline-page" data-page="timeline">
+    <!-- Sidebar Filters -->
+    <aside class="timeline-sidebar">
+      <h3>📊 Filtros Timeline</h3>
+      
+      <div class="filter-group">
+        <label>Período</label>
+        <select id="filtroPeriodo">
+          <option value="semana_actual">Esta Semana</option>
+          <option value="mes_actual">Este Mes</option>
+          <option value="proximo_mes">Próximo Mes</option>
+          <option value="trimestre">Próximos 3 Meses</option>
+        </select>
+      </div>
+      
+      <div class="filter-group">
+        <label>Estado de Sección</label>
+        <select id="filtroEstado">
+          <option value="">Todos los Estados</option>
+          <option value="Activa">Activa</option>
+          <option value="Confirmada">Confirmada</option>
+          <option value="Programada">Programada</option>
+        </select>
+      </div>
+      
+      <div class="filter-group">
+        <label>Curso</label>
+        <select id="filtroCurso">
+          <option value="">Todos los Cursos</option>
+        </select>
+      </div>
+      
+      <div class="filter-group">
+        <label>Docente</label>
+        <select id="filtroDocente">
+          <option value="">Todos los Docentes</option>
+        </select>
+      </div>
+      
+      <div class="filter-group">
+        <label class="checkbox-container">
+          <input type="checkbox" id="mostrarTest"> 
+          Mostrar secciones test
+        </label>
+      </div>
+      
+      <div class="filter-group">
+        <label class="checkbox-container">
+          <input type="checkbox" id="mostrarConflictos"> 
+          Solo secciones con conflictos
+        </label>
+      </div>
+      
+      <div class="filter-group">
+        <label class="checkbox-container">
+          <input type="checkbox" id="autoDetectConflicts" checked> 
+          Detectar conflictos automáticamente
+        </label>
+      </div>
+    </aside>
+
+    <!-- Main Timeline -->
+    <main class="timeline-main">
+      <!-- Navigation Controls -->
+      <div class="timeline-controls">
+        <div class="nav-controls">
+          <button id="prevMonth" class="btn btn-outline">← Mes Anterior</button>
+          <span id="currentMonth" class="current-month">Marzo 2026</span>
+          <button id="nextMonth" class="btn btn-outline">Mes Siguiente →</button>
+        </div>
+        
+        <div class="zoom-controls">
+          <button id="zoomDay" class="btn btn-sm">Día</button>
+          <button id="zoomWeek" class="btn btn-sm active">Semana</button>
+          <button id="zoomMonth" class="btn btn-sm">Mes</button>
+        </div>
+        
+        <div class="global-actions">
+          <button id="refreshTimeline" class="btn btn-primary">🔄 Refrescar</button>
+          <button id="syncAll" class="btn btn-warning">🔄 Sincronizar Todo</button>
+          <button id="detectConflicts" class="btn btn-info">⚠️ Detectar Conflictos</button>
+          <button id="cleanupTests" class="btn btn-danger">🧹 Limpiar Tests</button>
+        </div>
+      </div>
+
+      <!-- Conflicts Summary Panel -->
+      <div id="conflictsSummary" class="conflicts-summary" style="display: none;">
+        <div class="conflicts-header">
+          <h4>⚠️ Conflictos Detectados</h4>
+          <button id="closeConflicts" class="btn-close">×</button>
+        </div>
+        <div id="conflictsContent" class="conflicts-content">
+          <!-- Conflicts will be populated here -->
+        </div>
+      </div>
+
+      <!-- Gantt Container -->
+      <div class="gantt-container">
+        <div class="gantt-header" id="ganttHeader">
+          <!-- Dynamic date headers will be inserted here -->
+        </div>
+        
+        <div class="gantt-body" id="ganttBody">
+          <!-- Dynamic section rows will be inserted here -->
+          <div class="loading-message">
+            <div class="spinner"></div>
+            <p>Cargando timeline...</p>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <style>
+    /* Additional Timeline Styles */
+    .nav-controls {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+    
+    .current-month {
+      font-weight: 600;
+      color: #1f2937;
+      min-width: 120px;
+      text-align: center;
+    }
+    
+    .zoom-controls {
+      display: flex;
+      gap: 5px;
+    }
+    
+    .zoom-controls .btn {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+    
+    .zoom-controls .btn.active {
+      background-color: #3b82f6;
+      color: white;
+    }
+    
+    .global-actions {
+      display: flex;
+      gap: 10px;
+    }
+    
+    .gantt-container {
+      flex: 1;
+      overflow: auto;
+      background: white;
+    }
+    
+    .gantt-header {
+      position: sticky;
+      top: 0;
+      background: #f9fafb;
+      border-bottom: 2px solid #e5e7eb;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      z-index: 10;
+    }
+    
+    .gantt-body {
+      min-height: 400px;
+    }
+    
+    .loading-message {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 300px;
+      color: #6b7280;
+    }
+    
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid #f3f4f6;
+      border-top: 4px solid #3b82f6;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 15px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .gantt-row {
+      display: flex;
+      border-bottom: 1px solid #f3f4f6;
+      min-height: 60px;
+      align-items: center;
+    }
+    
+    .gantt-row.test-section {
+      border-left: 4px solid #f59e0b;
+      background-color: #fffbeb;
+    }
+    
+    .gantt-row.conflict-section {
+      border-left: 4px solid #ef4444;
+      background-color: #fef2f2;
+    }
+    
+    .gantt-label {
+      width: 300px;
+      padding: 10px 15px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-right: 1px solid #e5e7eb;
+      background: white;
+      position: sticky;
+      left: 0;
+      z-index: 5;
+    }
+    
+    .instructor-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid #e5e7eb;
+    }
+    
+    .section-info strong {
+      display: block;
+      color: #1f2937;
+      font-size: 14px;
+    }
+    
+    .section-info small {
+      color: #6b7280;
+      font-size: 12px;
+    }
+    
+    .test-badge {
+      background: #f59e0b;
+      color: white;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 10px;
+      margin-left: 5px;
+    }
+    
+    .conflict-badge {
+      background: #ef4444;
+      color: white;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 10px;
+      margin-left: 5px;
+    }
+    
+    .gantt-timeline {
+      flex: 1;
+      position: relative;
+      height: 60px;
+    }
+    
+    .gantt-bar {
+      position: absolute;
+      height: 30px;
+      top: 15px;
+      background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+      border-radius: 15px;
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+      color: white;
+      font-size: 12px;
+      font-weight: 500;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .gantt-bar.test-bar {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+    }
+    
+    .gantt-progress {
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 100%;
+      background: rgba(255,255,255,0.3);
+      border-radius: 15px;
+      transition: width 0.3s ease;
+    }
+    
+    .class-markers {
+      position: absolute;
+      top: -5px;
+      left: 0;
+      right: 0;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      pointer-events: none;
+    }
+    
+    .class-marker {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #10b981;
+      border: 2px solid white;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    
+    .class-marker.completed {
+      background: #10b981;
+    }
+    
+    .class-marker.upcoming {
+      background: #6b7280;
+    }
+    
+    .class-marker.today {
+      background: #f59e0b;
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.2); }
+    }
+    
+    .enrollment-indicators {
+      position: absolute;
+      bottom: -8px;
+      left: 5px;
+      right: 5px;
+      display: flex;
+      gap: 2px;
+      flex-wrap: wrap;
+    }
+    
+    .enrollment-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #34d399;
+      border: 1px solid white;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+    
+    /* Conflicts Summary Panel */
+    .conflicts-summary {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 8px;
+      margin: 10px 20px;
+      padding: 0;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .conflicts-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px 20px;
+      background: #fee2e2;
+      border-bottom: 1px solid #fecaca;
+      border-radius: 8px 8px 0 0;
+    }
+    
+    .conflicts-header h4 {
+      margin: 0;
+      color: #dc2626;
+      font-size: 16px;
+    }
+    
+    .btn-close {
+      background: none;
+      border: none;
+      font-size: 20px;
+      color: #dc2626;
+      cursor: pointer;
+      padding: 0;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .btn-close:hover {
+      background: rgba(220, 38, 38, 0.1);
+      border-radius: 50%;
+    }
+    
+    .conflicts-content {
+      padding: 15px 20px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    
+    .conflict-item {
+      margin-bottom: 15px;
+      padding: 10px;
+      background: white;
+      border-radius: 6px;
+      border-left: 4px solid #dc2626;
+    }
+    
+    .conflict-item:last-child {
+      margin-bottom: 0;
+    }
+    
+    .conflict-instructor {
+      font-weight: 600;
+      color: #dc2626;
+      margin-bottom: 5px;
+    }
+    
+    .conflict-sections {
+      font-size: 14px;
+      color: #374151;
+    }
+    
+    .conflict-dates {
+      font-size: 12px;
+      color: #6b7280;
+      margin-top: 5px;
+    }
+    
+    /* Responsive Design */
+    @media (max-width: 768px) {
+      .timeline-page {
+        flex-direction: column;
+      }
+      
+      .timeline-sidebar {
+        width: 100%;
+        height: auto;
+        max-height: 200px;
+      }
+      
+      .timeline-controls {
+        flex-direction: column;
+        gap: 10px;
+      }
+      
+      .gantt-label {
+        width: 200px;
+      }
+    }
+  </style>
+
+  <script>
+    // Timeline JavaScript functionality will be added here
+    document.addEventListener('DOMContentLoaded', function() {
+      initializeTimeline();
+    });
+    
+    function initializeTimeline() {
+      console.log('Initializing Timeline Gantt...');
+      
+      // Check system status first
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            if (result.status === 'needs_setup') {
+              console.log('System needs setup, initializing...');
+              
+              // Show setup message
+              showSetupMessage();
+              
+              // Initialize system
+              google.script.run
+                .withSuccessHandler(function(setupResult) {
+                  hideSetupMessage();
+                  
+                  if (setupResult.success) {
+                    console.log('System initialized successfully');
+                    proceedWithTimelineLoad();
+                  } else {
+                    showError('Failed to initialize system: ' + setupResult.message);
+                  }
+                })
+                .withFailureHandler(function(error) {
+                  hideSetupMessage();
+                  showError('System initialization failed: ' + error.toString());
+                })
+                .initializeTimelineSystem();
+            } else {
+              console.log('System is operational');
+              proceedWithTimelineLoad();
+            }
+          } else {
+            showError('Failed to check system status: ' + result.message);
+          }
+        })
+        .withFailureHandler(function(error) {
+          showError('Failed to check system status: ' + error.toString());
+        })
+        .getTimelineSystemStatus();
+    }
+    
+    function proceedWithTimelineLoad() {
+      // Load initial data
+      loadTimelineData();
+      
+      // Setup event listeners
+      setupEventListeners();
+      
+      // Setup filters
+      setupFilters();
+    }
+    
+    function showSetupMessage() {
+      const ganttBody = document.getElementById('ganttBody');
+      ganttBody.innerHTML = `
+        <div class="setup-message" style="text-align: center; padding: 60px 20px; color: #3b82f6;">
+          <div class="spinner" style="margin: 0 auto 20px auto;"></div>
+          <h3 style="margin: 0 0 10px 0; color: #1f2937;">Configurando Timeline Gantt</h3>
+          <p style="margin: 0; color: #6b7280;">Configurando integración con Google Calendar...</p>
+          <p style="margin: 10px 0 0 0; font-size: 12px; color: #9ca3af;">Esto puede tomar unos momentos la primera vez</p>
+        </div>
+      `;
+    }
+    
+    function hideSetupMessage() {
+      // The setup message will be replaced by loadTimelineData()
+    }
+    
+    function loadTimelineData() {
+      console.log('Loading timeline data...');
+      
+      // Show loading state
+      showLoading(true);
+      
+      // Get current filters
+      const filters = getCurrentFilters();
+      
+      // Load data from server
+      google.script.run
+        .withSuccessHandler(function(result) {
+          showLoading(false);
+          
+          if (result.success) {
+            renderTimelineData(result.data, result.metadata);
+          } else {
+            showError('Error loading timeline data: ' + result.message);
+          }
+        })
+        .withFailureHandler(function(error) {
+          showLoading(false);
+          showError('Failed to load timeline data: ' + error.toString());
+        })
+        .getTimelineData(filters);
+    }
+    
+    function getCurrentFilters() {
+      return {
+        periodo: document.getElementById('filtroPeriodo')?.value || 'semana_actual',
+        estado: document.getElementById('filtroEstado')?.value || '',
+        tecnologia: document.getElementById('filtroTecnologia')?.value || '',
+        provider: document.getElementById('filtroProvider')?.value || '',
+        nivel: document.getElementById('filtroNivel')?.value || '',
+        docente: document.getElementById('filtroDocente')?.value || '',
+        soloTest: document.getElementById('soloTest')?.checked || false,
+        soloConflictos: document.getElementById('soloConflictos')?.checked || false
+      };
+    }
+    
+    function renderTimelineData(sections, metadata) {
+      console.log('Rendering timeline data:', sections.length, 'sections');
+      
+      if (sections.length === 0) {
+        renderEmptyState();
+        return;
+      }
+      
+      const ganttBody = document.getElementById('ganttBody');
+      const ganttHeader = document.getElementById('ganttHeader');
+      
+      // Generate date range for current month
+      const dateRange = generateDateRange();
+      
+      // Render header
+      renderGanttHeader(ganttHeader, dateRange);
+      
+      // Render sections
+      renderGanttSections(ganttBody, sections, dateRange);
+      
+      // Update metadata display
+      updateMetadataDisplay(metadata);
+    }
+    
+    function generateDateRange() {
+      const currentDate = new Date();
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+      
+      const startDate = new Date(year, month, 1);
+      const endDate = new Date(year, month + 1, 0);
+      
+      const dates = [];
+      for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+        dates.push(new Date(d));
+      }
+      
+      return { startDate, endDate, dates };
+    }
+    
+    function renderGanttHeader(container, dateRange) {
+      container.innerHTML = '';
+      
+      // Label column
+      const labelHeader = document.createElement('div');
+      labelHeader.style.width = '300px';
+      labelHeader.style.padding = '15px';
+      labelHeader.style.fontWeight = 'bold';
+      labelHeader.style.borderRight = '1px solid #e5e7eb';
+      labelHeader.textContent = 'Secciones';
+      container.appendChild(labelHeader);
+      
+      // Date columns
+      const timelineHeader = document.createElement('div');
+      timelineHeader.style.flex = '1';
+      timelineHeader.style.display = 'flex';
+      
+      dateRange.dates.forEach(date => {
+        const dateCol = document.createElement('div');
+        dateCol.style.minWidth = '40px';
+        dateCol.style.padding = '10px 5px';
+        dateCol.style.textAlign = 'center';
+        dateCol.style.fontSize = '12px';
+        dateCol.style.borderRight = '1px solid #f3f4f6';
+        
+        const dayName = date.toLocaleDateString('es-ES', { weekday: 'short' });
+        const dayNumber = date.getDate();
+        
+        dateCol.innerHTML = `<div style="font-weight: bold;">${dayNumber}</div><div style="color: #6b7280;">${dayName}</div>`;
+        
+        // Highlight today
+        const today = new Date();
+        if (date.toDateString() === today.toDateString()) {
+          dateCol.style.backgroundColor = '#fef3c7';
+          dateCol.style.color = '#92400e';
+        }
+        
+        timelineHeader.appendChild(dateCol);
+      });
+      
+      container.appendChild(timelineHeader);
+    }
+    
+    function renderGanttSections(container, sections, dateRange) {
+      container.innerHTML = '';
+      
+      sections.forEach(section => {
+        const row = createGanttRow(section, dateRange);
+        container.appendChild(row);
+      });
+    }
+    
+    function createGanttRow(section, dateRange) {
+      const row = document.createElement('div');
+      row.className = 'gantt-row';
+      
+      if (section.esTest) {
+        row.classList.add('test-section');
+      }
+      
+      if (section.calendar.conflicts) {
+        row.classList.add('conflict-section');
+      }
+      
+      // Label section
+      const label = document.createElement('div');
+      label.className = 'gantt-label';
+      
+      const avatar = document.createElement('img');
+      avatar.className = 'instructor-avatar';
+      avatar.src = section.docente.foto || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"%3E%3Ccircle cx="20" cy="20" r="20" fill="%23e5e7eb"/%3E%3Ctext x="20" y="25" text-anchor="middle" fill="%236b7280" font-size="14"%3E👤%3C/text%3E%3C/svg%3E';
+      avatar.onerror = function() {
+        this.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"%3E%3Ccircle cx="20" cy="20" r="20" fill="%23e5e7eb"/%3E%3Ctext x="20" y="25" text-anchor="middle" fill="%236b7280" font-size="14"%3E👤%3C/text%3E%3C/svg%3E';
+      };
+      
+      const info = document.createElement('div');
+      info.className = 'section-info';
+      
+      const title = document.createElement('strong');
+      title.textContent = section.codigo;
+      
+      const subtitle = document.createElement('small');
+      subtitle.textContent = section.nombreCurso;
+      
+      info.appendChild(title);
+      info.appendChild(subtitle);
+      
+      // Add badges
+      if (section.esTest) {
+        const testBadge = document.createElement('span');
+        testBadge.className = 'test-badge';
+        testBadge.textContent = 'TEST';
+        info.appendChild(testBadge);
+      }
+      
+      if (section.calendar.conflicts) {
+        const conflictBadge = document.createElement('span');
+        conflictBadge.className = 'conflict-badge';
+        conflictBadge.textContent = 'CONFLICTO';
+        info.appendChild(conflictBadge);
+      }
+      
+      label.appendChild(avatar);
+      label.appendChild(info);
+      
+      // Timeline section
+      const timeline = document.createElement('div');
+      timeline.className = 'gantt-timeline';
+      
+      if (section.fechaInicio && section.fechaFin) {
+        const bar = createGanttBar(section, dateRange);
+        timeline.appendChild(bar);
+      }
+      
+      row.appendChild(label);
+      row.appendChild(timeline);
+      
+      return row;
+    }
+    
+    function createGanttBar(section, dateRange) {
+      const bar = document.createElement('div');
+      bar.className = 'gantt-bar';
+      
+      if (section.esTest) {
+        bar.classList.add('test-bar');
+      }
+      
+      // Calculate position and width
+      const startDate = new Date(section.fechaInicio);
+      const endDate = new Date(section.fechaFin);
+      
+      const position = calculateBarPosition(startDate, endDate, dateRange);
+      
+      bar.style.left = position.left + '%';
+      bar.style.width = position.width + '%';
+      
+      // Progress bar
+      const progress = document.createElement('div');
+      progress.className = 'gantt-progress';
+      progress.style.width = section.progress + '%';
+      bar.appendChild(progress);
+      
+      // Class markers
+      const markers = document.createElement('div');
+      markers.className = 'class-markers';
+      
+      // Add some sample markers (this would be calculated based on frequency)
+      for (let i = 0; i < 5; i++) {
+        const marker = document.createElement('div');
+        marker.className = 'class-marker completed';
+        marker.title = `Clase ${i + 1}`;
+        markers.appendChild(marker);
+      }
+      
+      bar.appendChild(markers);
+      
+      // Enrollment indicators
+      const enrollments = document.createElement('div');
+      enrollments.className = 'enrollment-indicators';
+      
+      section.enrollments.forEach(enrollment => {
+        const dot = document.createElement('div');
+        dot.className = 'enrollment-dot';
+        dot.title = enrollment.nombreAlumno;
+        enrollments.appendChild(dot);
+      });
+      
+      bar.appendChild(enrollments);
+      
+      // Bar text
+      const text = document.createElement('span');
+      text.textContent = section.docente.nombre || 'Sin docente';
+      text.style.fontSize = '11px';
+      text.style.fontWeight = '500';
+      bar.appendChild(text);
+      
+      return bar;
+    }
+    
+    function calculateBarPosition(startDate, endDate, dateRange) {
+      const rangeStart = dateRange.startDate.getTime();
+      const rangeEnd = dateRange.endDate.getTime();
+      const rangeDuration = rangeEnd - rangeStart;
+      
+      const barStart = Math.max(startDate.getTime(), rangeStart);
+      const barEnd = Math.min(endDate.getTime(), rangeEnd);
+      
+      const left = ((barStart - rangeStart) / rangeDuration) * 100;
+      const width = ((barEnd - barStart) / rangeDuration) * 100;
+      
+      return { left: Math.max(0, left), width: Math.max(1, width) };
+    }
+    
+    function updateMetadataDisplay(metadata) {
+      // This could update a status bar or info panel
+      console.log('Timeline metadata:', metadata);
+    }
+    
+    function showError(message) {
+      const ganttBody = document.getElementById('ganttBody');
+      ganttBody.innerHTML = `
+        <div class="error-state" style="text-align: center; padding: 60px 20px; color: #dc2626;">
+          <div style="font-size: 48px; margin-bottom: 20px;">⚠️</div>
+          <h3 style="margin: 0 0 10px 0; color: #dc2626;">Error</h3>
+          <p style="margin: 0;">${message}</p>
+          <button onclick="loadTimelineData()" style="margin-top: 20px; padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer;">Reintentar</button>
+        </div>
+      `;
+    }
+    
+    function setupEventListeners() {
+      // Navigation controls
+      document.getElementById('prevMonth').addEventListener('click', () => navigateMonth(-1));
+      document.getElementById('nextMonth').addEventListener('click', () => navigateMonth(1));
+      
+      // Zoom controls
+      document.getElementById('zoomDay').addEventListener('click', () => setZoom('day'));
+      document.getElementById('zoomWeek').addEventListener('click', () => setZoom('week'));
+      document.getElementById('zoomMonth').addEventListener('click', () => setZoom('month'));
+      
+      // Global actions
+      document.getElementById('refreshTimeline').addEventListener('click', refreshTimeline);
+      document.getElementById('syncAll').addEventListener('click', syncAllSections);
+      document.getElementById('detectConflicts').addEventListener('click', detectConflicts);
+      document.getElementById('cleanupTests').addEventListener('click', cleanupTestSections);
+      
+      // Conflicts panel
+      document.getElementById('closeConflicts').addEventListener('click', closeConflictsPanel);
+    }
+    
+    function setupFilters() {
+      console.log('Setting up filters...');
+      
+      // Load filter options
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            populateFilterOptions(result.options);
+          }
+        })
+        .withFailureHandler(function(error) {
+          console.error('Failed to load filter options:', error);
+        })
+        .getTimelineFilterOptions();
+      
+      // Add filter change listeners
+      document.getElementById('filtroEstado').addEventListener('change', applyFilters);
+      document.getElementById('filtroCurso').addEventListener('change', applyFilters);
+      document.getElementById('filtroDocente').addEventListener('change', applyFilters);
+      document.getElementById('mostrarTest').addEventListener('change', applyFilters);
+      document.getElementById('mostrarConflictos').addEventListener('change', applyFilters);
+    }
+    
+    function populateFilterOptions(options) {
+      // Populate estado filter
+      const estadoSelect = document.getElementById('filtroEstado');
+      options.estados.forEach(estado => {
+        const option = document.createElement('option');
+        option.value = estado;
+        option.textContent = estado;
+        estadoSelect.appendChild(option);
+      });
+      
+      // Populate curso filter
+      const cursoSelect = document.getElementById('filtroCurso');
+      options.cursos.forEach(curso => {
+        const option = document.createElement('option');
+        option.value = curso.codigo;
+        option.textContent = `${curso.codigo} - ${curso.nombre}`;
+        cursoSelect.appendChild(option);
+      });
+      
+      // Populate docente filter
+      const docenteSelect = document.getElementById('filtroDocente');
+      options.docentes.forEach(docente => {
+        const option = document.createElement('option');
+        option.value = docente.id;
+        option.textContent = docente.nombre;
+        docenteSelect.appendChild(option);
+      });
+    }
+    
+    function applyFilters() {
+      console.log('Applying filters...');
+      loadTimelineData();
+    }
+    
+    function showLoading(show) {
+      const loadingMessage = document.querySelector('.loading-message');
+      if (loadingMessage) {
+        loadingMessage.style.display = show ? 'flex' : 'none';
+      }
+    }
+    
+    function renderEmptyState() {
+      const ganttBody = document.getElementById('ganttBody');
+      ganttBody.innerHTML = `
+        <div class="empty-state" style="text-align: center; padding: 60px 20px; color: #6b7280;">
+          <div style="font-size: 48px; margin-bottom: 20px;">📅</div>
+          <h3 style="margin: 0 0 10px 0; color: #374151;">No hay secciones para mostrar</h3>
+          <p style="margin: 0;">Crea una nueva sección o ajusta los filtros para ver el timeline.</p>
+        </div>
+      `;
+    }
+    
+    function navigateMonth(direction) {
+      console.log('Navigate month:', direction);
+      // Implementation will be added
+    }
+    
+    function setZoom(level) {
+      console.log('Set zoom:', level);
+      
+      // Update active button
+      document.querySelectorAll('.zoom-controls .btn').forEach(btn => btn.classList.remove('active'));
+      document.getElementById('zoom' + level.charAt(0).toUpperCase() + level.slice(1)).classList.add('active');
+      
+      // Implementation will be added
+    }
+    
+    function refreshTimeline() {
+      console.log('Refreshing timeline...');
+      loadTimelineData();
+    }
+    
+    function syncAllSections() {
+      console.log('Syncing all sections...');
+      
+      // Show loading indicator
+      const button = document.getElementById('syncAll');
+      const originalText = button.textContent;
+      button.textContent = '🔄 Sincronizando...';
+      button.disabled = true;
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          button.textContent = originalText;
+          button.disabled = false;
+          
+          if (result.success) {
+            alert(`Sincronización completada:\n${result.summary.successful} exitosas\n${result.summary.errors} errores`);
+            loadTimelineData(); // Refresh timeline
+          } else {
+            alert('Error en sincronización: ' + result.message);
+          }
+        })
+        .withFailureHandler(function(error) {
+          button.textContent = originalText;
+          button.disabled = false;
+          alert('Error en sincronización: ' + error.toString());
+        })
+        .syncAllSectionsWithCalendar();
+    }
+    
+    function cleanupTestSections() {
+      if (confirm('¿Estás seguro de que quieres eliminar todas las secciones test?\n\nEsta acción eliminará:\n- Las secciones test\n- Sus eventos de Calendar\n- Todas las matriculaciones\n- Todos los pagos asociados\n\nEsta acción no se puede deshacer.')) {
+        console.log('Cleaning up test sections...');
+        
+        // Show loading indicator
+        const button = document.getElementById('cleanupTests');
+        const originalText = button.textContent;
+        button.textContent = '🧹 Limpiando...';
+        button.disabled = true;
+        
+        google.script.run
+          .withSuccessHandler(function(result) {
+            button.textContent = originalText;
+            button.disabled = false;
+            
+            if (result.success) {
+              alert(`Limpieza completada:\n${result.summary.sectionsDeleted} secciones eliminadas\n${result.summary.eventsDeleted} eventos de Calendar eliminados\n${result.summary.enrollmentsDeleted} matriculaciones eliminadas\n${result.summary.paymentsDeleted} pagos eliminados`);
+              loadTimelineData(); // Refresh timeline
+            } else {
+              alert('Error en limpieza: ' + result.message);
+            }
+          })
+          .withFailureHandler(function(error) {
+            button.textContent = originalText;
+            button.disabled = false;
+            alert('Error en limpieza: ' + error.toString());
+          })
+          .cleanupAllTestSections();
+      }
+    }
+    
+    function detectConflicts() {
+      console.log('Detecting conflicts...');
+      
+      // Show loading indicator
+      const button = document.getElementById('detectConflicts');
+      const originalText = button.textContent;
+      button.textContent = '⚠️ Detectando...';
+      button.disabled = true;
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          button.textContent = originalText;
+          button.disabled = false;
+          
+          if (result.success) {
+            if (result.conflictsFound > 0) {
+              showConflictsPanel(result.conflicts);
+              alert(`Se detectaron ${result.conflictsFound} conflictos de horarios.\nRevise el panel de conflictos para más detalles.`);
+            } else {
+              alert('✅ No se detectaron conflictos de horarios.');
+            }
+            loadTimelineData(); // Refresh timeline to show updated conflict indicators
+          } else {
+            alert('Error detectando conflictos: ' + result.message);
+          }
+        })
+        .withFailureHandler(function(error) {
+          button.textContent = originalText;
+          button.disabled = false;
+          alert('Error detectando conflictos: ' + error.toString());
+        })
+        .detectAndUpdateConflicts();
+    }
+    
+    function showConflictsPanel(conflicts) {
+      const panel = document.getElementById('conflictsSummary');
+      const content = document.getElementById('conflictsContent');
+      
+      if (conflicts.length === 0) {
+        content.innerHTML = '<p style="color: #10b981; text-align: center;">✅ No se detectaron conflictos</p>';
+      } else {
+        let html = '';
+        conflicts.forEach((conflict, index) => {
+          html += `
+            <div class="conflict-item">
+              <div class="conflict-instructor">
+                Docente: ${conflict.instructorName}
+              </div>
+              <div class="conflict-sections">
+                Secciones en conflicto:
+          `;
+          
+          conflict.conflictingSections.forEach(([section1, section2]) => {
+            html += `<br>• ${section1.Codigo} vs ${section2.Codigo}`;
+          });
+          
+          html += `
+              </div>
+              <div class="conflict-dates">
+                ${conflict.affectedDates.length} fechas afectadas
+              </div>
+            </div>
+          `;
+        });
+        content.innerHTML = html;
+      }
+      
+      panel.style.display = 'block';
+    }
+    
+    function closeConflictsPanel() {
+      document.getElementById('conflictsSummary').style.display = 'none';
+    }
+  </script>
+</body>
+</html>

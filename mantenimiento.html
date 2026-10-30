@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <?!= includeWithBaseUrl('config'); ?>
+  <?!= include('styles'); ?>
+</head>
+<body>
+  <div class="container">
+    <?!= includeWithCurrentPage('nav', currentPage); ?>
+    <main class="main mantenimiento-page" data-page="mantenimiento">
+      <div class="form-card">
+        <h1 class="form-title">🔧 Mantenimiento del Sistema</h1>
+        
+        <div class="section">
+          <h2 class="section-title">⚠️ Advertencia</h2>
+          <p style="color: var(--danger); font-weight: 500;">
+            Las operaciones de mantenimiento pueden modificar datos en la base de datos. 
+            Asegúrate de entender lo que hace cada función antes de ejecutarla.
+          </p>
+        </div>
+
+        <div class="section">
+          <h2 class="section-title">🔧 Seleccionar Operación</h2>
+          <select id="operacionSelect" onchange="mostrarOperacion()" style="width:100%;padding:10px;border:2px solid #e5e7eb;border-radius:6px;font-size:14px;">
+            <option value="">-- Selecciona una operación --</option>
+            <option value="backup">💾 Backup Manual</option>
+            <option value="cambiarCodigo">🔄 Cambiar Código de Sección</option>
+            <option value="corregirModalidad">🎯 Corregir Modalidad de Matrícula</option>
+            <option value="corregirMonto">💰 Corregir Monto Pagado</option>
+            <option value="corregirPrecio">💰 Corrección de Precios de Ventas</option>
+            <option value="corregirSeccion">🔀 Corregir Sección de Matrícula</option>
+            <option value="editarCuotas">📅 Editar Cuotas Programadas</option>
+            <option value="eliminarVenta">🗑️ Eliminar Venta Específica</option>
+            <option value="logs">📋 Logs del Sistema</option>
+            <option value="recalcular">🔄 Recalcular Todos los Totales</option>
+            <option value="reparar">🔧 Reparación Automática</option>
+            <option value="verificar">🔍 Verificación de Integridad</option>
+          </select>
+        </div>
+
+        <!-- Verificación de Integridad -->
+        <div class="section">
+          <h2 class="section-title">🔍 Verificación de Integridad</h2>
+          <p>Verifica la consistencia de los datos sin realizar cambios.</p>
+          <button class="btn-submit" onclick="verificarIntegridad()">🔍 Verificar Integridad</button>
+          <div id="resultadosVerificacion" style="margin-top: 20px;"></div>
+        </div>
+
+        <!-- Reparación Automática -->
+        <div class="section">
+          <h2 class="section-title">🔧 Reparación Automática</h2>
+          <p>Repara automáticamente problemas detectados (totales incorrectos, estados inconsistentes).</p>
+          <button class="btn-submit" onclick="repararDatos()">🔧 Reparar Datos</button>
+          <div id="resultadosReparacion" style="margin-top: 20px;"></div>
+        </div>
+
+        <!-- Recalcular Totales -->
+        <div class="section">
+          <h2 class="section-title">🔄 Recalcular Todos los Totales</h2>
+          <p>Recalcula los totales pagados y saldos pendientes de todas las matrículas basándose en los pagos registrados.</p>
+          <button class="btn-submit" onclick="recalcularTotales()">🔄 Recalcular Totales</button>
+          <div id="resultadosRecalculo" style="margin-top: 20px;"></div>
+        </div>
+
+        <!-- Cambiar Código de Sección -->
+        <div class="section">
+          <h2 class="section-title">🔄 Cambiar Código de Sección</h2>
+          <p>Cambia el código de una sección existente.</p>
+          <div class="form-grid" style="margin-bottom: 15px;">
+            <div class="form-group">
+              <label>Código Actual *</label>
+              <input type="text" id="codigoActual" placeholder="Ej: CLF0326-A" style="width: 100%;">
+            </div>
+            <div class="form-group">
+              <label>Código Nuevo *</label>
+              <input type="text" id="codigoNuevo" placeholder="Ej: CLF0326-B" style="width: 100%;">
+            </div>
+            <div class="form-group" style="display: flex; align-items: flex-end;">
+              <button class="btn-submit" onclick="cambiarCodigoSeccionUI()" style="width: 100%;">🔄 Cambiar Código</button>
+            </div>
+          </div>
+          <div id="resultadosCambioSeccion" style="margin-top: 20px;"></div>
+        </div>
+
+        <!-- Corregir Monto Pagado -->
+        <div class="section">
+          <h2 class="section-title">💰 Corregir Monto Pagado</h2>
+          <p>Busca una matrícula y corrige el monto total pagado.</p>
+          <div class="form-grid" style="margin-bottom: 15px;">
+            <div class="form-group full-width">
+              <label>Buscar por nombre de alumno o código de matrícula</label>
+              <input type="text" id="buscarTermino" placeholder="Ej: Juan Pérez o MAT-001" style="width: 100%;">
+            </div>
+            <div class="form-group" style="display: flex; align-items: flex-end;">
+              <button class="btn-submit" onclick="buscarMatriculaParaCorregir()" style="width: 100%;">🔍 Buscar</button>
+            </div>
+          </div>
+          <div id="resultadosBusquedaMatricula" style="margin-top: 20px;"></div>
+        </div>
+
+        <!-- Corrección de Precios de Ventas -->
+        <div class="section">
+          <h2 class="section-title">💰 Corrección de Precios de Ventas</h2>
+          <p>Corrige el precio de una venta ya registrada. Esto actualizará el total y recalculará el saldo pendiente.</p>
+          
+          <div class="form-grid" style="margin-bottom: 15px;">
+            <div class="form-group">
+              <label>ID de Matrícula</label>
+              <input type="text" id="matriculaIdCorreccion" placeholder="Ej: MAT-001" style="width: 100%;">
+            </div>
+            <div class="form-group">
+              <label>Nuevo Precio Total</label>
+              <input type="number" id="nuevoPrecio" placeholder="0.00" step="0.01" min="0" style="width: 100%;">
+            </div>
+            <div class="form-group" style="display: flex; align-items: flex-end;">
+              <button class="btn-submit" onclick="buscarMatriculaParaCorreccion()" style="width: 100%;">🔍 Buscar</button>
+            </div>
+          </div>
+
+          <div id="detallesMatricula" style="margin-bottom: 15px;"></div>
+
+          <div id="resultadosCorreccion" style="margin-top: 20px;"></div>
+        </div>
+
+        <!-- Logs del Sistema -->
+        <div class="section">
+          <h2 class="section-title">📋 Logs del Sistema</h2>
+          <div class="form-grid" style="margin-bottom: 15px;">
+            <div class="form-group">
+              <label>Tabla</label>
+              <select id="filtroTabla">
+                <option value="">Todas</option>
+                <option value="Alumnos">Alumnos</option>
+                <option value="Matriculas">Matriculas</option>
+                <option value="Pagos">Pagos</option>
+                <option value="Secciones">Secciones</option>
+                <option value="Docentes">Docentes</option>
+                <option value="Cursos">Cursos</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Acción</label>
+              <select id="filtroAccion">
+                <option value="">Todas</option>
+                <option value="CREAR">Crear</option>
+                <option value="MODIFICAR">Modificar</option>
+                <option value="ELIMINAR">Eliminar</option>
+                <option value="REPARACION">Reparación</option>
+                <option value="MANTENIMIENTO">Mantenimiento</option>
+              </select>
+            </div>
+            <div class="form-group" style="display: flex; align-items: flex-end;">
+              <button class="btn-small" onclick="cargarLogs()" style="width: 100%;">🔍 Buscar</button>
+            </div>
+          </div>
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Usuario</th>
+                  <th>Acción</th>
+                  <th>Tabla</th>
+                  <th>ID Registro</th>
+                  <th>Detalles</th>
+                </tr>
+              </thead>
+              <tbody id="logsBody">
+                <tr><td colspan="6" style="text-align: center;">Haz clic en "Buscar" para cargar los logs</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Backup Manual -->
+        <div class="section">
+          <h2 class="section-title">💾 Backup Manual</h2>
+          <p>Crea una copia de seguridad de la base de datos actual.</p>
+          <p style="font-size: 13px; color: var(--text-muted);">
+            Nota: Esta función crea una copia de la hoja de cálculo completa. 
+            Puedes acceder a tus backups desde Google Drive.
+          </p>
+          <button class="btn-submit" onclick="crearBackup()">💾 Crear Backup</button>
+          <div id="resultadosBackup" style="margin-top: 20px;"></div>
+        </div>
+
+        <!-- Eliminar Venta Específica -->
+        <div class="section">
+          <h2 class="section-title">🗑️ Eliminar Venta Específica</h2>
+          <p>Busca un alumno y elimina una venta completa (alumno, matrículas, pagos, cuotas, venta, eventos Calendar).</p>
+          <div class="form-grid" style="margin-bottom: 15px;">
+            <div class="form-group full-width">
+              <label>Buscar Alumno</label>
+              <input type="text" id="elimVentaBuscar" placeholder="Nombre o email del alumno" oninput="buscarAlumnoElimVenta()" style="width:100%;">
+              <div id="elimVentaResultados" style="max-height:150px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:4px;display:none;"></div>
+            </div>
+          </div>
+          <div id="elimVentaDetalle" style="margin-top:15px;display:none;"></div>
+          <div id="resultadosElimVenta" style="margin-top:20px;"></div>
+        </div>
+
+        <!-- Corregir Sección de Matrícula -->
+        <div class="section">
+          <h2 class="section-title">🔀 Corregir Sección de Matrícula</h2>
+          <p>Mueve una matrícula a cualquier sección (sin restricción de curso). Para corregir errores de asignación.</p>
+          <div class="form-grid" style="margin-bottom: 15px;">
+            <div class="form-group full-width">
+              <label>Buscar Alumno</label>
+              <input type="text" id="corregirSecBuscar" placeholder="Nombre o email del alumno" oninput="buscarAlumnoCorregirSec()" style="width:100%;">
+              <div id="corregirSecResultados" style="max-height:150px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:4px;display:none;"></div>
+            </div>
+          </div>
+          <div id="corregirSecDetalle" style="margin-top:15px;display:none;"></div>
+          <div id="resultadosCorregirSec" style="margin-top:20px;"></div>
+        </div>
+
+        <!-- Corregir Modalidad de Matrícula -->
+        <div class="section">
+          <h2 class="section-title">🎯 Corregir Modalidad de Matrícula</h2>
+          <p>Cambia la modalidad (Basic/Pro/Certify) de una matrícula. Ajusta precio, examen y simulador según corresponda.</p>
+          <div class="form-grid" style="margin-bottom: 15px;">
+            <div class="form-group full-width">
+              <label>Buscar Alumno</label>
+              <input type="text" id="corregirModBuscar" placeholder="Nombre o email del alumno" oninput="buscarAlumnoCorregirMod()" style="width:100%;">
+              <div id="corregirModResultados" style="max-height:150px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:4px;display:none;"></div>
+            </div>
+          </div>
+          <div id="corregirModDetalle" style="margin-top:15px;display:none;"></div>
+          <div id="resultadosCorregirMod" style="margin-top:20px;"></div>
+        </div>
+
+        <!-- Editar Cuotas Programadas -->
+        <div class="section">
+          <h2 class="section-title">📅 Editar Cuotas Programadas</h2>
+          <p>Busca por ID de matrícula o nombre del alumno para ver y editar las cuotas programadas (montos y fechas).</p>
+          <div class="form-grid" style="margin-bottom: 15px;">
+            <div class="form-group">
+              <label>ID Matrícula o Nombre Alumno</label>
+              <input type="text" id="cuotasBusqueda" placeholder="Ej: M00260 o nombre...">
+            </div>
+            <div class="form-group" style="display:flex;align-items:end;">
+              <button class="btn-submit" onclick="buscarCuotasParaEditar()">🔍 Buscar</button>
+            </div>
+          </div>
+          <div id="cuotasEditorContainer" style="display:none;margin-top:15px;">
+            <div id="cuotasEditorInfo" style="background:#f3f4f6;padding:12px;border-radius:6px;margin-bottom:12px;font-size:13px;"></div>
+            <table class="data-table" style="font-size:13px;">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Monto ($)</th>
+                  <th>Fecha Vencimiento</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody id="cuotasEditorBody"></tbody>
+            </table>
+            <div style="margin-top:12px;display:flex;gap:10px;">
+              <button class="btn-submit" onclick="guardarCuotasEditadas()">💾 Guardar Cambios</button>
+              <button class="btn-submit" style="background:#6b7280;" onclick="agregarCuotaEditor()">+ Agregar Cuota</button>
+            </div>
+          </div>
+          <div id="resultadosCuotas" style="margin-top:15px;"></div>
+        </div>
+
+      </div>
+    </main>
+    <?!= include('footer'); ?>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    // Mapa de operaciones a títulos de sección
+    var opMap = {
+      'verificar': '🔍 Verificación de Integridad',
+      'reparar': '🔧 Reparación Automática',
+      'recalcular': '🔄 Recalcular Todos los Totales',
+      'cambiarCodigo': '🔄 Cambiar Código de Sección',
+      'corregirMonto': '💰 Corregir Monto Pagado',
+      'corregirPrecio': '💰 Corrección de Precios de Ventas',
+      'logs': '📋 Logs del Sistema',
+      'backup': '💾 Backup Manual',
+      'eliminarVenta': '🗑️ Eliminar Venta Específica',
+      'corregirSeccion': '🔀 Corregir Sección de Matrícula',
+      'corregirModalidad': '🎯 Corregir Modalidad de Matrícula',
+      'editarCuotas': '📅 Editar Cuotas Programadas'
+    };
+
+    document.addEventListener('DOMContentLoaded', function() {
+      // Ocultar todas las secciones excepto la advertencia y el selector
+      var secciones = document.querySelectorAll('.mantenimiento-page .section');
+      for (var i = 2; i < secciones.length; i++) { // Skip advertencia (0) y selector (1)
+        secciones[i].style.display = 'none';
+        // Asignar data-op basado en el título
+        var titulo = secciones[i].querySelector('.section-title');
+        if (titulo) {
+          for (var key in opMap) {
+            if (titulo.textContent.trim() === opMap[key]) {
+              secciones[i].setAttribute('data-op', key);
+              break;
+            }
+          }
+        }
+      }
+    });
+
+    function mostrarOperacion() {
+      var sel = document.getElementById('operacionSelect').value;
+      var secciones = document.querySelectorAll('.mantenimiento-page .section[data-op]');
+      secciones.forEach(function(s) { s.style.display = 'none'; });
+      if (sel) {
+        var target = document.querySelector('[data-op="' + sel + '"]');
+        if (target) target.style.display = 'block';
+      }
+    }
+
+    function verificarIntegridad() {
+      showToast('Verificando integridad de datos...', 'info');
+      document.getElementById('resultadosVerificacion').innerHTML = '<div class="loading"></div> Analizando...';
+      
+      google.script.run
+        .withSuccessHandler(function(resultados) {
+          mostrarResultadosVerificacion(resultados);
+        })
+        .withFailureHandler(function(error) {
+          showToast('Error: ' + error.message, 'error');
+          document.getElementById('resultadosVerificacion').innerHTML = '';
+        })
+        .verificarIntegridadDatos();
+    }
+
+    function mostrarResultadosVerificacion(resultados) {
+      var html = '<div style="background: white; border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; margin-top: 15px;">';
+      
+      var totalProblemas = (resultados.matriculasHuerfanas?.length || 0) + 
+                          (resultados.pagosHuerfanos?.length || 0) + 
+                          (resultados.seccionesInvalidas?.length || 0) + 
+                          (resultados.totalesIncorrectos?.length || 0);
+      
+      if (totalProblemas === 0) {
+        html += '<div style="text-align: center; color: var(--success); font-size: 18px; font-weight: 600;">✅ No se encontraron problemas</div>';
+        html += '<p style="text-align: center; color: var(--text-secondary); margin-top: 10px;">La integridad de los datos es correcta.</p>';
+      } else {
+        html += '<div style="text-align: center; color: var(--warning); font-size: 18px; font-weight: 600;">⚠️ Se encontraron ' + totalProblemas + ' problemas</div>';
+        
+        if (resultados.matriculasHuerfanas && resultados.matriculasHuerfanas.length > 0) {
+          html += '<h3 style="color: var(--danger); margin-top: 20px;">Matrículas Huérfanas (' + resultados.matriculasHuerfanas.length + ')</h3>';
+          html += '<ul>';
+          resultados.matriculasHuerfanas.forEach(function(m) {
+            html += '<li>' + m.id + ': ' + m.problema + ' (Alumno ID: ' + m.alumnoId + ')</li>';
+          });
+          html += '</ul>';
+        }
+        
+        if (resultados.pagosHuerfanos && resultados.pagosHuerfanos.length > 0) {
+          html += '<h3 style="color: var(--danger); margin-top: 20px;">Pagos Huérfanos (' + resultados.pagosHuerfanos.length + ')</h3>';
+          html += '<ul>';
+          resultados.pagosHuerfanos.forEach(function(p) {
+            html += '<li>' + p.id + ': ' + p.problema + ' (Matrícula ID: ' + p.matriculaId + ')</li>';
+          });
+          html += '</ul>';
+        }
+        
+        if (resultados.seccionesInvalidas && resultados.seccionesInvalidas.length > 0) {
+          html += '<h3 style="color: var(--danger); margin-top: 20px;">Secciones Inválidas (' + resultados.seccionesInvalidas.length + ')</h3>';
+          html += '<ul>';
+          resultados.seccionesInvalidas.forEach(function(s) {
+            html += '<li>' + s.id + ': ' + s.problema + ' (Sección: ' + s.seccion + ')</li>';
+          });
+          html += '</ul>';
+        }
+        
+        if (resultados.totalesIncorrectos && resultados.totalesIncorrectos.length > 0) {
+          html += '<h3 style="color: var(--warning); margin-top: 20px;">Totales Incorrectos (' + resultados.totalesIncorrectos.length + ')</h3>';
+          html += '<p style="font-size: 13px; color: var(--text-secondary);">Estos pueden repararse automáticamente con el botón "Reparar Datos".</p>';
+          html += '<ul>';
+          resultados.totalesIncorrectos.slice(0, 10).forEach(function(t) {
+            html += '<li>' + t.id + ': Registrado $' + t.totalPagadoRegistrado.toFixed(2) + ' / Real $' + t.totalPagadoReal.toFixed(2) + '</li>';
+          });
+          if (resultados.totalesIncorrectos.length > 10) {
+            html += '<li>... y ' + (resultados.totalesIncorrectos.length - 10) + ' más</li>';
+          }
+          html += '</ul>';
+        }
+      }
+      
+      html += '</div>';
+      document.getElementById('resultadosVerificacion').innerHTML = html;
+      
+      if (totalProblemas === 0) {
+        showToast('✅ Verificación completada: Sin problemas', 'success');
+      } else {
+        showToast('⚠️ Se encontraron ' + totalProblemas + ' problemas', 'warning');
+      }
+    }
+
+    function repararDatos() {
+      if (!confirm('¿Estás seguro de que deseas reparar los datos automáticamente?\n\nEsto modificará los registros con totales incorrectos.')) {
+        return;
+      }
+      
+      showToast('Reparando datos...', 'info');
+      document.getElementById('resultadosReparacion').innerHTML = '<div class="loading"></div> Reparando...';
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            var html = '<div style="background: #dcfce7; border: 1px solid #22c55e; border-radius: 8px; padding: 15px; margin-top: 15px;">';
+            html += '<div style="color: #166534; font-weight: 600;">✅ ' + result.message + '</div>';
+            html += '</div>';
+            document.getElementById('resultadosReparacion').innerHTML = html;
+            showToast(result.message, 'success');
+          } else {
+            showToast('Error: ' + result.message, 'error');
+            document.getElementById('resultadosReparacion').innerHTML = '';
+          }
+        })
+        .withFailureHandler(function(error) {
+          showToast('Error: ' + error.message, 'error');
+          document.getElementById('resultadosReparacion').innerHTML = '';
+        })
+        .repararIntegridadDatos();
+    }
+
+    function recalcularTotales() {
+      if (!confirm('¿Estás seguro de que deseas recalcular TODOS los totales?\n\nEsto actualizará todas las matrículas basándose en los pagos registrados.')) {
+        return;
+      }
+      
+      showToast('Recalculando totales...', 'info');
+      document.getElementById('resultadosRecalculo').innerHTML = '<div class="loading"></div> Recalculando...';
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            var html = '<div style="background: #dcfce7; border: 1px solid #22c55e; border-radius: 8px; padding: 15px; margin-top: 15px;">';
+            html += '<div style="color: #166534; font-weight: 600;">✅ ' + result.message + '</div>';
+            html += '</div>';
+            document.getElementById('resultadosRecalculo').innerHTML = html;
+            showToast(result.message, 'success');
+          } else {
+            showToast('Error: ' + result.message, 'error');
+            document.getElementById('resultadosRecalculo').innerHTML = '';
+          }
+        })
+        .withFailureHandler(function(error) {
+          showToast('Error: ' + error.message, 'error');
+          document.getElementById('resultadosRecalculo').innerHTML = '';
+        })
+        .recalcularTodosLosTotales();
+    }
+
+    function cargarLogs() {
+      var filtros = {
+        tabla: document.getElementById('filtroTabla').value,
+        accion: document.getElementById('filtroAccion').value
+      };
+      
+      showToast('Cargando logs...', 'info');
+      document.getElementById('logsBody').innerHTML = '<tr><td colspan="6" style="text-align: center;"><div class="loading"></div> Cargando...</td></tr>';
+      
+      google.script.run
+        .withSuccessHandler(function(logs) {
+          mostrarLogs(logs);
+        })
+        .withFailureHandler(function(error) {
+          showToast('Error: ' + error.message, 'error');
+          document.getElementById('logsBody').innerHTML = '<tr><td colspan="6" style="text-align: center;">Error al cargar logs</td></tr>';
+        })
+        .getLogs(filtros);
+    }
+
+    function mostrarLogs(logs) {
+      var tbody = document.getElementById('logsBody');
+      
+      if (logs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">No se encontraron logs</td></tr>';
+        return;
+      }
+      
+      var html = '';
+      logs.forEach(function(log) {
+        html += '<tr>';
+        html += '<td>' + log.Fecha + '</td>';
+        html += '<td>' + log.Usuario + '</td>';
+        html += '<td><span class="badge">' + log.Accion + '</span></td>';
+        html += '<td>' + log.Tabla + '</td>';
+        html += '<td>' + log.IDRegistro + '</td>';
+        html += '<td style="max-width: 300px; white-space: normal;">' + log.Detalles + '</td>';
+        html += '</tr>';
+      });
+      
+      tbody.innerHTML = html;
+      showToast('Logs cargados: ' + logs.length + ' registros', 'success');
+    }
+
+    function crearBackup() {
+      showToast('Creando backup...', 'info');
+      document.getElementById('resultadosBackup').innerHTML = '<div class="loading"></div> Creando copia de seguridad...';
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            var html = '<div style="background: #dcfce7; border: 1px solid #22c55e; border-radius: 8px; padding: 15px; margin-top: 15px;">';
+            html += '<div style="color: #166534; font-weight: 600;">✅ Backup creado exitosamente</div>';
+            if (result.url) {
+              html += '<p style="margin-top: 10px;"><a href="' + result.url + '" target="_blank" style="color: var(--primary);">📂 Abrir backup en Google Drive</a></p>';
+            }
+            html += '</div>';
+            document.getElementById('resultadosBackup').innerHTML = html;
+            showToast('Backup creado exitosamente', 'success');
+          } else {
+            showToast('Error: ' + result.message, 'error');
+            document.getElementById('resultadosBackup').innerHTML = '';
+          }
+        })
+        .withFailureHandler(function(error) {
+          showToast('Error: ' + error.message, 'error');
+          document.getElementById('resultadosBackup').innerHTML = '';
+        })
+        .crearBackupManual();
+    }
+
+    function buscarMatriculaParaCorreccion() {
+      var matriculaId = document.getElementById('matriculaIdCorreccion').value.trim();
+      
+      if (!matriculaId) {
+        showToast('Por favor ingresa un ID de matrícula', 'warning');
+        return;
+      }
+      
+      showToast('Buscando matrícula...', 'info');
+      document.getElementById('detallesMatricula').innerHTML = '<div class="loading"></div> Buscando...';
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            mostrarDetallesMatricula(result.data);
+          } else {
+            showToast('Error: ' + result.message, 'error');
+            document.getElementById('detallesMatricula').innerHTML = '';
+          }
+        })
+        .withFailureHandler(function(error) {
+          showToast('Error: ' + error.message, 'error');
+          document.getElementById('detallesMatricula').innerHTML = '';
+        })
+        .obtenerDetallesMatricula(matriculaId);
+    }
+
+    function mostrarDetallesMatricula(matricula) {
+      var html = '<div style="background: #f3f4f6; border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; margin-top: 15px;">';
+      html += '<h3 style="margin-top: 0;">Detalles de la Matrícula</h3>';
+      html += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">';
+      html += '<div><strong>ID Matrícula:</strong> ' + matricula.id + '</div>';
+      html += '<div><strong>Alumno:</strong> ' + matricula.alumnoNombre + '</div>';
+      html += '<div><strong>Curso:</strong> ' + matricula.curso + '</div>';
+      html += '<div><strong>Sección:</strong> ' + matricula.seccion + '</div>';
+      html += '<div><strong>Precio Actual:</strong> $' + parseFloat(matricula.precioTotal).toFixed(2) + '</div>';
+      html += '<div><strong>Total Pagado:</strong> $' + parseFloat(matricula.totalPagado).toFixed(2) + '</div>';
+      html += '<div><strong>Saldo Pendiente:</strong> $' + parseFloat(matricula.saldoPendiente).toFixed(2) + '</div>';
+      html += '<div><strong>Estado:</strong> ' + matricula.estado + '</div>';
+      html += '</div>';
+      html += '<button class="btn-submit" onclick="confirmarCorreccionPrecio(\'' + matricula.id + '\', ' + matricula.totalPagado + ')" style="margin-top: 15px; width: 100%;">✅ Confirmar Corrección</button>';
+      html += '</div>';
+      
+      document.getElementById('detallesMatricula').innerHTML = html;
+      showToast('Matrícula encontrada', 'success');
+    }
+
+    function confirmarCorreccionPrecio(matriculaId, totalPagado) {
+      var nuevoPrecio = parseFloat(document.getElementById('nuevoPrecio').value);
+      
+      if (isNaN(nuevoPrecio) || nuevoPrecio < 0) {
+        showToast('Por favor ingresa un precio válido', 'warning');
+        return;
+      }
+      
+      if (nuevoPrecio < totalPagado) {
+        showToast('El nuevo precio no puede ser menor al total pagado ($' + totalPagado.toFixed(2) + ')', 'warning');
+        return;
+      }
+      
+      if (!confirm('¿Estás seguro de que deseas cambiar el precio a $' + nuevoPrecio.toFixed(2) + '?\n\nEsto actualizará el saldo pendiente automáticamente.')) {
+        return;
+      }
+      
+      showToast('Corrigiendo precio...', 'info');
+      document.getElementById('resultadosCorreccion').innerHTML = '<div class="loading"></div> Procesando...';
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            var html = '<div style="background: #dcfce7; border: 1px solid #22c55e; border-radius: 8px; padding: 15px; margin-top: 15px;">';
+            html += '<div style="color: #166534; font-weight: 600;">✅ Precio corregido exitosamente</div>';
+            html += '<p style="margin-top: 10px; color: #166534;">Nuevo precio: $' + nuevoPrecio.toFixed(2) + '</p>';
+            html += '<p style="color: #166534;">Nuevo saldo pendiente: $' + result.nuevoSaldo.toFixed(2) + '</p>';
+            html += '</div>';
+            document.getElementById('resultadosCorreccion').innerHTML = html;
+            
+            // Limpiar formulario
+            document.getElementById('matriculaIdCorreccion').value = '';
+            document.getElementById('nuevoPrecio').value = '';
+            document.getElementById('detallesMatricula').innerHTML = '';
+            
+            showToast('Precio corregido exitosamente', 'success');
+          } else {
+            showToast('Error: ' + result.message, 'error');
+            document.getElementById('resultadosCorreccion').innerHTML = '';
+          }
+        })
+        .withFailureHandler(function(error) {
+          showToast('Error: ' + error.message, 'error');
+          document.getElementById('resultadosCorreccion').innerHTML = '';
+        })
+        .corregirPrecioMatricula(matriculaId, nuevoPrecio);
+    }
+
+    function cambiarCodigoSeccionUI() {
+      var codigoActual = document.getElementById('codigoActual').value.trim();
+      var codigoNuevo = document.getElementById('codigoNuevo').value.trim();
+      
+      if (!codigoActual || !codigoNuevo) {
+        showToast('Completa ambos campos', 'warning');
+        return;
+      }
+      
+      if (codigoActual === codigoNuevo) {
+        showToast('Los códigos deben ser diferentes', 'warning');
+        return;
+      }
+      
+      if (!confirm('¿Cambiar código de sección de ' + codigoActual + ' a ' + codigoNuevo + '?')) {
+        return;
+      }
+      
+      showToast('Cambiando código...', 'info');
+      document.getElementById('resultadosCambioSeccion').innerHTML = '<div class="loading"></div> Procesando...';
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            var html = '<div style="background: #dcfce7; border: 1px solid #22c55e; border-radius: 8px; padding: 15px; margin-top: 15px;">';
+            html += '<div style="color: #166534; font-weight: 600;">✅ ' + result.message + '</div>';
+            html += '</div>';
+            document.getElementById('resultadosCambioSeccion').innerHTML = html;
+            document.getElementById('codigoActual').value = '';
+            document.getElementById('codigoNuevo').value = '';
+            showToast(result.message, 'success');
+          } else {
+            showToast('Error: ' + result.message, 'error');
+            document.getElementById('resultadosCambioSeccion').innerHTML = '';
+          }
+        })
+        .withFailureHandler(function(error) {
+          showToast('Error: ' + error.message, 'error');
+          document.getElementById('resultadosCambioSeccion').innerHTML = '';
+        })
+        .cambiarCodigoSeccion(codigoActual, codigoNuevo);
+    }
+
+    function buscarMatriculaParaCorregir() {
+      var termino = document.getElementById('buscarTermino').value.trim();
+      
+      if (!termino) {
+        showToast('Ingresa un término de búsqueda', 'warning');
+        return;
+      }
+      
+      showToast('Buscando matrículas...', 'info');
+      document.getElementById('resultadosBusquedaMatricula').innerHTML = '<div class="loading"></div> Buscando...';
+      
+      google.script.run
+        .withSuccessHandler(function(resultados) {
+          if (!resultados || resultados.length === 0) {
+            document.getElementById('resultadosBusquedaMatricula').innerHTML = '<p style="text-align: center; color: #6b7280;">No se encontraron matrículas</p>';
+            return;
+          }
+          
+          var html = '<div class="table-container"><table class="data-table" style="font-size: 13px;">';
+          html += '<thead><tr><th>ID Matrícula</th><th>Alumno</th><th>Sección</th><th>Precio</th><th>Pagado</th><th>Saldo</th><th>Acción</th></tr></thead>';
+          html += '<tbody>';
+          
+          resultados.forEach(function(m) {
+            html += '<tr>';
+            html += '<td>' + m.ID + '</td>';
+            html += '<td>' + m.AlumnoNombre + '</td>';
+            html += '<td>' + m.Seccion + '</td>';
+            html += '<td>$' + (m.PrecioTotal || 0).toFixed(2) + '</td>';
+            html += '<td>$' + (m.TotalPagado || 0).toFixed(2) + '</td>';
+            html += '<td>$' + (m.SaldoPendiente || 0).toFixed(2) + '</td>';
+            html += '<td><input type="number" id="nuevoMonto_' + m.ID + '" value="' + (m.TotalPagado || 0).toFixed(2) + '" step="0.01" min="0" style="width: 80px; padding: 5px;"> <button class="btn-small" onclick="corregirMontoPagadoUI(\'' + m.ID + '\', ' + (m.PrecioTotal || 0) + ')">✅</button></td>';
+            html += '</tr>';
+          });
+          
+          html += '</tbody></table></div>';
+          document.getElementById('resultadosBusquedaMatricula').innerHTML = html;
+          showToast('Se encontraron ' + resultados.length + ' matrículas', 'success');
+        })
+        .withFailureHandler(function(error) {
+          showToast('Error: ' + error.message, 'error');
+          document.getElementById('resultadosBusquedaMatricula').innerHTML = '';
+        })
+        .buscarMatriculaPorAlumnoOCodigo(termino);
+    }
+
+    function corregirMontoPagadoUI(matriculaId, precioTotal) {
+      var nuevoMonto = parseFloat(document.getElementById('nuevoMonto_' + matriculaId).value);
+      
+      if (isNaN(nuevoMonto) || nuevoMonto < 0) {
+        showToast('Ingresa un monto válido', 'warning');
+        return;
+      }
+      
+      if (nuevoMonto > precioTotal) {
+        showToast('El monto no puede ser mayor al precio total ($' + precioTotal.toFixed(2) + ')', 'warning');
+        return;
+      }
+      
+      if (!confirm('¿Corregir monto pagado a $' + nuevoMonto.toFixed(2) + '?')) {
+        return;
+      }
+      
+      showToast('Corrigiendo monto...', 'info');
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            showToast(result.message, 'success');
+            buscarMatriculaParaCorregir();
+          } else {
+            showToast('Error: ' + result.message, 'error');
+          }
+        })
+        .withFailureHandler(function(error) {
+          showToast('Error: ' + error.message, 'error');
+        })
+        .corregirMontoPagado(matriculaId, nuevoMonto);
+    }
+
+    function registrarCambioSeccionError() {
+      var matriculaId = document.getElementById('matriculaIdCambioError').value.trim();
+      var correo = document.getElementById('correoAprobacion').value.trim();
+      
+      if (!matriculaId || !correo) {
+        showToast('Completa todos los campos', 'warning');
+        return;
+      }
+      
+      if (!confirm('¿Registrar cambio de sección por error para ' + matriculaId + '?')) {
+        return;
+      }
+      
+      showToast('Registrando cambio...', 'info');
+      document.getElementById('resultadosCambioError').innerHTML = '<div class="loading"></div> Procesando...';
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            var html = '<div style="background: #dcfce7; border: 1px solid #22c55e; border-radius: 8px; padding: 15px; margin-top: 15px;">';
+            html += '<div style="color: #166534; font-weight: 600;">✅ ' + result.message + '</div>';
+            html += '</div>';
+            document.getElementById('resultadosCambioError').innerHTML = html;
+            document.getElementById('matriculaIdCambioError').value = '';
+            document.getElementById('correoAprobacion').value = '';
+            showToast(result.message, 'success');
+          } else {
+            showToast('Error: ' + result.message, 'error');
+            document.getElementById('resultadosCambioError').innerHTML = '';
+          }
+        })
+        .withFailureHandler(function(error) {
+          showToast('Error: ' + error.message, 'error');
+          document.getElementById('resultadosCambioError').innerHTML = '';
+        })
+        .registrarCambioSeccionError(matriculaId, correo);
+    }
+
+    function showToast(message, type) {
+      var toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = 'toast ' + type + ' show';
+      setTimeout(function() { toast.classList.remove('show'); }, 4000);
+    }
+    
+    // === ELIMINAR VENTA ESPECÍFICA ===
+    var elimVentaTimeout = null;
+    function buscarAlumnoElimVenta() {
+      clearTimeout(elimVentaTimeout);
+      var termino = document.getElementById('elimVentaBuscar').value;
+      if (termino.length < 2) { document.getElementById('elimVentaResultados').style.display = 'none'; return; }
+      elimVentaTimeout = setTimeout(function() {
+        google.script.run
+          .withSuccessHandler(function(alumnos) {
+            var div = document.getElementById('elimVentaResultados');
+            if (!alumnos || alumnos.length === 0) { div.innerHTML = '<p style="padding:8px;color:#999;">No encontrado</p>'; div.style.display = 'block'; return; }
+            var html = '';
+            alumnos.forEach(function(a) {
+              html += '<div style="padding:8px;cursor:pointer;border-bottom:1px solid #eee;" onclick="seleccionarAlumnoElimVenta(\'' + a.ID + '\',\'' + (a.Nombre || '').replace(/'/g,'') + '\')">';
+              html += '<strong>' + (a.Nombre || 'Sin nombre') + '</strong> - ' + (a.Gmail || a.Email || '') + '</div>';
+            });
+            div.innerHTML = html;
+            div.style.display = 'block';
+          })
+          .buscarAlumno(termino);
+      }, 300);
+    }
+    
+    function seleccionarAlumnoElimVenta(alumnoId, nombre) {
+      document.getElementById('elimVentaResultados').style.display = 'none';
+      document.getElementById('elimVentaBuscar').value = nombre;
+      document.getElementById('elimVentaDetalle').innerHTML = '<p>Cargando ventas de ' + nombre + '...</p>';
+      document.getElementById('elimVentaDetalle').style.display = 'block';
+      
+      google.script.run
+        .withSuccessHandler(function(ventas) {
+          var div = document.getElementById('elimVentaDetalle');
+          if (!ventas || ventas.length === 0) { div.innerHTML = '<p>No se encontraron ventas para este alumno.</p>'; return; }
+          var html = '<h4>Ventas encontradas:</h4>';
+          ventas.forEach(function(v) {
+            html += '<div style="padding:12px;margin:8px 0;border:2px solid #e5e7eb;border-radius:6px;">';
+            html += '<strong>' + v.idVenta + '</strong> - ' + v.secciones + '<br>';
+            html += 'Total: $' + v.precioTotal.toFixed(2) + ' | Matrículas: ' + v.cantidadMatriculas + '<br>';
+            html += '<button class="btn-submit" style="background:#dc2626;margin-top:8px;" onclick="confirmarEliminarVenta(\'' + v.idVenta + '\',\'' + alumnoId + '\')">🗑️ Eliminar esta venta</button>';
+            html += '</div>';
+          });
+          div.innerHTML = html;
+        })
+        .withFailureHandler(function(e) { document.getElementById('elimVentaDetalle').innerHTML = '<p style="color:red;">Error: ' + e.message + '</p>'; })
+        .obtenerVentasAlumno(alumnoId);
+    }
+    
+    function confirmarEliminarVenta(idVenta, alumnoId) {
+      if (!confirm('¿Estás seguro de eliminar la venta ' + idVenta + '?\n\nEsto eliminará:\n- Matrículas asociadas\n- Pagos asociados\n- Cuotas programadas\n- Registro de venta\n- Eventos de Calendar\n\nEsta acción NO se puede deshacer.')) return;
+      
+      if (!confirm('SEGUNDA CONFIRMACIÓN: ¿Realmente deseas eliminar la venta ' + idVenta + '?')) return;
+      
+      showToast('Eliminando venta...', 'info');
+      google.script.run
+        .withSuccessHandler(function(result) {
+          document.getElementById('resultadosElimVenta').innerHTML = '<div style="padding:15px;background:' + (result.success ? '#d4edda' : '#f8d7da') + ';border-radius:6px;">' + result.message + '</div>';
+          if (result.success) {
+            document.getElementById('elimVentaDetalle').style.display = 'none';
+            showToast(result.message, 'success');
+          } else {
+            showToast(result.message, 'error');
+          }
+        })
+        .withFailureHandler(function(e) { showToast('Error: ' + e.message, 'error'); })
+        .eliminarVentaCompleta(idVenta, alumnoId);
+    }
+    // === CORREGIR SECCIÓN DE MATRÍCULA ===
+    var corregirSecTimeout = null;
+    function buscarAlumnoCorregirSec() {
+      clearTimeout(corregirSecTimeout);
+      var termino = document.getElementById('corregirSecBuscar').value;
+      if (termino.length < 2) { document.getElementById('corregirSecResultados').style.display = 'none'; return; }
+      corregirSecTimeout = setTimeout(function() {
+        google.script.run
+          .withSuccessHandler(function(alumnos) {
+            var div = document.getElementById('corregirSecResultados');
+            if (!alumnos || alumnos.length === 0) { div.innerHTML = '<p style="padding:8px;color:#999;">No encontrado</p>'; div.style.display = 'block'; return; }
+            var html = '';
+            alumnos.forEach(function(a) {
+              html += '<div style="padding:8px;cursor:pointer;border-bottom:1px solid #eee;" onclick="seleccionarAlumnoCorregirSec(\'' + a.ID + '\',\'' + (a.Nombre || '').replace(/'/g,'') + '\')">';
+              html += '<strong>' + (a.Nombre || 'Sin nombre') + '</strong> - ' + (a.Gmail || a.Email || '') + '</div>';
+            });
+            div.innerHTML = html;
+            div.style.display = 'block';
+          })
+          .buscarAlumno(termino);
+      }, 300);
+    }
+    
+    function seleccionarAlumnoCorregirSec(alumnoId, nombre) {
+      document.getElementById('corregirSecResultados').style.display = 'none';
+      document.getElementById('corregirSecBuscar').value = nombre;
+      document.getElementById('corregirSecDetalle').innerHTML = '<p>Cargando matrículas...</p>';
+      document.getElementById('corregirSecDetalle').style.display = 'block';
+      
+      google.script.run
+        .withSuccessHandler(function(data) {
+          var div = document.getElementById('corregirSecDetalle');
+          if (!data || !data.matriculas || data.matriculas.length === 0) {
+            div.innerHTML = '<p>No se encontraron matrículas para este alumno.</p>';
+            return;
+          }
+          
+          // Cargar secciones disponibles
+          google.script.run
+            .withSuccessHandler(function(secciones) {
+              var opcionesSecciones = '<option value="">Seleccionar nueva sección...</option>';
+              if (secciones) {
+                secciones.forEach(function(s) {
+                  opcionesSecciones += '<option value="' + s.Codigo + '">' + s.Codigo + ' - ' + s.NombreCurso + ' (' + s.Frecuencia + ')</option>';
+                });
+              }
+              
+              var html = '<h4>Matrículas de ' + nombre + ':</h4>';
+              data.matriculas.forEach(function(m) {
+                html += '<div style="padding:12px;margin:8px 0;border:2px solid #e5e7eb;border-radius:6px;">';
+                html += '<strong>' + m.ID + '</strong> - Sección actual: <strong>' + m.Seccion + '</strong> - $' + (m.PrecioTotal || 0).toFixed(2) + '<br>';
+                html += '<div style="display:flex;gap:10px;align-items:center;margin-top:8px;">';
+                html += '<select id="nuevaSec_' + m.ID + '" style="flex:1;padding:8px;border:2px solid #e5e7eb;border-radius:4px;">' + opcionesSecciones + '</select>';
+                html += '<label style="font-size:12px;white-space:nowrap;"><input type="checkbox" id="enviarEmailSec_' + m.ID + '" checked> Enviar email</label>';
+                html += '<button class="btn-submit" style="background:#7c3aed;" onclick="ejecutarCorregirSeccion(\'' + m.ID + '\',\'' + m.Seccion + '\')">🔀 Mover</button>';
+                html += '</div></div>';
+              });
+              div.innerHTML = html;
+            })
+            .getSecciones();
+        })
+        .withFailureHandler(function(e) { document.getElementById('corregirSecDetalle').innerHTML = '<p style="color:red;">Error: ' + e.message + '</p>'; })
+        .getMatriculasConPagosHybrid(alumnoId);
+    }
+    
+    function ejecutarCorregirSeccion(matriculaId, seccionActual) {
+      var nuevaSeccion = document.getElementById('nuevaSec_' + matriculaId).value;
+      var enviarEmail = document.getElementById('enviarEmailSec_' + matriculaId).checked;
+      if (!nuevaSeccion) { showToast('Selecciona una sección destino', 'error'); return; }
+      if (nuevaSeccion === seccionActual) { showToast('La sección destino es la misma', 'error'); return; }
+      if (!confirm('¿Mover matrícula ' + matriculaId + ' de ' + seccionActual + ' a ' + nuevaSeccion + '?' + (enviarEmail ? '\n\nSe enviará email de cambio de sección al alumno.' : '\n\nNO se enviará email.') + '\n\nEsto NO valida que sea el mismo curso.')) return;
+      
+      showToast('Moviendo matrícula...', 'info');
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            showToast(result.message, 'success');
+            document.getElementById('resultadosCorregirSec').innerHTML = '<div style="padding:15px;background:#d4edda;border-radius:6px;">' + result.message + '</div>';
+          } else {
+            showToast(result.message, 'error');
+          }
+        })
+        .withFailureHandler(function(e) { showToast('Error: ' + e.message, 'error'); })
+        .corregirSeccionMatricula(matriculaId, seccionActual, nuevaSeccion, enviarEmail);
+    }
+    
+    // === CORREGIR MODALIDAD ===
+    var corregirModTimeout = null;
+    function buscarAlumnoCorregirMod() {
+      clearTimeout(corregirModTimeout);
+      var termino = document.getElementById('corregirModBuscar').value;
+      if (termino.length < 2) { document.getElementById('corregirModResultados').style.display = 'none'; return; }
+      corregirModTimeout = setTimeout(function() {
+        google.script.run
+          .withSuccessHandler(function(alumnos) {
+            var div = document.getElementById('corregirModResultados');
+            if (!alumnos || alumnos.length === 0) { div.innerHTML = '<p style="padding:8px;color:#999;">No encontrado</p>'; div.style.display = 'block'; return; }
+            var html = '';
+            alumnos.forEach(function(a) {
+              html += '<div style="padding:8px;cursor:pointer;border-bottom:1px solid #eee;" onclick="seleccionarAlumnoCorregirMod(\'' + a.ID + '\',\'' + (a.Nombre || '').replace(/'/g,'') + '\')">';
+              html += '<strong>' + (a.Nombre || 'Sin nombre') + '</strong> - ' + (a.Gmail || a.Email || '') + '</div>';
+            });
+            div.innerHTML = html;
+            div.style.display = 'block';
+          })
+          .buscarAlumno(termino);
+      }, 300);
+    }
+    
+    function seleccionarAlumnoCorregirMod(alumnoId, nombre) {
+      document.getElementById('corregirModResultados').style.display = 'none';
+      document.getElementById('corregirModBuscar').value = nombre;
+      document.getElementById('corregirModDetalle').innerHTML = '<p>Cargando matrículas...</p>';
+      document.getElementById('corregirModDetalle').style.display = 'block';
+      
+      google.script.run
+        .withSuccessHandler(function(data) {
+          var div = document.getElementById('corregirModDetalle');
+          if (!data || !data.matriculas || data.matriculas.length === 0) {
+            div.innerHTML = '<p>No se encontraron matrículas para este alumno.</p>';
+            return;
+          }
+          var html = '<h4>Matrículas de ' + nombre + ':</h4>';
+          data.matriculas.forEach(function(m) {
+            var modalidad = m.Modalidad || 'Pro';
+            var montoExamen = m.MontoExamen || 0;
+            html += '<div style="border:1px solid #e5e7eb;border-radius:6px;padding:12px;margin-bottom:10px;background:#f9fafb;">';
+            html += '<div><strong>ID:</strong> ' + m.ID + ' | <strong>Sección:</strong> ' + m.Seccion + ' | <strong>Precio:</strong> $' + (m.Precio || 0).toFixed(2) + '</div>';
+            html += '<div><strong>Modalidad actual:</strong> ' + modalidad + (modalidad === 'Certify' ? ' (Examen: $' + parseFloat(montoExamen).toFixed(2) + ')' : '') + '</div>';
+            html += '<div><strong>Estado Pago:</strong> ' + (m.EstadoPago || '') + ' | <strong>Saldo:</strong> $' + (m.SaldoPendiente || 0).toFixed(2) + '</div>';
+            
+            html += '<div style="margin-top:10px;padding:10px;background:white;border-radius:4px;">';
+            html += '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">';
+            html += '<div><label style="font-size:12px;display:block;">Nueva Modalidad</label><select id="nuevaMod_' + m.ID + '" onchange="onCambioModalidad(\'' + m.ID + '\')" style="padding:6px;border:1px solid #ccc;border-radius:4px;">';
+            html += '<option value="Basic"' + (modalidad === 'Basic' ? ' selected' : '') + '>🟢 Basic</option>';
+            html += '<option value="Pro"' + (modalidad === 'Pro' ? ' selected' : '') + '>🔵 Pro</option>';
+            html += '<option value="Certify"' + (modalidad === 'Certify' ? ' selected' : '') + '>🟣 Certify</option>';
+            html += '</select></div>';
+            html += '<div><label style="font-size:12px;display:block;">Nuevo Precio (USD)</label><input type="number" id="nuevoPrecio_' + m.ID + '" step="0.01" min="0" value="' + (m.Precio || 0).toFixed(2) + '" style="padding:6px;border:1px solid #ccc;border-radius:4px;width:100px;"></div>';
+            html += '<div id="montoExWrap_' + m.ID + '" style="' + (modalidad === 'Certify' ? '' : 'display:none;') + '"><label style="font-size:12px;display:block;">Monto Examen (USD)</label><input type="number" id="nuevoMontoEx_' + m.ID + '" step="0.01" min="0" value="' + parseFloat(montoExamen || 0).toFixed(2) + '" style="padding:6px;border:1px solid #ccc;border-radius:4px;width:100px;"></div>';
+            html += '<div id="fechaSimWrap_' + m.ID + '" style="display:none;"><label style="font-size:12px;display:block;">Fecha fin acceso simulador</label><input type="date" id="nuevaFechaSim_' + m.ID + '" style="padding:6px;border:1px solid #ccc;border-radius:4px;"></div>';
+            html += '<div><label style="font-size:12px;display:block;"><input type="checkbox" id="reenviarEmail_' + m.ID + '"> Reenviar email de bienvenida</label></div>';
+            html += '<button class="btn-submit" style="background:#7c3aed;" onclick="ejecutarCorregirModalidad(\'' + m.ID + '\')">🎯 Aplicar</button>';
+            html += '</div></div>';
+            html += '</div>';
+          });
+          div.innerHTML = html;
+          // Inicializar visibilidad según modalidad actual
+          data.matriculas.forEach(function(m) { onCambioModalidad(m.ID); });
+        })
+        .withFailureHandler(function(e) { document.getElementById('corregirModDetalle').innerHTML = '<p style="color:red;">Error: ' + e.message + '</p>'; })
+        .obtenerMatriculasPorAlumno(alumnoId);
+    }
+    
+    function onCambioModalidad(matriculaId) {
+      var nuevaMod = document.getElementById('nuevaMod_' + matriculaId).value;
+      var montoExWrap = document.getElementById('montoExWrap_' + matriculaId);
+      var fechaSimWrap = document.getElementById('fechaSimWrap_' + matriculaId);
+      if (montoExWrap) montoExWrap.style.display = (nuevaMod === 'Certify') ? 'block' : 'none';
+      if (fechaSimWrap) fechaSimWrap.style.display = (nuevaMod === 'Pro' || nuevaMod === 'Certify') ? 'block' : 'none';
+      // Sugerir fecha por defecto según modalidad
+      var fechaInput = document.getElementById('nuevaFechaSim_' + matriculaId);
+      if (fechaInput && !fechaInput.value) {
+        var dias = nuevaMod === 'Certify' ? 120 : 60;
+        var fecha = new Date();
+        fecha.setDate(fecha.getDate() + dias);
+        fechaInput.value = fecha.toISOString().split('T')[0];
+      }
+    }
+    
+    function ejecutarCorregirModalidad(matriculaId) {
+      var nuevaMod = document.getElementById('nuevaMod_' + matriculaId).value;
+      var nuevoPrecio = parseFloat(document.getElementById('nuevoPrecio_' + matriculaId).value) || 0;
+      var montoExInput = document.getElementById('nuevoMontoEx_' + matriculaId);
+      var nuevoMontoEx = (nuevaMod === 'Certify' && montoExInput) ? parseFloat(montoExInput.value) || 0 : 0;
+      var fechaSimInput = document.getElementById('nuevaFechaSim_' + matriculaId);
+      var fechaFinSim = (nuevaMod === 'Pro' || nuevaMod === 'Certify') && fechaSimInput ? fechaSimInput.value : '';
+      var reenviarEmail = document.getElementById('reenviarEmail_' + matriculaId).checked;
+      
+      if (nuevaMod === 'Certify' && nuevoMontoEx <= 0) {
+        showToast('Certify requiere monto de examen > 0', 'error');
+        return;
+      }
+      
+      var resumen = '¿Confirmar cambio de modalidad?\n\n';
+      resumen += '• Nueva modalidad: ' + nuevaMod + '\n';
+      resumen += '• Nuevo precio: $' + nuevoPrecio.toFixed(2) + '\n';
+      if (nuevaMod === 'Certify') resumen += '• Monto examen: $' + nuevoMontoEx.toFixed(2) + '\n';
+      if (fechaFinSim) resumen += '• Fin acceso simulador: ' + fechaFinSim + '\n';
+      resumen += '• Reenviar email: ' + (reenviarEmail ? 'Sí' : 'No') + '\n';
+      
+      if (!confirm(resumen)) return;
+      
+      showToast('Aplicando cambios...', 'info');
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            showToast(result.message, 'success');
+            document.getElementById('resultadosCorregirMod').innerHTML = '<div style="padding:15px;background:#d4edda;border-radius:6px;">' + result.message + '</div>';
+          } else {
+            showToast(result.message, 'error');
+          }
+        })
+        .withFailureHandler(function(e) { showToast('Error: ' + e.message, 'error'); })
+        .corregirModalidadMatricula(matriculaId, nuevaMod, nuevoPrecio, nuevoMontoEx, fechaFinSim, reenviarEmail);
+    }
+
+    // === EDITAR CUOTAS PROGRAMADAS ===
+    var cuotasEditData = { idVenta: '', matriculaId: '', cuotas: [] };
+    
+    function buscarCuotasParaEditar() {
+      var termino = document.getElementById('cuotasBusqueda').value.trim();
+      if (!termino) { showToast('Ingresa un ID de matrícula o nombre', 'error'); return; }
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (!result || !result.success) {
+            document.getElementById('resultadosCuotas').innerHTML = '<p style="color:red;">' + (result ? result.message : 'Sin resultado') + '</p>';
+            document.getElementById('cuotasEditorContainer').style.display = 'none';
+            return;
+          }
+          cuotasEditData = result;
+          document.getElementById('cuotasEditorContainer').style.display = 'block';
+          document.getElementById('cuotasEditorInfo').innerHTML = '<strong>Matrícula:</strong> ' + result.matriculaId + ' | <strong>Alumno:</strong> ' + result.alumno + ' | <strong>Sección:</strong> ' + result.seccion + ' | <strong>ID Venta:</strong> ' + result.idVenta;
+          renderCuotasEditor(result.cuotas);
+          document.getElementById('resultadosCuotas').innerHTML = '';
+        })
+        .withFailureHandler(function(e) { showToast('Error: ' + e, 'error'); })
+        .buscarCuotasParaEditar(termino);
+    }
+    
+    function renderCuotasEditor(cuotas) {
+      var tbody = document.getElementById('cuotasEditorBody');
+      if (!cuotas || cuotas.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4">No hay cuotas programadas</td></tr>';
+        tbody.dataset.count = 0;
+        return;
+      }
+      var html = '';
+      cuotas.forEach(function(c, i) {
+        html += '<tr>';
+        html += '<td>' + c.numero + '</td>';
+        html += '<td><input type="number" id="cuotaMonto_' + i + '" value="' + c.monto + '" step="0.01" min="0" style="width:80px;padding:6px;"></td>';
+        html += '<td><input type="date" id="cuotaFecha_' + i + '" value="' + (c.fechaVencimiento || '') + '" style="padding:6px;"></td>';
+        html += '<td>' + (c.estado || 'Pendiente') + '</td>';
+        html += '</tr>';
+      });
+      tbody.innerHTML = html;
+      tbody.dataset.count = cuotas.length;
+    }
+    
+    function agregarCuotaEditor() {
+      var tbody = document.getElementById('cuotasEditorBody');
+      var count = parseInt(tbody.dataset.count) || 0;
+      var nuevoNum = count + 1;
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + nuevoNum + '</td><td><input type="number" id="cuotaMonto_' + count + '" value="0" step="0.01" min="0" style="width:80px;padding:6px;"></td><td><input type="date" id="cuotaFecha_' + count + '" style="padding:6px;"></td><td>Pendiente</td>';
+      tbody.appendChild(tr);
+      tbody.dataset.count = count + 1;
+    }
+    
+    function guardarCuotasEditadas() {
+      var tbody = document.getElementById('cuotasEditorBody');
+      var count = parseInt(tbody.dataset.count) || 0;
+      var cuotas = [];
+      for (var i = 0; i < count; i++) {
+        var montoEl = document.getElementById('cuotaMonto_' + i);
+        var fechaEl = document.getElementById('cuotaFecha_' + i);
+        if (!montoEl) continue;
+        cuotas.push({ numero: i + 1, monto: parseFloat(montoEl.value) || 0, fechaVencimiento: fechaEl ? fechaEl.value : '' });
+      }
+      if (!cuotasEditData.idVenta) { showToast('No se encontró ID de venta', 'error'); return; }
+      google.script.run
+        .withSuccessHandler(function(r) { showToast(r && r.success ? 'Cuotas actualizadas' : (r ? r.message : 'Error'), r && r.success ? 'success' : 'error'); })
+        .withFailureHandler(function(e) { showToast('Error: ' + e, 'error'); })
+        .actualizarCuotasProgramadas(cuotasEditData.idVenta, cuotas);
+    }
+    
+  </script>
+</body>
+</html>
